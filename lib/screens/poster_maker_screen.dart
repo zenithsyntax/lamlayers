@@ -6,6 +6,7 @@ import 'dart:ui' as ui;
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/painting.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
@@ -42,18 +43,31 @@ class _ShapePainter extends CustomPainter {
     final bool hasGradient = (props['hasGradient'] as bool?) ?? false;
     final List<Color> gradientColors = (props['gradientColors'] as List<Color>?) ?? [Colors.blue, Colors.purple];
     final double cornerRadius = (props['cornerRadius'] as double?) ?? 12.0;
+    final ui.Image? fillImage = props['image'] as ui.Image?;
 
     final Path path = _buildPath(shape, rect, cornerRadius);
 
-    final Paint fillPaint = Paint()
-      ..style = PaintingStyle.fill
-      ..isAntiAlias = true;
-    if (hasGradient) {
-      fillPaint.shader = LinearGradient(colors: gradientColors).createShader(rect);
+    if (fillImage != null) {
+      // Draw image clipped to the shape path using BoxFit.cover
+      canvas.save();
+      canvas.clipPath(path);
+      final Size imageSize = Size(fillImage.width.toDouble(), fillImage.height.toDouble());
+      final FittedSizes fitted = applyBoxFit(BoxFit.cover, imageSize, size);
+      final Rect inputSubrect = Alignment.center.inscribe(fitted.source, Offset.zero & imageSize);
+      final Rect outputSubrect = Alignment.center.inscribe(fitted.destination, rect);
+      canvas.drawImageRect(fillImage, inputSubrect, outputSubrect, Paint()..isAntiAlias = true);
+      canvas.restore();
     } else {
-      fillPaint.color = fillColor;
+      final Paint fillPaint = Paint()
+        ..style = PaintingStyle.fill
+        ..isAntiAlias = true;
+      if (hasGradient) {
+        fillPaint.shader = LinearGradient(colors: gradientColors).createShader(rect);
+      } else {
+        fillPaint.color = fillColor;
+      }
+      canvas.drawPath(path, fillPaint);
     }
-    canvas.drawPath(path, fillPaint);
 
     if (strokeWidth > 0) {
       final Paint strokePaint = Paint()
@@ -753,6 +767,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           _miniColorSwatch('Stroke', selectedItem!.properties['strokeColor'] as Color? ?? Colors.black, () => _showColorPicker('strokeColor')),
           _miniSlider('Stroke', (selectedItem!.properties['strokeWidth'] as double?) ?? 2.0, 0.0, 10.0, (v) => setState(() => selectedItem!.properties['strokeWidth'] = v), Icons.line_weight_rounded),
           _miniSlider('Radius', (selectedItem!.properties['cornerRadius'] as double?) ?? 12.0, 0.0, 50.0, (v) => setState(() => selectedItem!.properties['cornerRadius'] = v), Icons.rounded_corner_rounded),
+          _miniIconButton('Image Fill', Icons.photo_library_rounded, () => _pickShapeImage()),
+          if (selectedItem!.properties['image'] != null)
+            _miniIconButton('Clear Image', Icons.delete_sweep_rounded, () => setState(() => selectedItem!.properties['image'] = null)),
         ];
     }
   }
@@ -1734,6 +1751,12 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         _buildSliderOption('Corner Radius', (props['cornerRadius'] as double?) ?? 12.0, 0.0, 50.0, (value) => setState(() => props['cornerRadius'] = value), Icons.rounded_corner_rounded),
         SizedBox(height: 20.h),
         _buildToggleOption('Gradient Fill', (props['hasGradient'] as bool?) ?? false, Icons.gradient_rounded, (value) => setState(() => props['hasGradient'] = value)),
+        SizedBox(height: 16.h),
+        _buildOptionButton('Pick Image Inside Shape', Icons.photo_library_rounded, Colors.blue.shade400, _pickShapeImage),
+        if (props['image'] != null) ...[
+          SizedBox(height: 12.h),
+          _buildOptionButton('Clear Image', Icons.delete_sweep_rounded, Colors.red.shade400, () => setState(() => props['image'] = null)),
+        ],
         if (props['hasGradient'] == true) ...[
           SizedBox(height: 16.h),
           _buildGradientPicker(props),
@@ -2014,6 +2037,26 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to pick image')));
+    }
+  }
+
+  Future<void> _pickShapeImage() async {
+    try {
+      final XFile? picked = await _imagePicker.pickImage(source: ImageSource.gallery);
+      if (picked == null || selectedItem == null || selectedItem!.type != CanvasItemType.shape) return;
+      final Uint8List bytes = await File(picked.path).readAsBytes();
+      final ui.Codec codec = await ui.instantiateImageCodec(bytes);
+      final ui.FrameInfo frame = await codec.getNextFrame();
+      final ui.Image image = frame.image;
+      final previous = selectedItem!.copyWith();
+      setState(() {
+        selectedItem!.properties['image'] = image;
+        selectedItem!.properties['imagePath'] = picked.path; // keep path if needed later
+      });
+      _addAction(CanvasAction(type: 'modify', item: selectedItem, previousState: previous, timestamp: DateTime.now()));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to load image for shape')));
     }
   }
 
