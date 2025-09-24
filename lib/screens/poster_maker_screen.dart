@@ -3,6 +3,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -23,6 +24,234 @@ class PosterMakerScreen extends StatefulWidget {
 
   @override
   State<PosterMakerScreen> createState() => _PosterMakerScreenState();
+}
+
+// Custom painter that renders various shapes based on props['shape']
+class _ShapePainter extends CustomPainter {
+  final Map<String, dynamic> props;
+
+  _ShapePainter(this.props);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Rect rect = Offset.zero & size;
+    final String shape = (props['shape'] as String?)?.toLowerCase() ?? 'rectangle';
+    final double strokeWidth = (props['strokeWidth'] as double?) ?? 2.0;
+    final Color fillColor = (props['fillColor'] as Color?) ?? Colors.blue;
+    final Color strokeColor = (props['strokeColor'] as Color?) ?? Colors.black;
+    final bool hasGradient = (props['hasGradient'] as bool?) ?? false;
+    final List<Color> gradientColors = (props['gradientColors'] as List<Color>?) ?? [Colors.blue, Colors.purple];
+    final double cornerRadius = (props['cornerRadius'] as double?) ?? 12.0;
+
+    final Path path = _buildPath(shape, rect, cornerRadius);
+
+    final Paint fillPaint = Paint()
+      ..style = PaintingStyle.fill
+      ..isAntiAlias = true;
+    if (hasGradient) {
+      fillPaint.shader = LinearGradient(colors: gradientColors).createShader(rect);
+    } else {
+      fillPaint.color = fillColor;
+    }
+    canvas.drawPath(path, fillPaint);
+
+    if (strokeWidth > 0) {
+      final Paint strokePaint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = strokeWidth
+        ..color = strokeColor
+        ..isAntiAlias = true;
+      canvas.drawPath(path, strokePaint);
+    }
+  }
+
+  Path _buildPath(String shape, Rect rect, double cornerRadius) {
+    switch (shape) {
+      case 'circle':
+        return Path()..addOval(rect);
+      case 'rectangle':
+        return Path()..addRRect(RRect.fromRectAndRadius(rect, Radius.circular(cornerRadius)));
+      case 'triangle':
+        return _trianglePath(rect, cornerRadius);
+      case 'diamond':
+        return _diamondPath(rect, cornerRadius);
+      case 'hexagon':
+        return _regularPolygonPath(rect, 6, cornerRadius);
+      case 'star':
+        return _starRoundedPath(rect, 5, cornerRadius);
+      case 'heart':
+        return _heartPathAccurate(rect, cornerRadius);
+      default:
+        return Path()..addRRect(RRect.fromRectAndRadius(rect, Radius.circular(cornerRadius)));
+    }
+  }
+
+  Path _trianglePath(Rect rect, double radius) {
+    final List<Offset> points = [
+      Offset(rect.center.dx, rect.top),
+      Offset(rect.right, rect.bottom),
+      Offset(rect.left, rect.bottom),
+    ];
+    return _roundedPolygonPath(points, radius);
+  }
+
+  Path _diamondPath(Rect rect, double radius) {
+    final List<Offset> points = [
+      Offset(rect.center.dx, rect.top),
+      Offset(rect.right, rect.center.dy),
+      Offset(rect.center.dx, rect.bottom),
+      Offset(rect.left, rect.center.dy),
+    ];
+    return _roundedPolygonPath(points, radius);
+  }
+
+  Path _regularPolygonPath(Rect rect, int sides, double cornerRadius) {
+    final double cx = rect.center.dx;
+    final double cy = rect.center.dy;
+    final double r = math.min(rect.width, rect.height) / 2;
+    final List<Offset> points = List.generate(sides, (i) {
+      final double angle = (-math.pi / 2) + (2 * math.pi * i / sides);
+      return Offset(cx + r * math.cos(angle), cy + r * math.sin(angle));
+    });
+    return _roundedPolygonPath(points, cornerRadius);
+  }
+
+  Path _starRoundedPath(Rect rect, int points, double cornerRadius) {
+    final double cx = rect.center.dx;
+    final double cy = rect.center.dy;
+    final double outerR = math.min(rect.width, rect.height) / 2;
+    final double innerR = outerR * 0.5;
+    final int total = points * 2;
+    final List<Offset> vertices = List.generate(total, (i) {
+      final double r = (i % 2 == 0) ? outerR : innerR;
+      final double angle = (-math.pi / 2) + (i * math.pi / points);
+      return Offset(cx + r * math.cos(angle), cy + r * math.sin(angle));
+    });
+    return _roundedPolygonPath(vertices, cornerRadius);
+  }
+
+  // Build a rounded-corner polygon path from ordered vertices
+  Path _roundedPolygonPath(List<Offset> vertices, double radius) {
+    // If radius is zero or negative, fall back to sharp polygon
+    if (radius <= 0) {
+      final Path sharp = Path()..moveTo(vertices.first.dx, vertices.first.dy);
+      for (int i = 1; i < vertices.length; i++) {
+        sharp.lineTo(vertices[i].dx, vertices[i].dy);
+      }
+      sharp.close();
+      return sharp;
+    }
+
+    final int n = vertices.length;
+    final Path path = Path();
+
+    Offset _trimPoint(Offset from, Offset to, double d) {
+      final Offset vec = to - from;
+      final double len = vec.distance;
+      if (len == 0) return from;
+      final double t = (d / len).clamp(0.0, 1.0);
+      return from + vec * t;
+    }
+
+    // Compute first corner trimmed start point
+    for (int i = 0; i < n; i++) {
+      final Offset p0 = vertices[(i - 1 + n) % n];
+      final Offset p1 = vertices[i];
+      final Offset p2 = vertices[(i + 1) % n];
+
+      final Offset v1 = (p0 - p1);
+      final Offset v2 = (p2 - p1);
+
+      final double len1 = v1.distance;
+      final double len2 = v2.distance;
+      if (len1 == 0 || len2 == 0) continue;
+
+      final Offset u1 = v1 / len1;
+      final Offset u2 = v2 / len2;
+
+      // Angle between incoming and outgoing edges
+      final double dot = (u1.dx * u2.dx + u1.dy * u2.dy).clamp(-1.0, 1.0);
+      final double theta = math.acos(dot);
+      // Avoid division by zero for straight lines
+      final double tangent = math.tan(theta / 2);
+      double offsetDist = tangent == 0 ? 0 : (radius / tangent);
+      // Limit by half of each adjacent edge
+      offsetDist = math.min(offsetDist, math.min(len1, len2) / 2 - 0.01);
+      if (offsetDist.isNaN || offsetDist.isInfinite || offsetDist < 0) {
+        offsetDist = 0;
+      }
+
+      final Offset start = _trimPoint(p1, p0, offsetDist);
+      final Offset end = _trimPoint(p1, p2, offsetDist);
+
+      if (i == 0) {
+        path.moveTo(start.dx, start.dy);
+      } else {
+        path.lineTo(start.dx, start.dy);
+      }
+
+      // Use quadratic curve with control at the original vertex to handle concave and convex cases
+      path.quadraticBezierTo(p1.dx, p1.dy, end.dx, end.dy);
+    }
+
+    path.close();
+    return path;
+  }
+
+  // removed arrow path per request
+
+  Path _heartPathAccurate(Rect rect, double radius) {
+  final Path path = Path();
+  final double w = rect.width;
+  final double h = rect.height;
+  final double x = rect.left;
+  final double y = rect.top;
+  final double cx = x + w / 2;
+
+  // Dip at the top (between the lobes)
+  final double dipY = y + h * 0.25; 
+
+  // Start at dip
+  path.moveTo(cx, dipY);
+
+  // Left lobe top curve
+  path.cubicTo(
+    cx - w * 0.25, y,   // control 1
+    x, y + h * 0.25,    // control 2
+    x, y + h * 0.45,    // end of left lobe curve
+  );
+
+  // Left bottom curve
+  path.cubicTo(
+    x, y + h * 0.75, 
+    cx - w * 0.25, y + h * 0.9, 
+    cx, y + h, // bottom tip
+  );
+
+  // Right bottom curve
+  path.cubicTo(
+    cx + w * 0.25, y + h * 0.9, 
+    x + w, y + h * 0.75, 
+    x + w, y + h * 0.45, 
+  );
+
+  // Right lobe top curve
+  path.cubicTo(
+    x + w, y + h * 0.25, 
+    cx + w * 0.25, y, 
+    cx, dipY, // back to dip
+  );
+
+  path.close();
+  return path;
+}
+
+
+  @override
+  bool shouldRepaint(covariant _ShapePainter oldDelegate) {
+    // Repaint whenever the parent rebuilds to reflect in-place mutations to props
+    return true;
+  }
 }
 
 class _PosterMakerScreenState extends State<PosterMakerScreen>
@@ -80,7 +309,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     {'shape': 'hexagon', 'icon': Icons.hexagon_outlined},
     {'shape': 'diamond', 'icon': Icons.diamond_outlined},
     {'shape': 'star', 'icon': Icons.star_border_rounded},
-    {'shape': 'arrow', 'icon': Icons.arrow_forward_rounded},
     {'shape': 'heart', 'icon': Icons.favorite_border_rounded},
   ];
 
@@ -239,7 +467,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           'strokeWidth': 2.0,
           'hasGradient': false,
           'gradientColors': [Colors.lightBlue, Colors.blueAccent],
-          'cornerRadius': 12.0,
+          'cornerRadius': 0.0,
         };
     }
   }
@@ -815,7 +1043,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             'strokeWidth': 2.0,
             'hasGradient': false,
             'gradientColors': [Colors.lightGreen, Colors.green],
-            'cornerRadius': 12.0,
+            'cornerRadius': 0.0,
           },
         );
         break;
@@ -1148,7 +1376,13 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           child: Icon((item.properties['icon'] as IconData?) ?? Icons.emoji_emotions_rounded, size: 60.sp, color: (item.properties['color'] as Color?) ?? Colors.orange),
         );
       case CanvasItemType.shape:
-        return Container(width: 120.w, height: 120.h, decoration: _buildShapeDecoration(item.properties));
+        return SizedBox(
+          width: 120.w,
+          height: 120.h,
+          child: CustomPaint(
+            painter: _ShapePainter(item.properties),
+          ),
+        );
     }
   }
 
@@ -1164,6 +1398,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       shape: shape == 'circle' ? BoxShape.circle : BoxShape.rectangle,
     );
   }
+
+  
 
   
 
