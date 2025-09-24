@@ -1,3 +1,5 @@
+//push checker 1
+
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -859,6 +861,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     ),
   );
 }
+
+
 
   Widget _buildCanvasItem(CanvasItem item) {
     final isSelected = selectedItem == item;
