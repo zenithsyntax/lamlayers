@@ -1076,14 +1076,15 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       case CanvasItemType.image:
         final String? filePath = item.properties['filePath'] as String?;
         final double blur = (item.properties['blur'] as double?) ?? 0.0;
+        final double? displayW = (item.properties['displayWidth'] as double?);
+        final double? displayH = (item.properties['displayHeight'] as double?);
         final Widget content = filePath != null
-            ? ClipRRect(
-                borderRadius: BorderRadius.circular(12.r),
+            ? SizedBox(
+                width: (displayW ?? 160.0).w,
+                height: (displayH ?? 160.0).h,
                 child: Image.file(
                   File(filePath),
-                  width: 160.w,
-                  height: 160.h,
-                  fit: BoxFit.cover,
+                  fit: BoxFit.contain,
                 ),
               )
             : Icon((item.properties['icon'] as IconData?) ?? Icons.image, size: 90.sp, color: (item.properties['color'] as Color?) ?? Colors.blue);
@@ -1691,14 +1692,46 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     try {
       final XFile? picked = await _imagePicker.pickImage(source: ImageSource.gallery);
       if (picked == null) return;
+      // Decode intrinsic dimensions to preserve original aspect ratio
+      final File file = File(picked.path);
+      final Uint8List bytes = await file.readAsBytes();
+      final ui.Image decoded = await decodeImageFromList(bytes);
+      final double intrinsicW = decoded.width.toDouble();
+      final double intrinsicH = decoded.height.toDouble();
+      // Set an initial displayed size that fits within a reasonable box while keeping ratio
+      const double maxEdge = 240.0; // logical px baseline before user scaling
+      double displayW = intrinsicW;
+      double displayH = intrinsicH;
+      if (intrinsicW > intrinsicH && intrinsicW > maxEdge) {
+        displayW = maxEdge;
+        displayH = maxEdge * (intrinsicH / intrinsicW);
+      } else if (intrinsicH >= intrinsicW && intrinsicH > maxEdge) {
+        displayH = maxEdge;
+        displayW = maxEdge * (intrinsicW / intrinsicH);
+      }
       if (replace && selectedItem != null && selectedItem!.type == CanvasItemType.image) {
         final previous = selectedItem!.copyWith();
         setState(() {
           selectedItem!.properties['filePath'] = picked.path;
+          selectedItem!.properties['intrinsicWidth'] = intrinsicW;
+          selectedItem!.properties['intrinsicHeight'] = intrinsicH;
+          selectedItem!.properties['displayWidth'] = displayW;
+          selectedItem!.properties['displayHeight'] = displayH;
         });
         _addAction(CanvasAction(type: 'modify', item: selectedItem, previousState: previous, timestamp: DateTime.now()));
       } else {
-        _addCanvasItem(CanvasItemType.image, properties: {'filePath': picked.path, 'tint': Colors.transparent, 'blur': 0.0});
+        _addCanvasItem(
+          CanvasItemType.image,
+          properties: {
+            'filePath': picked.path,
+            'tint': Colors.transparent,
+            'blur': 0.0,
+            'intrinsicWidth': intrinsicW,
+            'intrinsicHeight': intrinsicH,
+            'displayWidth': displayW,
+            'displayHeight': displayH,
+          },
+        );
       }
     } catch (e) {
       if (!mounted) return;
