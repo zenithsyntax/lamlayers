@@ -805,12 +805,19 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   }
 
   Widget _buildCanvas() {
-    return Expanded(
+  return Expanded(
+    child: InteractiveViewer(
+      minScale: 0.5,
+      maxScale: 3.0,
+      onInteractionUpdate: (details) {
+        setState(() {
+          canvasZoom = details.scale;
+        });
+      },
       child: Container(
         margin: EdgeInsets.all(20.w),
         decoration: BoxDecoration(
           color: Colors.white,
-        
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.08),
@@ -820,46 +827,37 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           ],
         ),
         child: ClipRRect(
-      
           child: RepaintBoundary(
             key: _canvasRepaintKey,
-            child: InteractiveViewer(
-              minScale: 0.5,
-              maxScale: 3.0,
-              onInteractionUpdate: (details) {
-                setState(() {
-                  canvasZoom = details.scale;
-                });
-              },
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    child: GestureDetector(
-                      onTap: _deselectItem,
-                      child: Container(
-                        color: Colors.white,
-                        child: CustomPaint(
-                          painter: CanvasGridPainter(
-                            showGrid: snapToGrid,
-                            gridSize: 20.0,
-                          ),
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: GestureDetector(
+                    onTap: _deselectItem,
+                    child: Container(
+                      color: Colors.white,
+                      child: CustomPaint(
+                        painter: CanvasGridPainter(
+                          showGrid: snapToGrid,
+                          gridSize: 20.0,
                         ),
                       ),
                     ),
                   ),
-                  ...(() {
-                    final items = [...canvasItems]
-                      ..sort((a, b) => a.layerIndex.compareTo(b.layerIndex));
-                    return items.map((it) => _buildCanvasItem(it)).toList();
-                  })(),
-                ],
-              ),
+                ),
+                ...(() {
+                  final items = [...canvasItems]
+                    ..sort((a, b) => a.layerIndex.compareTo(b.layerIndex));
+                  return items.map((it) => _buildCanvasItem(it)).toList();
+                })(),
+              ],
             ),
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildCanvasItem(CanvasItem item) {
     final isSelected = selectedItem == item;
@@ -1859,17 +1857,17 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[100],
-      body: SafeArea(
-        child: Column(children: [_buildTopToolbar(), _buildCanvas(), _buildActionBar()]),
-      ),
-      bottomSheet: const SizedBox.shrink(),
-    );
+    @override
+    Widget build(BuildContext context) {
+      return Scaffold(
+        backgroundColor: Colors.grey[100],
+        body: SafeArea(
+          child: Column(children: [ _buildActionBar(), _buildCanvas(), _buildTopToolbar(),]),
+        ),
+        bottomSheet: const SizedBox.shrink(),
+      );
+    }
   }
-}
 
 
 
