@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -29,6 +28,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   bool showBottomSheet = false;
   bool snapToGrid = false;
   double canvasZoom = 1.0;
+  int editTopbarTabIndex = 0; // 0: General, 1: Type
   final ImagePicker _imagePicker = ImagePicker();
   final GlobalKey _canvasRepaintKey = GlobalKey();
 
@@ -248,9 +248,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   void _selectItem(CanvasItem item) {
     setState(() {
       selectedItem = item;
-      showBottomSheet = true;
+      showBottomSheet = false;
     });
-    _bottomSheetController.forward();
+    // Editing will be shown in the top toolbar instead of bottom sheet
     _selectionController.forward();
   }
 
@@ -306,8 +306,11 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   }
 
   Widget _buildTopToolbar() {
+    if (selectedItem != null) {
+      return _buildTopEditToolbar();
+    }
     return Container(
-      height: 160.h,
+      height: 170.h,
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -319,50 +322,352 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         ],
       ),
       child: Column(
-  children: [
-    Container(
-      padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 20.h),
-      child: Row(
-        children: List.generate(tabTitles.length, (index) {
-          final isSelected = selectedTabIndex == index;
-          return Expanded(
-            child: GestureDetector(
-              onTap: () => setState(() => selectedTabIndex = index),
-              child: Container(
-                margin: EdgeInsets.symmetric(horizontal: 6.w),
-                padding: EdgeInsets.symmetric(vertical: 14.h),
-                decoration: BoxDecoration(
-                  color: isSelected ? Colors.blue : Colors.white,
-                  borderRadius: BorderRadius.circular(20.r),
-                  border: Border.all(
-                    color: isSelected ? Colors.blue : Colors.grey.shade300,
-                    width: 1.2,
+        children: [
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 20.h),
+            child: Row(
+              children: List.generate(tabTitles.length, (index) {
+                final isSelected = selectedTabIndex == index;
+                return Expanded(
+                  child: GestureDetector(
+                    onTap: () => setState(() => selectedTabIndex = index),
+                    child: Container(
+                      margin: EdgeInsets.symmetric(horizontal: 6.w),
+                      padding: EdgeInsets.symmetric(vertical: 14.h),
+                      decoration: BoxDecoration(
+                        color: isSelected ? Colors.blue : Colors.white,
+                        borderRadius: BorderRadius.circular(20.r),
+                        border: Border.all(
+                          color: isSelected ? Colors.blue : Colors.grey.shade300,
+                          width: 1.2,
+                        ),
+                      ),
+                      child: Text(
+                        tabTitles[index],
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: isSelected ? Colors.white : Colors.grey.shade700,
+                          fontSize: 15.sp,
+                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
+          Expanded(
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 24.w),
+              child: _buildTabContent(),
+            ),
+          ),
+          SizedBox(height: 10.h,)
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTopEditToolbar() {
+    // Compact editing UI shown at the top when an item is selected
+    return Container(
+      height: 170.h,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+            child: Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(10.w),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: [Colors.blue.shade400, Colors.blue.shade600]),
+                    borderRadius: BorderRadius.circular(14.r),
+                  ),
+                  child: Icon(_getItemTypeIcon(selectedItem!.type), color: Colors.white, size: 20.sp),
+                ),
+                SizedBox(width: 12.w),
+                Text('${selectedItem!.type.name.toUpperCase()} ', style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.bold, color: Colors.grey[800])),
+                const Spacer(),
+                _buildEditModeSegmentedControl(),
+                SizedBox(width: 12.w),
+                GestureDetector(
+                  onTap: _deselectItem,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(12.r),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.close_rounded, size: 16.sp, color: Colors.grey[700]),
+                        SizedBox(width: 6.w),
+                        Text('Done', style: TextStyle(fontSize: 12.sp, color: Colors.grey[700], fontWeight: FontWeight.w600)),
+                      ],
+                    ),
                   ),
                 ),
-                child: Text(
-                  tabTitles[index],
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: isSelected ? Colors.white : Colors.grey.shade700,
-                    fontSize: 15.sp,
-                    fontWeight:
-                        isSelected ? FontWeight.w600 : FontWeight.w400,
-                  ),
-                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16.w),
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: _buildTopbarQuickControls(),
               ),
             ),
-          );
-        }),
+          ),
+          SizedBox(height: 10.h,)
+        ],
       ),
-    ),
-    Expanded(
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 24.w),
-        child: _buildTabContent(),
+    );
+  }
+
+  Widget _buildEditModeSegmentedControl() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(color: Colors.grey.shade300),
       ),
-    ),
-  ],
-)
+      child: Row(
+        children: [
+          _buildSegmentButton('General', 0),
+          _buildSegmentButton('Type', 1),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSegmentButton(String label, int index) {
+    final bool isActive = editTopbarTabIndex == index;
+    return GestureDetector(
+      onTap: () => setState(() => editTopbarTabIndex = index),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+        decoration: BoxDecoration(
+          color: isActive ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(10.r),
+          boxShadow: isActive ? [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 6, offset: const Offset(0, 2))] : null,
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12.sp,
+            color: isActive ? Colors.blue.shade700 : Colors.grey.shade700,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildTopbarQuickControls() {
+    if (selectedItem == null) return [];
+    if (editTopbarTabIndex == 0) {
+      // General controls
+      return [
+        _miniSlider('Opacity', selectedItem!.opacity, 0.1, 1.0, (v) => setState(() => selectedItem!.opacity = v), Icons.opacity_rounded),
+        _miniSlider('Scale', selectedItem!.scale, 0.3, 3.0, (v) => setState(() => selectedItem!.scale = v), Icons.zoom_out_map_rounded),
+        _miniSlider('Rotate', selectedItem!.rotation * 180 / 3.14159, -180, 180, (v) => setState(() => selectedItem!.rotation = v * 3.14159 / 180), Icons.rotate_right_rounded),
+        _miniIconButton('Duplicate', Icons.copy_rounded, () => _duplicateItem(selectedItem!)),
+        _miniIconButton('Delete', Icons.delete_rounded, () => _removeItem(selectedItem!)),
+        _miniIconButton('Front', Icons.vertical_align_top_rounded, () => _bringToFront(selectedItem!)),
+        _miniIconButton('Back', Icons.vertical_align_bottom_rounded, () => _sendToBack(selectedItem!)),
+      ];
+    }
+    // Type specific
+    switch (selectedItem!.type) {
+      case CanvasItemType.text:
+        return [
+          _miniTextField('Text', (selectedItem!.properties['text'] as String?) ?? '', (v) => setState(() => selectedItem!.properties['text'] = v)),
+          _miniSlider('Font', (selectedItem!.properties['fontSize'] as double?) ?? 24.0, 10.0, 72.0, (v) => setState(() => selectedItem!.properties['fontSize'] = v), Icons.format_size_rounded),
+          _miniToggleIcon('Bold', Icons.format_bold_rounded, selectedItem!.properties['fontWeight'] == FontWeight.bold, () => setState(() {
+            selectedItem!.properties['fontWeight'] = (selectedItem!.properties['fontWeight'] == FontWeight.bold) ? FontWeight.normal : FontWeight.bold;
+          })),
+          _miniToggleIcon('Italic', Icons.format_italic_rounded, selectedItem!.properties['fontStyle'] == FontStyle.italic, () => setState(() {
+            selectedItem!.properties['fontStyle'] = (selectedItem!.properties['fontStyle'] == FontStyle.italic) ? FontStyle.normal : FontStyle.italic;
+          })),
+          _miniToggleIcon('Underline', Icons.format_underlined_rounded, selectedItem!.properties['decoration'] == TextDecoration.underline, () => setState(() {
+            selectedItem!.properties['decoration'] = (selectedItem!.properties['decoration'] == TextDecoration.underline) ? TextDecoration.none : TextDecoration.underline;
+          })),
+          _miniColorSwatch('Color', selectedItem!.properties['color'] as Color? ?? Colors.black, () => _showColorPicker('color')),
+        ];
+      case CanvasItemType.image:
+        return [
+          _miniColorSwatch('Tint', selectedItem!.properties['tint'] as Color? ?? Colors.transparent, () => _showColorPicker('tint')),
+          _miniSlider('Blur', (selectedItem!.properties['blur'] as double?) ?? 0.0, 0.0, 10.0, (v) => setState(() => selectedItem!.properties['blur'] = v), Icons.blur_on_rounded),
+          _miniIconButton('Replace', Icons.photo_library_rounded, () => _pickImage(replace: true)),
+        ];
+      case CanvasItemType.sticker:
+        return [
+          _miniColorSwatch('Color', selectedItem!.properties['color'] as Color? ?? Colors.orange, () => _showColorPicker('color')),
+        ];
+      case CanvasItemType.shape:
+        return [
+          _miniColorSwatch('Fill', selectedItem!.properties['fillColor'] as Color? ?? Colors.blue, () => _showColorPicker('fillColor')),
+          _miniColorSwatch('Stroke', selectedItem!.properties['strokeColor'] as Color? ?? Colors.black, () => _showColorPicker('strokeColor')),
+          _miniSlider('Stroke', (selectedItem!.properties['strokeWidth'] as double?) ?? 2.0, 0.0, 10.0, (v) => setState(() => selectedItem!.properties['strokeWidth'] = v), Icons.line_weight_rounded),
+          _miniSlider('Radius', (selectedItem!.properties['cornerRadius'] as double?) ?? 12.0, 0.0, 50.0, (v) => setState(() => selectedItem!.properties['cornerRadius'] = v), Icons.rounded_corner_rounded),
+        ];
+    }
+  }
+
+  Widget _miniIconButton(String tooltip, IconData icon, VoidCallback onTap) {
+    return Padding(
+      padding: EdgeInsets.only(right: 10.w),
+      child: Tooltip(
+        message: tooltip,
+        child: GestureDetector(
+          onTap: onTap,
+          child: Container(
+            width: 46.w,
+            height: 46.h,
+            decoration: BoxDecoration(color: Colors.grey[50], borderRadius: BorderRadius.circular(12.r), border: Border.all(color: Colors.grey.shade200)),
+            child: Icon(icon, size: 20.sp, color: Colors.grey[700]),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _miniSlider(String label, double value, double min, double max, ValueChanged<double> onChanged, IconData icon) {
+    final clamped = value.clamp(min, max);
+    return Container(
+      width: 220.w,
+      margin: EdgeInsets.only(right: 12.w),
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+      decoration: BoxDecoration(color: Colors.grey[50], borderRadius: BorderRadius.circular(14.r), border: Border.all(color: Colors.grey.shade200)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 16.sp, color: Colors.grey[600]),
+              SizedBox(width: 8.w),
+              Text(label, style: TextStyle(fontSize: 12.sp, color: Colors.grey[700], fontWeight: FontWeight.w600)),
+              const Spacer(),
+              Text(clamped.toStringAsFixed(1), style: TextStyle(fontSize: 12.sp, color: Colors.blue.shade700, fontWeight: FontWeight.w700)),
+            ],
+          ),
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              activeTrackColor: Colors.blue.shade400,
+              inactiveTrackColor: Colors.blue.shade100,
+              thumbColor: Colors.blue.shade600,
+              overlayColor: Colors.blue.withOpacity(0.05),
+              trackHeight: 4.0,
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10.0),
+            ),
+            child: Slider(value: clamped, min: min, max: max, onChanged: onChanged),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _miniColorSwatch(String label, Color color, VoidCallback onTap) {
+    return Container(
+      margin: EdgeInsets.only(right: 12.w),
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+      decoration: BoxDecoration(color: Colors.grey[50], borderRadius: BorderRadius.circular(14.r), border: Border.all(color: Colors.grey.shade200)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(width: 22.w, height: 22.h, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(6.r), border: Border.all(color: Colors.grey.shade300))),
+          SizedBox(width: 8.w),
+          Text(label, style: TextStyle(fontSize: 12.sp, color: Colors.grey[700], fontWeight: FontWeight.w600)),
+          SizedBox(width: 8.w),
+          _miniIconButton('Pick', Icons.palette_rounded, onTap),
+        ],
+      ),
+    );
+  }
+
+  Widget _miniTextField(String label, String value, ValueChanged<String> onChanged) {
+    return Container
+      (
+      width: 260.w,
+      margin: EdgeInsets.only(right: 12.w),
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(14.r),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.text_fields_rounded, size: 16.sp, color: Colors.grey[600]),
+              SizedBox(width: 8.w),
+              Text(label, style: TextStyle(fontSize: 12.sp, color: Colors.grey[700], fontWeight: FontWeight.w600)),
+            ],
+          ),
+          SizedBox(height: 6.h),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10.r),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: TextFormField(
+              initialValue: value,
+              onChanged: onChanged,
+              style: TextStyle(fontSize: 12.sp),
+              decoration: InputDecoration(
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+                border: InputBorder.none,
+                hintText: 'Enter text',
+                hintStyle: TextStyle(color: Colors.grey[400]),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _miniToggleIcon(String tooltip, IconData icon, bool isActive, VoidCallback onTap) {
+    return Padding(
+      padding: EdgeInsets.only(right: 10.w),
+      child: Tooltip(
+        message: tooltip,
+        child: GestureDetector(
+          onTap: onTap,
+          child: Container(
+            width: 46.w,
+            height: 46.h,
+            decoration: BoxDecoration(
+              gradient: isActive ? LinearGradient(colors: [Colors.blue.shade400, Colors.blue.shade600]) : null,
+              color: isActive ? null : Colors.grey[50],
+              borderRadius: BorderRadius.circular(12.r),
+              border: Border.all(color: isActive ? Colors.transparent : Colors.grey.shade200),
+              boxShadow: isActive ? [BoxShadow(color: Colors.blue.withOpacity(0.25), blurRadius: 10, offset: const Offset(0, 3))] : null,
+            ),
+            child: Icon(icon, size: 20.sp, color: isActive ? Colors.white : Colors.grey[700]),
+          ),
+        ),
+      ),
     );
   }
 
@@ -609,7 +914,10 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                             border: Border.all(color: Colors.blue.shade400, width: 2),
                           )
                         : null,
-                    child: _buildItemContent(item),
+                    child: Opacity(
+                      opacity: item.opacity.clamp(0.0, 1.0),
+                      child: _buildItemContent(item),
+                    ),
                   ),
                  
                 ],
@@ -1558,7 +1866,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       body: SafeArea(
         child: Column(children: [_buildTopToolbar(), _buildCanvas(), _buildActionBar()]),
       ),
-      bottomSheet: _buildBottomSheet(),
+      bottomSheet: const SizedBox.shrink(),
     );
   }
 }
