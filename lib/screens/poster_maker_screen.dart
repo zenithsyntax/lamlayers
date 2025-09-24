@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'dart:math' as math;
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/painting.dart';
@@ -44,8 +45,22 @@ class _ShapePainter extends CustomPainter {
     final List<Color> gradientColors = (props['gradientColors'] as List<Color>?) ?? [Colors.blue, Colors.purple];
     final double cornerRadius = (props['cornerRadius'] as double?) ?? 12.0;
     final ui.Image? fillImage = props['image'] as ui.Image?;
+    final bool hasShadow = (props['hasShadow'] as bool?) ?? false;
+    final Color shadowColor = (props['shadowColor'] as Color?) ?? Colors.black.withOpacity(0.35);
+    final double shadowBlur = (props['shadowBlur'] as double?) ?? 6.0;
+    final Offset shadowOffset = (props['shadowOffset'] as Offset?) ?? const Offset(4, 4);
+    final double shadowOpacity = (props['shadowOpacity'] as double?) ?? 0.6;
+    final double gradientAngle = (props['gradientAngle'] as double?) ?? 0.0; // degrees
 
     final Path path = _buildPath(shape, rect, cornerRadius);
+
+    if (hasShadow) {
+      canvas.save();
+      canvas.translate(shadowOffset.dx, shadowOffset.dy);
+      // drawShadow uses elevation to approximate blur
+      canvas.drawShadow(path, shadowColor.withOpacity(shadowOpacity.clamp(0.0, 1.0)), shadowBlur, true);
+      canvas.restore();
+    }
 
     if (fillImage != null) {
       // Draw image clipped to the shape path using BoxFit.cover
@@ -62,7 +77,12 @@ class _ShapePainter extends CustomPainter {
         ..style = PaintingStyle.fill
         ..isAntiAlias = true;
       if (hasGradient) {
-        fillPaint.shader = LinearGradient(colors: gradientColors).createShader(rect);
+        final double rad = gradientAngle * math.pi / 180.0;
+        final double cx = math.cos(rad);
+        final double sy = math.sin(rad);
+        final Alignment begin = Alignment(-cx, -sy);
+        final Alignment end = Alignment(cx, sy);
+        fillPaint.shader = LinearGradient(colors: gradientColors, begin: begin, end: end).createShader(rect);
       } else {
         fillPaint.color = fillColor;
       }
@@ -457,12 +477,14 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           'textAlign': TextAlign.center,
           'hasGradient': false,
           'gradientColors': [Colors.blue, Colors.purple],
+          'gradientAngle': 0.0,
           'decoration': TextDecoration.none,
           'letterSpacing': 0.0,
           'hasShadow': false,
           'shadowColor': Colors.grey,
           'shadowOffset': const Offset(2, 2),
           'shadowBlur': 4.0,
+          'shadowOpacity': 0.6,
         };
       case CanvasItemType.image:
         return {
@@ -470,6 +492,14 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           'color': Colors.blue,
           'tint': Colors.transparent,
           'blur': 0.0,
+          'hasGradient': false,
+          'gradientColors': [Colors.blue, Colors.purple],
+          'gradientAngle': 0.0,
+          'hasShadow': false,
+          'shadowColor': Colors.black54,
+          'shadowOffset': const Offset(4, 4),
+          'shadowBlur': 8.0,
+          'shadowOpacity': 0.6,
         };
       case CanvasItemType.sticker:
         return {'icon': Icons.favorite_rounded, 'color': Colors.redAccent};
@@ -481,7 +511,13 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           'strokeWidth': 2.0,
           'hasGradient': false,
           'gradientColors': [Colors.lightBlue, Colors.blueAccent],
+          'gradientAngle': 0.0,
           'cornerRadius': 0.0,
+          'hasShadow': false,
+          'shadowColor': Colors.black54,
+          'shadowOffset': const Offset(4, 4),
+          'shadowBlur': 8.0,
+          'shadowOpacity': 0.6,
         };
     }
   }
@@ -750,12 +786,60 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             selectedItem!.properties['decoration'] = (selectedItem!.properties['decoration'] == TextDecoration.underline) ? TextDecoration.none : TextDecoration.underline;
           })),
           _miniColorSwatch('Color', selectedItem!.properties['color'] as Color? ?? Colors.black, () => _showColorPicker('color')),
+          _miniToggleIcon('Gradient', Icons.gradient_rounded, selectedItem!.properties['hasGradient'] == true, () => setState(() {
+            selectedItem!.properties['hasGradient'] = !(selectedItem!.properties['hasGradient'] == true);
+          })),
+          if (selectedItem!.properties['hasGradient'] == true) ...[
+            _miniColorSwatch('Grad A', ((selectedItem!.properties['gradientColors'] as List<Color>?) ?? [Colors.blue, Colors.purple]).first, () => _showColorPicker('gradientColor1', isGradient: true)),
+            _miniColorSwatch('Grad B', ((selectedItem!.properties['gradientColors'] as List<Color>?) ?? [Colors.blue, Colors.purple]).last, () => _showColorPicker('gradientColor2', isGradient: true)),
+            _miniSlider('Angle', (selectedItem!.properties['gradientAngle'] as double?) ?? 0.0, -180.0, 180.0, (v) => setState(() => selectedItem!.properties['gradientAngle'] = v), Icons.rotate_right_rounded),
+          ],
+          _miniToggleIcon('Shadow', CupertinoIcons.moon_stars, selectedItem!.properties['hasShadow'] == true, () => setState(() {
+            selectedItem!.properties['hasShadow'] = !(selectedItem!.properties['hasShadow'] == true);
+          })),
+          if (selectedItem!.properties['hasShadow'] == true) ...[
+            _miniColorSwatch('Shad', (selectedItem!.properties['shadowColor'] as Color?) ?? Colors.grey, () => _showColorPicker('shadowColor')),
+            _miniSlider('Blur', (selectedItem!.properties['shadowBlur'] as double?) ?? 4.0, 0.0, 20.0, (v) => setState(() => selectedItem!.properties['shadowBlur'] = v), Icons.blur_on_rounded),
+            _miniSlider('SOpa', (selectedItem!.properties['shadowOpacity'] as double?) ?? 0.6, 0.0, 1.0, (v) => setState(() => selectedItem!.properties['shadowOpacity'] = v), Icons.opacity_rounded),
+            _miniSlider('OffX', (selectedItem!.properties['shadowOffset'] as Offset?)?.dx ?? 2.0, -50.0, 50.0, (v) => setState(() {
+              final cur = (selectedItem!.properties['shadowOffset'] as Offset?) ?? const Offset(2, 2);
+              selectedItem!.properties['shadowOffset'] = Offset(v, cur.dy);
+            }), Icons.swap_horiz_rounded),
+            _miniSlider('OffY', (selectedItem!.properties['shadowOffset'] as Offset?)?.dy ?? 2.0, -50.0, 50.0, (v) => setState(() {
+              final cur = (selectedItem!.properties['shadowOffset'] as Offset?) ?? const Offset(2, 2);
+              selectedItem!.properties['shadowOffset'] = Offset(cur.dx, v);
+            }), Icons.swap_vert_rounded),
+          ],
         ];
       case CanvasItemType.image:
         return [
           _miniColorSwatch('Tint', selectedItem!.properties['tint'] as Color? ?? Colors.transparent, () => _showColorPicker('tint')),
           _miniSlider('Blur', (selectedItem!.properties['blur'] as double?) ?? 0.0, 0.0, 10.0, (v) => setState(() => selectedItem!.properties['blur'] = v), Icons.blur_on_rounded),
           _miniIconButton('Replace', Icons.photo_library_rounded, () => _pickImage(replace: true)),
+          _miniToggleIcon('Gradient', Icons.gradient_rounded, selectedItem!.properties['hasGradient'] == true, () => setState(() {
+            selectedItem!.properties['hasGradient'] = !(selectedItem!.properties['hasGradient'] == true);
+          })),
+          if (selectedItem!.properties['hasGradient'] == true) ...[
+            _miniColorSwatch('Grad A', ((selectedItem!.properties['gradientColors'] as List<Color>?) ?? [Colors.blue, Colors.purple]).first, () => _showColorPicker('gradientColor1', isGradient: true)),
+            _miniColorSwatch('Grad B', ((selectedItem!.properties['gradientColors'] as List<Color>?) ?? [Colors.blue, Colors.purple]).last, () => _showColorPicker('gradientColor2', isGradient: true)),
+            _miniSlider('Angle', (selectedItem!.properties['gradientAngle'] as double?) ?? 0.0, -180.0, 180.0, (v) => setState(() => selectedItem!.properties['gradientAngle'] = v), Icons.rotate_right_rounded),
+          ],
+          _miniToggleIcon('Shadow', CupertinoIcons.moon_stars, selectedItem!.properties['hasShadow'] == true, () => setState(() {
+            selectedItem!.properties['hasShadow'] = !(selectedItem!.properties['hasShadow'] == true);
+          })),
+          if (selectedItem!.properties['hasShadow'] == true) ...[
+            _miniColorSwatch('Shad', (selectedItem!.properties['shadowColor'] as Color?) ?? Colors.black54, () => _showColorPicker('shadowColor')),
+            _miniSlider('SBlur', (selectedItem!.properties['shadowBlur'] as double?) ?? 8.0, 0.0, 40.0, (v) => setState(() => selectedItem!.properties['shadowBlur'] = v), Icons.blur_on_rounded),
+            _miniSlider('SOpa', (selectedItem!.properties['shadowOpacity'] as double?) ?? 0.6, 0.0, 1.0, (v) => setState(() => selectedItem!.properties['shadowOpacity'] = v), Icons.opacity_rounded),
+            _miniSlider('OffX', (selectedItem!.properties['shadowOffset'] as Offset?)?.dx ?? 4.0, -100.0, 100.0, (v) => setState(() {
+              final cur = (selectedItem!.properties['shadowOffset'] as Offset?) ?? const Offset(4, 4);
+              selectedItem!.properties['shadowOffset'] = Offset(v, cur.dy);
+            }), Icons.swap_horiz_rounded),
+            _miniSlider('OffY', (selectedItem!.properties['shadowOffset'] as Offset?)?.dy ?? 4.0, -100.0, 100.0, (v) => setState(() {
+              final cur = (selectedItem!.properties['shadowOffset'] as Offset?) ?? const Offset(4, 4);
+              selectedItem!.properties['shadowOffset'] = Offset(cur.dx, v);
+            }), Icons.swap_vert_rounded),
+          ],
         ];
       case CanvasItemType.sticker:
         return [
@@ -770,6 +854,30 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           _miniIconButton('Image Fill', Icons.photo_library_rounded, () => _pickShapeImage()),
           if (selectedItem!.properties['image'] != null)
             _miniIconButton('Clear Image', Icons.delete_sweep_rounded, () => setState(() => selectedItem!.properties['image'] = null)),
+          _miniToggleIcon('Gradient', Icons.gradient_rounded, selectedItem!.properties['hasGradient'] == true, () => setState(() {
+            selectedItem!.properties['hasGradient'] = !(selectedItem!.properties['hasGradient'] == true);
+          })),
+          if (selectedItem!.properties['hasGradient'] == true) ...[
+            _miniColorSwatch('Grad A', ((selectedItem!.properties['gradientColors'] as List<Color>?) ?? [Colors.lightBlue, Colors.blueAccent]).first, () => _showColorPicker('gradientColor1', isGradient: true)),
+            _miniColorSwatch('Grad B', ((selectedItem!.properties['gradientColors'] as List<Color>?) ?? [Colors.lightBlue, Colors.blueAccent]).last, () => _showColorPicker('gradientColor2', isGradient: true)),
+            _miniSlider('Angle', (selectedItem!.properties['gradientAngle'] as double?) ?? 0.0, -180.0, 180.0, (v) => setState(() => selectedItem!.properties['gradientAngle'] = v), Icons.rotate_right_rounded),
+          ],
+          _miniToggleIcon('Shadow', CupertinoIcons.moon_stars, selectedItem!.properties['hasShadow'] == true, () => setState(() {
+            selectedItem!.properties['hasShadow'] = !(selectedItem!.properties['hasShadow'] == true);
+          })),
+          if (selectedItem!.properties['hasShadow'] == true) ...[
+            _miniColorSwatch('Shad', (selectedItem!.properties['shadowColor'] as Color?) ?? Colors.black54, () => _showColorPicker('shadowColor')),
+            _miniSlider('SBlur', (selectedItem!.properties['shadowBlur'] as double?) ?? 8.0, 0.0, 40.0, (v) => setState(() => selectedItem!.properties['shadowBlur'] = v), Icons.blur_on_rounded),
+            _miniSlider('SOpa', (selectedItem!.properties['shadowOpacity'] as double?) ?? 0.6, 0.0, 1.0, (v) => setState(() => selectedItem!.properties['shadowOpacity'] = v), Icons.opacity_rounded),
+            _miniSlider('OffX', (selectedItem!.properties['shadowOffset'] as Offset?)?.dx ?? 4.0, -100.0, 100.0, (v) => setState(() {
+              final cur = (selectedItem!.properties['shadowOffset'] as Offset?) ?? const Offset(4, 4);
+              selectedItem!.properties['shadowOffset'] = Offset(v, cur.dy);
+            }), Icons.swap_horiz_rounded),
+            _miniSlider('OffY', (selectedItem!.properties['shadowOffset'] as Offset?)?.dy ?? 4.0, -100.0, 100.0, (v) => setState(() {
+              final cur = (selectedItem!.properties['shadowOffset'] as Offset?) ?? const Offset(4, 4);
+              selectedItem!.properties['shadowOffset'] = Offset(cur.dx, v);
+            }), Icons.swap_vert_rounded),
+          ],
         ];
     }
   }
@@ -1309,18 +1417,24 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       case CanvasItemType.text:
         final props = item.properties;
         final String? fontFamily = props['fontFamily'] as String?;
+        final bool textHasGradient = props['hasGradient'] == true;
+        final bool textHasShadow = props['hasShadow'] == true;
+        final double textShadowOpacity = (props['shadowOpacity'] as double?) ?? 0.6;
+        final Color baseShadowColor = (props['shadowColor'] as Color?) ?? Colors.grey;
+        final Color effectiveShadowColor = baseShadowColor.withOpacity((baseShadowColor.opacity * textShadowOpacity).clamp(0.0, 1.0));
         final TextStyle baseStyle = TextStyle(
           fontSize: (props['fontSize'] ?? 24.0) as double,
-          color: (props['hasGradient'] == true) ? null : (props['color'] as Color? ?? Colors.black),
+          // Force solid white text when using ShaderMask gradient so the alpha is solid
+          color: textHasGradient ? Colors.white : (props['color'] as Color? ?? Colors.black),
           fontWeight: (props['fontWeight'] as FontWeight?) ?? FontWeight.normal,
           fontStyle: (props['fontStyle'] as FontStyle?) ?? FontStyle.normal,
           decoration: (props['decoration'] as TextDecoration?) ?? TextDecoration.none,
           decorationColor: props['color'] as Color?,
           letterSpacing: (props['letterSpacing'] as double?) ?? 0.0,
-          shadows: (props['hasShadow'] == true)
+          shadows: textHasShadow
               ? [
                   Shadow(
-                    color: (props['shadowColor'] as Color?) ?? Colors.grey,
+                    color: effectiveShadowColor,
                     offset: (props['shadowOffset'] as Offset?) ?? const Offset(2, 2),
                     blurRadius: (props['shadowBlur'] as double?) ?? 4.0,
                   ),
@@ -1351,10 +1465,18 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             textAlign: (props['textAlign'] as TextAlign?) ?? TextAlign.center,
           );
         }
-        if (props['hasGradient'] == true) {
+        if (textHasGradient) {
+          final double angle = (props['gradientAngle'] as double?) ?? 0.0;
+          final double rad = angle * math.pi / 180.0;
+          final double cx = math.cos(rad);
+          final double sy = math.sin(rad);
+          final Alignment begin = Alignment(-cx, -sy);
+          final Alignment end = Alignment(cx, sy);
           textWidget = ShaderMask(
             shaderCallback: (bounds) => LinearGradient(
               colors: (props['gradientColors'] as List<Color>?) ?? [Colors.blue, Colors.purple],
+              begin: begin,
+              end: end,
             ).createShader(bounds),
             child: textWidget,
           );
@@ -1363,9 +1485,17 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       case CanvasItemType.image:
         final String? filePath = item.properties['filePath'] as String?;
         final double blur = (item.properties['blur'] as double?) ?? 0.0;
+        final bool hasGradient = (item.properties['hasGradient'] as bool?) ?? false;
+        final List<Color> grad = (item.properties['gradientColors'] as List<Color>?) ?? [Colors.blue, Colors.purple];
+        final bool hasShadow = (item.properties['hasShadow'] as bool?) ?? false;
+        final Color shadowColor = (item.properties['shadowColor'] as Color?) ?? Colors.black54;
+        final Offset shadowOffset = (item.properties['shadowOffset'] as Offset?) ?? const Offset(4, 4);
+        final double shadowBlur = (item.properties['shadowBlur'] as double?) ?? 8.0;
+        final double shadowOpacity = (item.properties['shadowOpacity'] as double?) ?? 0.6;
+        final double gradientAngle = (item.properties['gradientAngle'] as double?) ?? 0.0;
         final double? displayW = (item.properties['displayWidth'] as double?);
         final double? displayH = (item.properties['displayHeight'] as double?);
-        final Widget content = filePath != null
+        Widget content = filePath != null
             ? SizedBox(
                 width: (displayW ?? 160.0).w,
                 height: (displayH ?? 160.0).h,
@@ -1375,17 +1505,34 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                 ),
               )
             : Icon((item.properties['icon'] as IconData?) ?? Icons.image, size: 90.sp, color: (item.properties['color'] as Color?) ?? Colors.blue);
+        if (hasGradient) {
+          final double rad = gradientAngle * math.pi / 180.0;
+          final double cx = math.cos(rad);
+          final double sy = math.sin(rad);
+          final Alignment begin = Alignment(-cx, -sy);
+          final Alignment end = Alignment(cx, sy);
+          content = ShaderMask(
+            shaderCallback: (bounds) => LinearGradient(colors: grad, begin: begin, end: end).createShader(bounds),
+            blendMode: BlendMode.srcIn,
+            child: content,
+          );
+        } else {
+          final Color tint = (item.properties['tint'] as Color?) ?? Colors.transparent;
+          content = ColorFiltered(colorFilter: ColorFilter.mode(tint, BlendMode.overlay), child: content);
+        }
+        if (blur > 0) {
+          content = ImageFiltered(imageFilter: ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur), child: content);
+        }
         return Container(
           padding: EdgeInsets.all(8.w),
-          child: ColorFiltered(
-            colorFilter: ColorFilter.mode((item.properties['tint'] as Color?) ?? Colors.transparent, BlendMode.overlay),
-            child: blur > 0
-                ? ImageFiltered(
-                    imageFilter: ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-                    child: content,
-                  )
-                : content,
-          ),
+          decoration: hasShadow
+              ? BoxDecoration(
+                  boxShadow: [
+                    BoxShadow(color: shadowColor.withOpacity(shadowOpacity.clamp(0.0, 1.0)), blurRadius: shadowBlur, offset: shadowOffset),
+                  ],
+                )
+              : null,
+          child: content,
         );
       case CanvasItemType.sticker:
         return Container(
@@ -1639,6 +1786,33 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                 decoration: BoxDecoration(color: grad.last, borderRadius: BorderRadius.circular(8.r), border: Border.all(color: Colors.grey.shade300, width: 2)),
               ),
             ),
+            SizedBox(width: 12.w),
+            Row(
+              children: [
+                Icon(Icons.rotate_right_rounded, size: 16.sp, color: Colors.grey[600]),
+                SizedBox(width: 6.w),
+                Text('Angle', style: TextStyle(fontSize: 12.sp, color: Colors.grey[700], fontWeight: FontWeight.w600)),
+                SizedBox(width: 8.w),
+                SizedBox(
+                  width: 160.w,
+                  child: SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      trackHeight: 3.0,
+                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8.0),
+                      activeTrackColor: Colors.blue.shade400,
+                      inactiveTrackColor: Colors.blue.shade100,
+                      thumbColor: Colors.blue.shade600,
+                    ),
+                    child: Slider(
+                      value: ((props['gradientAngle'] as double?) ?? 0.0).clamp(-180.0, 180.0),
+                      min: -180.0,
+                      max: 180.0,
+                      onChanged: (v) => setState(() => props['gradientAngle'] = v),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ],
@@ -1648,12 +1822,28 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   Widget _buildTextEffectsOptions(Map<String, dynamic> props) {
     return Column(
       children: [
-        _buildToggleOption('Shadow', (props['hasShadow'] as bool?) ?? false, Icons.shape_line, (value) => setState(() => props['hasShadow'] = value)),
+        _buildToggleOption('Shadow', (props['hasShadow'] as bool?) ?? false, CupertinoIcons.moon_stars, (value) => setState(() => props['hasShadow'] = value)),
         if (props['hasShadow'] == true) ...[
           SizedBox(height: 16.h),
           _buildColorOption('Shadow Color', 'shadowColor', props),
           SizedBox(height: 16.h),
           _buildSliderOption('Shadow Blur', (props['shadowBlur'] as double?) ?? 4.0, 0.0, 20.0, (value) => setState(() => props['shadowBlur'] = value), Icons.blur_on_rounded),
+          SizedBox(height: 16.h),
+          _buildSliderOption('Shadow Opacity', (props['shadowOpacity'] as double?) ?? 0.6, 0.0, 1.0, (value) => setState(() => props['shadowOpacity'] = value), Icons.opacity_rounded),
+          SizedBox(height: 16.h),
+          _buildSliderOption('Shadow Offset X', (props['shadowOffset'] as Offset?)?.dx ?? 2.0, -50.0, 50.0, (value) {
+            setState(() {
+              final Offset cur = (props['shadowOffset'] as Offset?) ?? const Offset(2, 2);
+              props['shadowOffset'] = Offset(value, cur.dy);
+            });
+          }, Icons.swap_horiz_rounded),
+          SizedBox(height: 16.h),
+          _buildSliderOption('Shadow Offset Y', (props['shadowOffset'] as Offset?)?.dy ?? 2.0, -50.0, 50.0, (value) {
+            setState(() {
+              final Offset cur = (props['shadowOffset'] as Offset?) ?? const Offset(2, 2);
+              props['shadowOffset'] = Offset(cur.dx, value);
+            });
+          }, Icons.swap_vert_rounded),
         ],
       ],
     );
@@ -1723,6 +1913,36 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         _buildOptionButton('Replace Image', Icons.photo_library_rounded, Colors.blue.shade400, () {
           _pickImage(replace: true);
         }),
+        SizedBox(height: 20.h),
+        _buildToggleOption('Gradient', (props['hasGradient'] as bool?) ?? false, Icons.gradient_rounded, (value) => setState(() => props['hasGradient'] = value)),
+        if (props['hasGradient'] == true) ...[
+          SizedBox(height: 16.h),
+          _buildGradientPicker(props),
+        ],
+        SizedBox(height: 16.h),
+        _buildSliderOption('Shadow Opacity', (props['shadowOpacity'] as double?) ?? 0.6, 0.0, 1.0, (value) => setState(() => props['shadowOpacity'] = value), Icons.opacity_rounded),
+        SizedBox(height: 20.h),
+        _buildToggleOption('Shadow', (props['hasShadow'] as bool?) ?? false, CupertinoIcons.moon_stars, (value) => setState(() => props['hasShadow'] = value)),
+        if (props['hasShadow'] == true) ...[
+          SizedBox(height: 16.h),
+          _buildColorOption('Shadow Color', 'shadowColor', props),
+          SizedBox(height: 16.h),
+          _buildSliderOption('Shadow Blur', (props['shadowBlur'] as double?) ?? 8.0, 0.0, 40.0, (value) => setState(() => props['shadowBlur'] = value), Icons.blur_on_rounded),
+          SizedBox(height: 16.h),
+          _buildSliderOption('Shadow Offset X', (props['shadowOffset'] as Offset?)?.dx ?? 4.0, -100.0, 100.0, (value) {
+            setState(() {
+              final Offset cur = (props['shadowOffset'] as Offset?) ?? const Offset(4, 4);
+              props['shadowOffset'] = Offset(value, cur.dy);
+            });
+          }, Icons.swap_horiz_rounded),
+          SizedBox(height: 16.h),
+          _buildSliderOption('Shadow Offset Y', (props['shadowOffset'] as Offset?)?.dy ?? 4.0, -100.0, 100.0, (value) {
+            setState(() {
+              final Offset cur = (props['shadowOffset'] as Offset?) ?? const Offset(4, 4);
+              props['shadowOffset'] = Offset(cur.dx, value);
+            });
+          }, Icons.swap_vert_rounded),
+        ],
       ],
     );
   }
@@ -1760,6 +1980,30 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         if (props['hasGradient'] == true) ...[
           SizedBox(height: 16.h),
           _buildGradientPicker(props),
+        ],
+        SizedBox(height: 16.h),
+        _buildToggleOption('Shadow', (props['hasShadow'] as bool?) ?? false, CupertinoIcons.moon_stars, (value) => setState(() => props['hasShadow'] = value)),
+        if (props['hasShadow'] == true) ...[
+          SizedBox(height: 16.h),
+          _buildColorOption('Shadow Color', 'shadowColor', props),
+          SizedBox(height: 16.h),
+          _buildSliderOption('Shadow Blur', (props['shadowBlur'] as double?) ?? 8.0, 0.0, 40.0, (value) => setState(() => props['shadowBlur'] = value), Icons.blur_on_rounded),
+          SizedBox(height: 16.h),
+          _buildSliderOption('Shadow Opacity', (props['shadowOpacity'] as double?) ?? 0.6, 0.0, 1.0, (value) => setState(() => props['shadowOpacity'] = value), Icons.opacity_rounded),
+          SizedBox(height: 16.h),
+          _buildSliderOption('Shadow Offset X', (props['shadowOffset'] as Offset?)?.dx ?? 4.0, -100.0, 100.0, (value) {
+            setState(() {
+              final Offset cur = (props['shadowOffset'] as Offset?) ?? const Offset(4, 4);
+              props['shadowOffset'] = Offset(value, cur.dy);
+            });
+          }, Icons.swap_horiz_rounded),
+          SizedBox(height: 16.h),
+          _buildSliderOption('Shadow Offset Y', (props['shadowOffset'] as Offset?)?.dy ?? 4.0, -100.0, 100.0, (value) {
+            setState(() {
+              final Offset cur = (props['shadowOffset'] as Offset?) ?? const Offset(4, 4);
+              props['shadowOffset'] = Offset(cur.dx, value);
+            });
+          }, Icons.swap_vert_rounded),
         ],
       ],
     );
