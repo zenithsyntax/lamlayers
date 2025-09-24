@@ -848,7 +848,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                 ...(() {
                   final items = [...canvasItems]
                     ..sort((a, b) => a.layerIndex.compareTo(b.layerIndex));
-                  return items.map((it) => _buildCanvasItem(it)).toList();
+                  final visibleItems = items.where((it) => it.isVisible).toList();
+                  return visibleItems.map((it) => _buildCanvasItem(it)).toList();
                 })(),
               ],
             ),
@@ -1805,61 +1806,88 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             ),
             SizedBox(height: 20.h),
             Expanded(
-              child: ListView.builder(
+              child: Padding(
                 padding: EdgeInsets.symmetric(horizontal: 24.w),
-                itemCount: canvasItems.length,
-                itemBuilder: (context, index) {
-                  final item = canvasItems.reversed.toList()[index];
-                  final isSelected = selectedItem == item;
-                  return Container(
-                    margin: EdgeInsets.only(bottom: 12.h),
-                    padding: EdgeInsets.all(16.w),
-                    decoration: BoxDecoration(
-                      gradient: isSelected ? LinearGradient(colors: [Colors.blue.shade50!, Colors.blue.shade100!]) : null,
-                      color: isSelected ? null : Colors.grey[50],
-                      borderRadius: BorderRadius.circular(16.r),
-                      border: Border.all(color: isSelected ? Colors.blue.shade200 : Colors.grey.shade200, width: isSelected ? 2 : 1),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(_getItemTypeIcon(item.type), color: isSelected ? Colors.blue.shade400 : Colors.grey.shade600, size: 24.sp),
-                        SizedBox(width: 16.w),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('${item.type.name.toUpperCase()} Layer', style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w600, color: isSelected ? Colors.blue.shade700 : Colors.grey[800])),
-                              Text('Layer ${item.layerIndex + 1}', style: TextStyle(fontSize: 12.sp, color: Colors.grey[600])),
-                            ],
-                          ),
-                        ),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              onPressed: () => setState(() {
-                                item.opacity = item.opacity > 0 ? 0 : 1;
-                              }),
-                              icon: Icon(item.opacity > 0 ? Icons.visibility_rounded : Icons.visibility_off_rounded, color: Colors.grey[600], size: 20.sp),
-                            ),
-                            IconButton(
-                              onPressed: () {
-                                _selectItem(item);
-                                Navigator.pop(context);
-                              },
-                              icon: Icon(Icons.edit_rounded, color: Colors.blue.shade400, size: 20.sp),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  );
-                },
+                child: _buildReorderableLayersList(),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildReorderableLayersList() {
+    // Top-most first list
+    final List<CanvasItem> layersTopFirst = [...canvasItems]
+      ..sort((a, b) => b.layerIndex.compareTo(a.layerIndex));
+
+    return ReorderableListView.builder(
+      proxyDecorator: (child, index, animation) => Material(
+        color: Colors.transparent,
+        child: child,
+      ),
+      itemCount: layersTopFirst.length,
+      onReorder: (oldIndex, newIndex) {
+        setState(() {
+          if (newIndex > oldIndex) newIndex -= 1;
+          final item = layersTopFirst.removeAt(oldIndex);
+          layersTopFirst.insert(newIndex, item);
+          // After reordering, recompute layerIndex where index 0 is top-most
+          final int n = layersTopFirst.length;
+          for (int i = 0; i < n; i++) {
+            layersTopFirst[i].layerIndex = n - 1 - i;
+          }
+        });
+      },
+      itemBuilder: (context, index) {
+        final item = layersTopFirst[index];
+        final isSelected = selectedItem == item;
+        return Container(
+          key: ValueKey(item.id),
+          margin: EdgeInsets.only(bottom: 12.h),
+          padding: EdgeInsets.all(16.w),
+          decoration: BoxDecoration(
+            gradient: isSelected ? LinearGradient(colors: [Colors.blue.shade50!, Colors.blue.shade100!]) : null,
+            color: isSelected ? null : Colors.grey[50],
+            borderRadius: BorderRadius.circular(16.r),
+            border: Border.all(color: isSelected ? Colors.blue.shade200 : Colors.grey.shade200, width: isSelected ? 2 : 1),
+          ),
+          child: Row(
+            children: [
+              Icon(_getItemTypeIcon(item.type), color: isSelected ? Colors.blue.shade400 : Colors.grey.shade600, size: 24.sp),
+              SizedBox(width: 16.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('${item.type.name.toUpperCase()} Layer', style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w600, color: isSelected ? Colors.blue.shade700 : Colors.grey[800])),
+                    Text('Layer ${item.layerIndex + 1}', style: TextStyle(fontSize: 12.sp, color: Colors.grey[600])),
+                  ],
+                ),
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    onPressed: () => setState(() {
+                      item.isVisible = !item.isVisible;
+                    }),
+                    icon: Icon(item.isVisible ? Icons.visibility_rounded : Icons.visibility_off_rounded, color: Colors.grey[600], size: 20.sp),
+                  ),
+                  IconButton(
+                    onPressed: () {
+                      _selectItem(item);
+                      Navigator.pop(context);
+                    },
+                    icon: Icon(Icons.edit_rounded, color: Colors.blue.shade400, size: 20.sp),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 

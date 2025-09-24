@@ -17,6 +17,7 @@ class CanvasItem {
   CustomBlendMode blendMode;
   Map<String, dynamic> properties;
   int layerIndex;
+  bool isVisible;
 
   CanvasItem({
     required this.id,
@@ -28,6 +29,7 @@ class CanvasItem {
     this.blendMode = CustomBlendMode.normal,
     this.properties = const {},
     this.layerIndex = 0,
+    this.isVisible = true,
   });
 
   CanvasItem copyWith({
@@ -40,6 +42,7 @@ class CanvasItem {
     CustomBlendMode? blendMode,
     Map<String, dynamic>? properties,
     int? layerIndex,
+    bool? isVisible,
   }) {
     return CanvasItem(
       id: id ?? this.id,
@@ -51,6 +54,7 @@ class CanvasItem {
       blendMode: blendMode ?? this.blendMode,
       properties: properties ?? Map<String, dynamic>.from(this.properties),
       layerIndex: layerIndex ?? this.layerIndex,
+      isVisible: isVisible ?? this.isVisible,
     );
   }
 }
