@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:google_fonts/google_fonts.dart';
+import '../models/font_favorites.dart';
 
 class GoogleFontsPage extends StatefulWidget {
   const GoogleFontsPage({super.key});
@@ -124,10 +125,15 @@ class _GoogleFontsPageState extends State<GoogleFontsPage> {
 
   void _toggleLikeFont(GoogleFont font) {
     setState(() {
-      if (_likedFonts.contains(font)) {
+      final isLiked = FontFavorites.instance.isLiked(font.family);
+      if (isLiked) {
+        FontFavorites.instance.remove(font.family);
         _likedFonts.remove(font);
       } else {
-        _likedFonts.add(font);
+        FontFavorites.instance.add(font.family);
+        if (!_likedFonts.contains(font)) {
+          _likedFonts.add(font);
+        }
       }
     });
   }
@@ -285,6 +291,11 @@ class _GoogleFontsPageState extends State<GoogleFontsPage> {
                         setState(() {
                           _showLikedList = !_showLikedList;
                           _currentPage = 0;
+                          // Sync liked fonts from singleton when toggled
+                          if (_showLikedList) {
+                            final likedFamilies = FontFavorites.instance.likedFamilies;
+                            _likedFonts = _allFonts.where((f) => likedFamilies.contains(f.family)).toList();
+                          }
                         });
                       },
                       icon: Icon(

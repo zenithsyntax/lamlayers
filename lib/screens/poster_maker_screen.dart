@@ -12,6 +12,9 @@ import 'package:share_plus/share_plus.dart';
 import '../models/canvas_models.dart';
 import '../widgets/canvas_grid_painter.dart';
 import '../widgets/action_bar.dart';
+import 'google_font_screen.dart';
+import '../models/font_favorites.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 
 
@@ -52,14 +55,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   final List<String> tabTitles = ['Text', 'Images', 'Stickers', 'Shapes'];
 
-  // Enhanced sample data
-  final List<Map<String, dynamic>> sampleTexts = [
-    {'text': 'Heading', 'fontSize': 32.0, 'fontWeight': FontWeight.bold},
-    {'text': 'Subtitle', 'fontSize': 24.0, 'fontWeight': FontWeight.w600},
-    {'text': 'Body Text', 'fontSize': 16.0, 'fontWeight': FontWeight.normal},
-    {'text': 'Caption', 'fontSize': 14.0, 'fontWeight': FontWeight.w300},
-    {'text': 'Quote', 'fontSize': 20.0, 'fontWeight': FontWeight.w500},
-  ];
+  // Text items now driven by liked Google Fonts with a leading plus button
+  List<String> get likedFontFamilies => FontFavorites.instance.likedFamilies;
 
   // Removed sample image icons; Images tab now only supports uploads
 
@@ -708,7 +705,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   int _getTabItemCount() {
     switch (selectedTabIndex) {
       case 0:
-        return sampleTexts.length;
+        // 1 for the leading plus button + liked fonts as items
+        return 1 + likedFontFamilies.length;
       case 1:
         return 1; // Only the Upload option
       case 2:
@@ -723,13 +721,24 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   Widget _getTabItemWidget(int index) {
     switch (selectedTabIndex) {
       case 0:
+        if (index == 0) {
+          return Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.add_rounded, size: 28.sp, color: Colors.blue.shade700),
+              SizedBox(height: 6.h),
+              Text('Add Font', style: TextStyle(fontSize: 10.sp, fontWeight: FontWeight.w600, color: Colors.grey.shade700))
+            ],
+          );
+        }
+        final family = likedFontFamilies[index - 1];
         return Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.text_fields_rounded, size: 24.sp, color: Colors.blue.shade600),
             SizedBox(height: 6.h),
             Text(
-              sampleTexts[index]['text'] as String,
+              family,
               style: TextStyle(fontSize: 10.sp, fontWeight: FontWeight.w600, color: Colors.grey.shade700),
               textAlign: TextAlign.center,
               maxLines: 1,
@@ -758,14 +767,20 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   void _onTabItemTap(int index) {
     switch (selectedTabIndex) {
       case 0:
-        final textData = sampleTexts[index];
+        if (index == 0) {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const GoogleFontsPage()),
+          ).then((_) => setState(() {}));
+          return;
+        }
+        final family = likedFontFamilies[index - 1];
         _addCanvasItem(
           CanvasItemType.text,
           properties: {
-            'text': textData['text'],
-            'fontSize': textData['fontSize'],
+            'text': 'Sample Text',
+            'fontSize': 24.0,
             'color': Colors.black,
-            'fontWeight': textData['fontWeight'],
+            'fontWeight': FontWeight.normal,
             'fontStyle': FontStyle.normal,
             'textAlign': TextAlign.center,
             'hasGradient': false,
@@ -776,6 +791,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             'shadowColor': Colors.grey,
             'shadowOffset': const Offset(2, 2),
             'shadowBlur': 4.0,
+            'fontFamily': family,
           },
         );
         break;
@@ -1047,28 +1063,49 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     switch (item.type) {
       case CanvasItemType.text:
         final props = item.properties;
-        Widget textWidget = Text(
-          (props['text'] ?? 'Text') as String,
-          style: TextStyle(
-            fontSize: (props['fontSize'] ?? 24.0) as double,
-            color: (props['hasGradient'] == true) ? null : (props['color'] as Color? ?? Colors.black),
-            fontWeight: (props['fontWeight'] as FontWeight?) ?? FontWeight.normal,
-            fontStyle: (props['fontStyle'] as FontStyle?) ?? FontStyle.normal,
-            decoration: (props['decoration'] as TextDecoration?) ?? TextDecoration.none,
-            decorationColor: props['color'] as Color?,
-            letterSpacing: (props['letterSpacing'] as double?) ?? 0.0,
-            shadows: (props['hasShadow'] == true)
-                ? [
-                    Shadow(
-                      color: (props['shadowColor'] as Color?) ?? Colors.grey,
-                      offset: (props['shadowOffset'] as Offset?) ?? const Offset(2, 2),
-                      blurRadius: (props['shadowBlur'] as double?) ?? 4.0,
-                    ),
-                  ]
-                : null,
-          ),
-          textAlign: (props['textAlign'] as TextAlign?) ?? TextAlign.center,
+        final String? fontFamily = props['fontFamily'] as String?;
+        final TextStyle baseStyle = TextStyle(
+          fontSize: (props['fontSize'] ?? 24.0) as double,
+          color: (props['hasGradient'] == true) ? null : (props['color'] as Color? ?? Colors.black),
+          fontWeight: (props['fontWeight'] as FontWeight?) ?? FontWeight.normal,
+          fontStyle: (props['fontStyle'] as FontStyle?) ?? FontStyle.normal,
+          decoration: (props['decoration'] as TextDecoration?) ?? TextDecoration.none,
+          decorationColor: props['color'] as Color?,
+          letterSpacing: (props['letterSpacing'] as double?) ?? 0.0,
+          shadows: (props['hasShadow'] == true)
+              ? [
+                  Shadow(
+                    color: (props['shadowColor'] as Color?) ?? Colors.grey,
+                    offset: (props['shadowOffset'] as Offset?) ?? const Offset(2, 2),
+                    blurRadius: (props['shadowBlur'] as double?) ?? 4.0,
+                  ),
+                ]
+              : null,
         );
+
+        Widget textWidget;
+        if (fontFamily != null) {
+          try {
+            final TextStyle gfStyle = GoogleFonts.getFont(fontFamily, textStyle: baseStyle);
+            textWidget = Text(
+              (props['text'] ?? 'Text') as String,
+              style: gfStyle,
+              textAlign: (props['textAlign'] as TextAlign?) ?? TextAlign.center,
+            );
+          } catch (_) {
+            textWidget = Text(
+              (props['text'] ?? 'Text') as String,
+              style: baseStyle,
+              textAlign: (props['textAlign'] as TextAlign?) ?? TextAlign.center,
+            );
+          }
+        } else {
+          textWidget = Text(
+            (props['text'] ?? 'Text') as String,
+            style: baseStyle,
+            textAlign: (props['textAlign'] as TextAlign?) ?? TextAlign.center,
+          );
+        }
         if (props['hasGradient'] == true) {
           textWidget = ShaderMask(
             shaderCallback: (bounds) => LinearGradient(
