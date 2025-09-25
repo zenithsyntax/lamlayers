@@ -6,7 +6,9 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/font_favorites.dart';
 
 class GoogleFontsPage extends StatefulWidget {
-  const GoogleFontsPage({super.key});
+  final Function(String)? onFontSelected;
+
+  const GoogleFontsPage({super.key, this.onFontSelected});
 
   @override
   State<GoogleFontsPage> createState() => _GoogleFontsPageState();
@@ -222,6 +224,15 @@ class _GoogleFontsPageState extends State<GoogleFontsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _surfaceGray,
+      appBar: AppBar(
+        title: Text('Google Fonts', style: GoogleFonts.inter(color: _textPrimary, fontWeight: FontWeight.w600)),
+        backgroundColor: Colors.white,
+        elevation: 0.5,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_rounded, color: _textPrimary),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -399,127 +410,133 @@ class _GoogleFontsPageState extends State<GoogleFontsPage> {
                           separatorBuilder: (context, index) => SizedBox(height: 12.h),
                           itemBuilder: (context, index) {
                             final font = _getCurrentPageFonts()[index];
-                            final isLiked = _likedFonts.contains(font);
+                            final isLiked = FontFavorites.instance.isLiked(font.family);
                             final googleFontStyle = _getGoogleFontStyle(font.family, 18.sp);
                             
-                            return Container(
-                              decoration: BoxDecoration(
-                                color: _cardBackground,
-                                borderRadius: BorderRadius.circular(16.r),
-                                border: Border.all(
-                                  color: isLiked ? _primaryBlue.withOpacity(0.3) : _dividerColor,
-                                  width: isLiked ? 2 : 1,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.03),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
+                            return GestureDetector(
+                              onTap: () {
+                                widget.onFontSelected?.call(font.family);
+                                Navigator.pop(context, font.family); // Pass the selected font family back
+                              },
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: _cardBackground,
+                                  borderRadius: BorderRadius.circular(16.r),
+                                  border: Border.all(
+                                    color: isLiked ? _primaryBlue.withOpacity(0.3) : _dividerColor,
+                                    width: isLiked ? 2 : 1,
                                   ),
-                                ],
-                              ),
-                              child: Padding(
-                                padding: EdgeInsets.all(20.w),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // Header Row
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: Row(
-                                            children: [
-                                              Text(
-                                                font.family,
-                                                style: GoogleFonts.inter(
-                                                  fontSize: 16.sp,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: _textPrimary,
-                                                ),
-                                              ),
-                                              SizedBox(width: 8.w),
-                                              Container(
-                                                padding: EdgeInsets.symmetric(
-                                                  horizontal: 6.w,
-                                                  vertical: 2.h,
-                                                ),
-                                                decoration: BoxDecoration(
-                                                  color: _getCategoryColor(font.category).withOpacity(0.1),
-                                                  borderRadius: BorderRadius.circular(4.r),
-                                                ),
-                                                child: Text(
-                                                  font.category,
-                                                  style: GoogleFonts.inter(
-                                                    fontSize: 10.sp,
-                                                    color: _getCategoryColor(font.category),
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        // Compact Like Button
-                                        GestureDetector(
-                                          onTap: () => _toggleLikeFont(font),
-                                          child: Container(
-                                            padding: EdgeInsets.all(8.w),
-                                            decoration: BoxDecoration(
-                                              color: isLiked ? _primaryBlue.withOpacity(0.1) : Colors.transparent,
-                                              borderRadius: BorderRadius.circular(8.r),
-                                            ),
-                                            child: Icon(
-                                              isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                                              color: isLiked ? _primaryBlue : _textSecondary,
-                                              size: 20.w,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    
-                                    SizedBox(height: 16.h),
-                                    
-                                    // Font Preview
-                                    Text(
-                                      'The quick brown fox jumps over the lazy dog',
-                                      style: googleFontStyle?.copyWith(
-                                        fontSize: 18.sp,
-                                        color: _textPrimary,
-                                        height: 1.3,
-                                      ) ?? GoogleFonts.inter(
-                                        fontSize: 18.sp,
-                                        color: _textPrimary,
-                                        height: 1.3,
-                                      ),
-                                    ),
-                                    
-                                    SizedBox(height: 8.h),
-                                    
-                                    // Numbers Preview
-                                    Text(
-                                      '1234567890 !@#\$%^&*()',
-                                      style: googleFontStyle?.copyWith(
-                                        fontSize: 14.sp,
-                                        color: _textSecondary,
-                                      ) ?? GoogleFonts.inter(
-                                        fontSize: 14.sp,
-                                        color: _textSecondary,
-                                      ),
-                                    ),
-                                    
-                                    SizedBox(height: 12.h),
-                                    
-                                    // Variants Info
-                                    Text(
-                                      '${font.variants.length} variants',
-                                      style: GoogleFonts.inter(
-                                        fontSize: 12.sp,
-                                        color: _textSecondary,
-                                        fontWeight: FontWeight.w500,
-                                      ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.03),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
                                     ),
                                   ],
+                                ),
+                                child: Padding(
+                                  padding: EdgeInsets.all(20.w),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      // Header Row
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Row(
+                                              children: [
+                                                Text(
+                                                  font.family,
+                                                  style: GoogleFonts.inter(
+                                                    fontSize: 16.sp,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: _textPrimary,
+                                                  ),
+                                                ),
+                                                SizedBox(width: 8.w),
+                                                Container(
+                                                  padding: EdgeInsets.symmetric(
+                                                    horizontal: 6.w,
+                                                    vertical: 2.h,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: _getCategoryColor(font.category).withOpacity(0.1),
+                                                    borderRadius: BorderRadius.circular(4.r),
+                                                  ),
+                                                  child: Text(
+                                                    font.category,
+                                                    style: GoogleFonts.inter(
+                                                      fontSize: 10.sp,
+                                                      color: _getCategoryColor(font.category),
+                                                      fontWeight: FontWeight.w600,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          // Compact Like Button
+                                          GestureDetector(
+                                            onTap: () => _toggleLikeFont(font),
+                                            child: Container(
+                                              padding: EdgeInsets.all(8.w),
+                                              decoration: BoxDecoration(
+                                                color: isLiked ? _primaryBlue.withOpacity(0.1) : Colors.transparent,
+                                                borderRadius: BorderRadius.circular(8.r),
+                                              ),
+                                              child: Icon(
+                                                isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                                                color: isLiked ? _primaryBlue : _textSecondary,
+                                                size: 20.w,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      
+                                      SizedBox(height: 16.h),
+                                      
+                                      // Font Preview
+                                      Text(
+                                        'The quick brown fox jumps over the lazy dog',
+                                        style: googleFontStyle?.copyWith(
+                                          fontSize: 18.sp,
+                                          color: _textPrimary,
+                                          height: 1.3,
+                                        ) ?? GoogleFonts.inter(
+                                          fontSize: 18.sp,
+                                          color: _textPrimary,
+                                          height: 1.3,
+                                        ),
+                                      ),
+                                      
+                                      SizedBox(height: 8.h),
+                                      
+                                      // Numbers Preview
+                                      Text(
+                                        '1234567890 !@#\$%^&*()',
+                                        style: googleFontStyle?.copyWith(
+                                          fontSize: 14.sp,
+                                          color: _textSecondary,
+                                        ) ?? GoogleFonts.inter(
+                                          fontSize: 14.sp,
+                                          color: _textSecondary,
+                                        ),
+                                      ),
+                                      
+                                      SizedBox(height: 12.h),
+                                      
+                                      // Variants Info
+                                      Text(
+                                        '${font.variants.length} variants',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 12.sp,
+                                          color: _textSecondary,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             );

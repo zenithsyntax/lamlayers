@@ -23,6 +23,7 @@ import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import 'package:lamlayers/screens/google_font_screen.dart';
 
 
 
@@ -1267,21 +1268,28 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     switch (selectedTabIndex) {
       case 0:
         if (index == 0) {
-          _addCanvasItem(CanvasItemType.text, properties: {
-            'text': 'New Text',
-            'color': Colors.black,
-            'fontSize': 24.0,
-            'fontWeight': FontWeight.normal,
-            'fontStyle': FontStyle.normal,
-            'textAlign': TextAlign.center,
-            'decoration': 0, // TextDecoration.none
-            'letterSpacing': 0.0,
-            'hasShadow': false,
-            'shadowColor': Colors.grey,
-            'shadowOffset': const Offset(2, 2),
-            'shadowBlur': 4.0,
-            'fontFamily': 'Roboto',
-          });
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => GoogleFontsPage(onFontSelected: (fontFamily) {
+                _addCanvasItem(CanvasItemType.text, properties: {
+                  'text': 'New Text',
+                  'color': Colors.black,
+                  'fontSize': 24.0,
+                  'fontWeight': FontWeight.normal,
+                  'fontStyle': FontStyle.normal,
+                  'textAlign': TextAlign.center,
+                  'decoration': 0, // TextDecoration.none
+                  'letterSpacing': 0.0,
+                  'hasShadow': false,
+                  'shadowColor': Colors.grey,
+                  'shadowOffset': const Offset(2, 2),
+                  'shadowBlur': 4.0,
+                  'fontFamily': fontFamily,
+                });
+              }),
+            ),
+          );
         } else {
           final family = likedFontFamilies[index - 1];
           _addCanvasItem(CanvasItemType.text, properties: {
