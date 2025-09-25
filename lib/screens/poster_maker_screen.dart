@@ -1,5 +1,3 @@
-//push checker 1
-
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -10,36 +8,33 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:lamlayers/screens/hive_model.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/canvas_models.dart';
 import '../widgets/canvas_grid_painter.dart';
 import '../widgets/action_bar.dart';
-import 'google_font_screen.dart';
 import '../models/font_favorites.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
+import 'package:lamlayers/screens/add_images.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:image/image.dart' as img;
-import 'package:path_provider/path_provider.dart';
-import 'package:screenshot/screenshot.dart';
-import 'package:share_plus/share_plus.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:flutter/cupertino.dart';
-import 'package:lamlayers/screens/add_images.dart'; // Import the PixabayImagesPage
-import 'package:cached_network_image/cached_network_image.dart'; // Import for network images
+
 
 
 
 class PosterMakerScreen extends StatefulWidget {
-  const PosterMakerScreen({super.key});
+  final String? projectId;
+  const PosterMakerScreen({super.key, this.projectId});
 
   @override
   State<PosterMakerScreen> createState() => _PosterMakerScreenState();
 }
 
-// Custom painter that renders various shapes based on props['shape']
 class _ShapePainter extends CustomPainter {
   final Map<String, dynamic> props;
 
@@ -50,18 +45,22 @@ class _ShapePainter extends CustomPainter {
     final Rect rect = Offset.zero & size;
     final String shape = (props['shape'] as String?)?.toLowerCase() ?? 'rectangle';
     final double strokeWidth = (props['strokeWidth'] as double?) ?? 2.0;
-    final Color fillColor = (props['fillColor'] as Color?) ?? Colors.blue;
-    final Color strokeColor = (props['strokeColor'] as Color?) ?? Colors.black;
+    final Color fillColor = (props['fillColor'] as HiveColor?)?.toColor() ?? Colors.blue;
+    final Color strokeColor = (props['strokeColor'] as HiveColor?)?.toColor() ?? Colors.black;
     final bool hasGradient = (props['hasGradient'] as bool?) ?? false;
-    final List<Color> gradientColors = (props['gradientColors'] as List<Color>?) ?? [Colors.blue, Colors.purple];
+    final List<Color> gradientColors = (props['gradientColors'] as List<HiveColor>?)?.map((hc) => hc.toColor()).toList() ?? [];
     final double cornerRadius = (props['cornerRadius'] as double?) ?? 12.0;
     final ui.Image? fillImage = props['image'] as ui.Image?;
     final bool hasShadow = (props['hasShadow'] as bool?) ?? false;
-    final Color shadowColor = (props['shadowColor'] as Color?) ?? Colors.black.withOpacity(0.35);
-    final double shadowBlur = (props['shadowBlur'] as double?) ?? 6.0;
-    final Offset shadowOffset = (props['shadowOffset'] as Offset?) ?? const Offset(4, 4);
+    final HiveColor shadowColorHive = (props['shadowColor'] is HiveColor)
+        ? (props['shadowColor'] as HiveColor)
+        : (props['shadowColor'] is Color)
+            ? HiveColor.fromColor(props['shadowColor'] as Color)
+            : HiveColor.fromColor(Colors.black54);
+    final double shadowBlur = (props['shadowBlur'] as double?) ?? 8.0;
+    final Offset shadowOffset = (props['shadowOffset'] as HiveOffset?)?.toOffset() ?? const Offset(4, 4);
     final double shadowOpacity = (props['shadowOpacity'] as double?) ?? 0.6;
-    final double gradientAngle = (props['gradientAngle'] as double?) ?? 0.0; // degrees
+    final double gradientAngle = (props['gradientAngle'] as double?) ?? 0.0; 
 
     final Path path = _buildPath(shape, rect, cornerRadius);
 
@@ -69,7 +68,7 @@ class _ShapePainter extends CustomPainter {
       canvas.save();
       canvas.translate(shadowOffset.dx, shadowOffset.dy);
       // drawShadow uses elevation to approximate blur
-      canvas.drawShadow(path, shadowColor.withOpacity(shadowOpacity.clamp(0.0, 1.0)), shadowBlur, true);
+      canvas.drawShadow(path, shadowColorHive.toColor().withOpacity(shadowOpacity.clamp(0.0, 1.0)), shadowBlur, true);
       canvas.restore();
     }
 
@@ -327,25 +326,13 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   CanvasItem? _preDragState;
   CanvasItem? _preTransformState;
 
-  final List<String> tabTitles = ['Text', 'Images', 'Stickers', 'Shapes'];
+  final List<String> tabTitles = ['Text', 'Images',  'Shapes'];
 
   // Text items now driven by liked Google Fonts with a leading plus button
   List<String> get likedFontFamilies => FontFavorites.instance.likedFamilies;
 
   // Removed sample image icons; Images tab now only supports uploads
 
-  final List<IconData> sampleStickers = const [
-    Icons.favorite_rounded,
-    Icons.star_rounded,
-    Icons.emoji_emotions_outlined,
-    Icons.local_fire_department_rounded,
-    Icons.bolt_rounded,
-    Icons.celebration_rounded,
-    Icons.pets_rounded,
-    Icons.music_note_rounded,
-    Icons.wb_sunny_rounded,
-    Icons.ac_unit_rounded,
-  ];
 
   final List<Map<String, dynamic>> sampleShapes = const [
     {'shape': 'rectangle', 'icon': Icons.crop_square_rounded},
@@ -358,16 +345,39 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   ];
 
   // Recent colors for color picker
-  List<Color> recentColors = [
+  List<Color> recentColors = [];
+  final List<Color> favoriteColors = [
     Colors.black,
     Colors.redAccent,
     Colors.blueAccent,
     Colors.greenAccent,
   ];
 
+  PosterProject? _currentProject;
+  late Box<PosterProject> _projectBox;
+  late Box<UserPreferences> _userPreferencesBox;
+  late UserPreferences userPreferences;
+
   @override
   void initState() {
     super.initState();
+    _projectBox = Hive.box<PosterProject>('posterProjects');
+    _userPreferencesBox = Hive.box<UserPreferences>('userPreferences');
+    userPreferences = _userPreferencesBox.get('user_prefs_id') ?? UserPreferences();
+
+    if (widget.projectId != null) {
+      _currentProject = _projectBox.get(widget.projectId);
+    } else {
+      _currentProject = PosterProject(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        name: 'New Project',
+        createdAt: DateTime.now(),
+        lastModified: DateTime.now(),
+        canvasItems: [],
+        settings: ProjectSettings(exportSettings: ExportSettings()),
+      );
+      _projectBox.put(_currentProject!.id, _currentProject!);
+    }
     _bottomSheetController = AnimationController(
       duration: const Duration(milliseconds: 350),
       vsync: this,
@@ -394,14 +404,85 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     _itemAddAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _itemAddController, curve: Curves.elasticOut),
     );
+
+    if (_currentProject != null) {
+      canvasItems = _currentProject!.canvasItems.map((hiveItem) => CanvasItem(
+        id: hiveItem.id,
+        type: CanvasItemType.values.firstWhere((e) => e.toString().split('.').last == hiveItem.type.toString().split('.').last),
+        position: hiveItem.position.toOffset(),
+        scale: hiveItem.scale,
+        rotation: hiveItem.rotation,
+        opacity: hiveItem.opacity,
+        layerIndex: hiveItem.layerIndex,
+        isVisible: hiveItem.isVisible,
+        isLocked: hiveItem.isLocked,
+        properties: hiveItem.properties,
+        createdAt: hiveItem.createdAt,
+        lastModified: hiveItem.lastModified,
+        groupId: hiveItem.groupId,
+      )).toList();
+    } else {
+      canvasItems = [];
+    }
+    if (userPreferences.recentColors.isEmpty) {
+      userPreferences.recentColors = [
+        Colors.black,
+        Colors.redAccent,
+        Colors.blueAccent,
+        Colors.greenAccent,
+      ].map((e) => HiveColor.fromColor(e)).toList();
+    }
+
+    if (userPreferences.recentColors.isNotEmpty) {
+      for (var recentColor in userPreferences.recentColors) {
+        recentColors.add(recentColor.toColor());
+      }
+    }
   }
 
   @override
   void dispose() {
+    _saveProject();
     _bottomSheetController.dispose();
     _selectionController.dispose();
     _itemAddController.dispose();
     super.dispose();
+  }
+
+  void _saveProject() {
+    if (_currentProject != null) {
+      _currentProject!.lastModified = DateTime.now();
+      // Convert current CanvasItems to HiveCanvasItems before saving
+      _currentProject!.canvasItems = canvasItems.map((item) => HiveCanvasItem(
+        id: item.id,
+        type: HiveCanvasItemType.values.firstWhere((e) => e.toString().split('.').last == item.type.toString().split('.').last),
+        position: HiveOffset.fromOffset(item.position),
+        scale: item.scale,
+        rotation: item.rotation,
+        opacity: item.opacity,
+        layerIndex: item.layerIndex,
+        isVisible: item.isVisible,
+        isLocked: item.isLocked,
+        properties: item.properties,
+        createdAt: item.createdAt,
+        lastModified: item.lastModified,
+        groupId: item.groupId,
+      )).toList();
+      _projectBox.put(_currentProject!.id, _currentProject!);
+    }
+  }
+
+  TextDecoration _intToTextDecoration(int value) {
+    switch (value) {
+      case 1:
+        return TextDecoration.underline;
+      case 2:
+        return TextDecoration.overline;
+      case 3:
+        return TextDecoration.lineThrough;
+      default:
+        return TextDecoration.none;
+    }
   }
 
   void _addAction(CanvasAction action) {
@@ -413,6 +494,14 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     if (actionHistory.length > 50) {
       actionHistory.removeAt(0);
       currentActionIndex--;
+    }
+
+    // Apply the action immediately if it's a modify operation
+    if (action.type == 'modify' && action.item != null) {
+      final idx = canvasItems.indexWhere((it) => it.id == action.item!.id);
+      if (idx != -1) {
+        canvasItems[idx] = action.item!;
+      }
     }
   }
 
@@ -464,9 +553,11 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     final newItem = CanvasItem(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       type: type,
-      position: const Offset(140, 120),
+      position: Offset(100.w, 100.h),
       properties: properties ?? _getDefaultProperties(type),
       layerIndex: canvasItems.length,
+      lastModified: DateTime.now(),
+      createdAt: DateTime.now(),
     );
     setState(() {
       canvasItems.add(newItem);
@@ -482,51 +573,52 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         return {
           'text': 'Sample Text',
           'fontSize': 24.0,
-          'color': Colors.black,
-          'fontWeight': FontWeight.normal,
-          'fontStyle': FontStyle.normal,
-          'textAlign': TextAlign.center,
+          'color': HiveColor.fromColor(Colors.black),
+          'fontWeight': FontWeight.normal.index,
+          'fontStyle': FontStyle.normal.index,
+          'textAlign': TextAlign.center.index,
           'hasGradient': false,
-          'gradientColors': [Colors.blue, Colors.purple],
+          'gradientColors': const [],
           'gradientAngle': 0.0,
-          'decoration': TextDecoration.none,
+          'decoration': 0, // TextDecoration.none
           'letterSpacing': 0.0,
           'hasShadow': false,
-          'shadowColor': Colors.grey,
-          'shadowOffset': const Offset(2, 2),
+          'shadowColor': HiveColor.fromColor(Colors.black.withOpacity(0.6)),
+          'shadowOffset': HiveOffset.fromOffset(const Offset(4, 4)),
           'shadowBlur': 4.0,
           'shadowOpacity': 0.6,
         };
       case CanvasItemType.image:
         return {
-          'icon': Icons.image_outlined,
-          'color': Colors.blue,
-          'tint': Colors.transparent,
+          'tint': HiveColor.fromColor(Colors.transparent),
           'blur': 0.0,
           'hasGradient': false,
-          'gradientColors': [Colors.blue, Colors.purple],
+          'gradientColors': const [],
           'gradientAngle': 0.0,
           'hasShadow': false,
-          'shadowColor': Colors.black54,
-          'shadowOffset': const Offset(4, 4),
+          'shadowColor': HiveColor.fromColor(Colors.black.withOpacity(0.6)),
+          'shadowOffset': HiveOffset.fromOffset(const Offset(8, 8)),
           'shadowBlur': 8.0,
           'shadowOpacity': 0.6,
         };
       case CanvasItemType.sticker:
-        return {'icon': Icons.favorite_rounded, 'color': Colors.redAccent};
+        return {
+          'iconCodePoint': Icons.star.codePoint,
+          'color': HiveColor.fromColor(Colors.yellow),
+          'size': 60.0,
+        };
       case CanvasItemType.shape:
         return {
           'shape': 'rectangle',
-          'fillColor': Colors.blue,
-          'strokeColor': Colors.blueAccent,
+          'fillColor': HiveColor.fromColor(Colors.blue),
+          'strokeColor': HiveColor.fromColor(Colors.black),
           'strokeWidth': 2.0,
           'hasGradient': false,
-          'gradientColors': [Colors.lightBlue, Colors.blueAccent],
-          'gradientAngle': 0.0,
+          'gradientColors': const [],
           'cornerRadius': 0.0,
           'hasShadow': false,
-          'shadowColor': Colors.black54,
-          'shadowOffset': const Offset(4, 4),
+          'shadowColor': HiveColor.fromColor(Colors.black.withOpacity(0.6)),
+          'shadowOffset': HiveOffset.fromOffset(const Offset(8, 8)),
           'shadowBlur': 8.0,
           'shadowOpacity': 0.6,
         };
@@ -793,23 +885,54 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           _miniToggleIcon('Italic', Icons.format_italic_rounded, selectedItem!.properties['fontStyle'] == FontStyle.italic, () => setState(() {
             selectedItem!.properties['fontStyle'] = (selectedItem!.properties['fontStyle'] == FontStyle.italic) ? FontStyle.normal : FontStyle.italic;
           })),
-          _miniToggleIcon('Underline', Icons.format_underlined_rounded, selectedItem!.properties['decoration'] == TextDecoration.underline, () => setState(() {
-            selectedItem!.properties['decoration'] = (selectedItem!.properties['decoration'] == TextDecoration.underline) ? TextDecoration.none : TextDecoration.underline;
+          _miniToggleIcon('Underline', Icons.format_underlined_rounded, (selectedItem!.properties['decoration'] as int?) == 1, () => setState(() {
+            selectedItem!.properties['decoration'] = ((selectedItem!.properties['decoration'] as int?) == 1) ? 0 : 1;
           })),
-          _miniColorSwatch('Color', selectedItem!.properties['color'] as Color? ?? Colors.black, () => _showColorPicker('color')),
+          _miniColorSwatch(
+              'Color',
+              (selectedItem!.properties['hasGradient'] == true)
+                  ? ((selectedItem!.properties['gradientColors'] as List<dynamic>?)?.map((e) {
+                        if (e is HiveColor) return e.toColor();
+                        if (e is Color) return e;
+                        if (e is int) return HiveColor(e).toColor();
+                        return Colors.transparent; // Default or error color
+                      }).toList() ?? [Colors.blue, Colors.purple]).first
+                  : (selectedItem!.properties['color'] is HiveColor)
+                      ? (selectedItem!.properties['color'] as HiveColor).toColor()
+                      : (selectedItem!.properties['color'] is Color)
+                          ? (selectedItem!.properties['color'] as Color)
+                          : Colors.black,
+              () => _showColorPicker(
+                  (selectedItem!.properties['hasGradient'] == true) ? 'gradientColor1' : 'color',
+                  isGradient: selectedItem!.properties['hasGradient'] == true)),
           _miniToggleIcon('Gradient', Icons.gradient_rounded, selectedItem!.properties['hasGradient'] == true, () => setState(() {
             selectedItem!.properties['hasGradient'] = !(selectedItem!.properties['hasGradient'] == true);
           })),
           if (selectedItem!.properties['hasGradient'] == true) ...[
-            _miniColorSwatch('Grad A', ((selectedItem!.properties['gradientColors'] as List<Color>?) ?? [Colors.blue, Colors.purple]).first, () => _showColorPicker('gradientColor1', isGradient: true)),
-            _miniColorSwatch('Grad B', ((selectedItem!.properties['gradientColors'] as List<Color>?) ?? [Colors.blue, Colors.purple]).last, () => _showColorPicker('gradientColor2', isGradient: true)),
+            _miniColorSwatch(
+              'Grad A',
+              _getDisplayGradientColors().first,
+              () => _showColorPicker('gradientColor1', isGradient: true),
+            ),
+            _miniColorSwatch(
+              'Grad B',
+              _getDisplayGradientColors().last,
+              () => _showColorPicker('gradientColor2', isGradient: true),
+            ),
             _miniSlider('Angle', (selectedItem!.properties['gradientAngle'] as double?) ?? 0.0, -180.0, 180.0, (v) => setState(() => selectedItem!.properties['gradientAngle'] = v), Icons.rotate_right_rounded),
           ],
           _miniToggleIcon('Shadow', CupertinoIcons.moon_stars, selectedItem!.properties['hasShadow'] == true, () => setState(() {
             selectedItem!.properties['hasShadow'] = !(selectedItem!.properties['hasShadow'] == true);
           })),
           if (selectedItem!.properties['hasShadow'] == true) ...[
-            _miniColorSwatch('Shad', (selectedItem!.properties['shadowColor'] as Color?) ?? Colors.grey, () => _showColorPicker('shadowColor')),
+            _miniColorSwatch(
+                'Shad',
+                (selectedItem!.properties['shadowColor'] is int)
+                    ? HiveColor(selectedItem!.properties['shadowColor'] as int).toColor()
+                    : (selectedItem!.properties['shadowColor'] is MaterialColor || selectedItem!.properties['shadowColor'] is Color)
+                        ? (selectedItem!.properties['shadowColor'] as Color)
+                        : Colors.grey,
+                () => _showColorPicker('shadowColor')),
             _miniSlider('Blur', (selectedItem!.properties['shadowBlur'] as double?) ?? 4.0, 0.0, 20.0, (v) => setState(() => selectedItem!.properties['shadowBlur'] = v), Icons.blur_on_rounded),
             _miniSlider('SOpa', (selectedItem!.properties['shadowOpacity'] as double?) ?? 0.6, 0.0, 1.0, (v) => setState(() => selectedItem!.properties['shadowOpacity'] = v), Icons.opacity_rounded),
             _miniSlider('OffX', (selectedItem!.properties['shadowOffset'] as Offset?)?.dx ?? 2.0, -50.0, 50.0, (v) => setState(() {
@@ -831,15 +954,15 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             selectedItem!.properties['hasGradient'] = !(selectedItem!.properties['hasGradient'] == true);
           })),
           if (selectedItem!.properties['hasGradient'] == true) ...[
-            _miniColorSwatch('Grad A', ((selectedItem!.properties['gradientColors'] as List<Color>?) ?? [Colors.blue, Colors.purple]).first, () => _showColorPicker('gradientColor1', isGradient: true)),
-            _miniColorSwatch('Grad B', ((selectedItem!.properties['gradientColors'] as List<Color>?) ?? [Colors.blue, Colors.purple]).last, () => _showColorPicker('gradientColor2', isGradient: true)),
+            _miniColorSwatch('Grad A', ((selectedItem!.properties['gradientColors'] as List<HiveColor>?)?.map((hc) => hc.toColor()).toList() ?? [HiveColor.fromColor(Colors.lightBlue).toColor(), HiveColor.fromColor(Colors.blueAccent).toColor()]).first, () => _showColorPicker('gradientColor1', isGradient: true)),
+            _miniColorSwatch('Grad B', ((selectedItem!.properties['gradientColors'] as List<HiveColor>?)?.map((hc) => hc.toColor()).toList() ?? [HiveColor.fromColor(Colors.lightBlue).toColor(), HiveColor.fromColor(Colors.blueAccent).toColor()]).last, () => _showColorPicker('gradientColor2', isGradient: true)),
             _miniSlider('Angle', (selectedItem!.properties['gradientAngle'] as double?) ?? 0.0, -180.0, 180.0, (v) => setState(() => selectedItem!.properties['gradientAngle'] = v), Icons.rotate_right_rounded),
           ],
           _miniToggleIcon('Shadow', CupertinoIcons.moon_stars, selectedItem!.properties['hasShadow'] == true, () => setState(() {
             selectedItem!.properties['hasShadow'] = !(selectedItem!.properties['hasShadow'] == true);
           })),
           if (selectedItem!.properties['hasShadow'] == true) ...[
-            _miniColorSwatch('Shad', (selectedItem!.properties['shadowColor'] as Color?) ?? Colors.black54, () => _showColorPicker('shadowColor')),
+            _miniColorSwatch('Shad', (selectedItem!.properties['shadowColor'] as HiveColor?)?.toColor() ?? Colors.black54, () => _showColorPicker('shadowColor')),
             _miniSlider('SBlur', (selectedItem!.properties['shadowBlur'] as double?) ?? 8.0, 0.0, 40.0, (v) => setState(() => selectedItem!.properties['shadowBlur'] = v), Icons.blur_on_rounded),
             _miniSlider('SOpa', (selectedItem!.properties['shadowOpacity'] as double?) ?? 0.6, 0.0, 1.0, (v) => setState(() => selectedItem!.properties['shadowOpacity'] = v), Icons.opacity_rounded),
             _miniSlider('OffX', (selectedItem!.properties['shadowOffset'] as Offset?)?.dx ?? 4.0, -100.0, 100.0, (v) => setState(() {
@@ -854,12 +977,22 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         ];
       case CanvasItemType.sticker:
         return [
-          _miniColorSwatch('Color', selectedItem!.properties['color'] as Color? ?? Colors.orange, () => _showColorPicker('color')),
+          _miniColorSwatch('Color', (selectedItem!.properties['color'] as HiveColor?)?.toColor() ?? Colors.orange, () => _showColorPicker('color')),
         ];
       case CanvasItemType.shape:
         return [
-          _miniColorSwatch('Fill', selectedItem!.properties['fillColor'] as Color? ?? Colors.blue, () => _showColorPicker('fillColor')),
-          _miniColorSwatch('Stroke', selectedItem!.properties['strokeColor'] as Color? ?? Colors.black, () => _showColorPicker('strokeColor')),
+          _miniColorSwatch(
+              'Fill',
+              (selectedItem!.properties['fillColor'] is Color)
+                  ? HiveColor.fromColor(selectedItem!.properties['fillColor'] as Color).toColor()
+                  : (selectedItem!.properties['fillColor'] as HiveColor?)?.toColor() ?? Colors.blue,
+              () => _showColorPicker('fillColor')),
+          _miniColorSwatch(
+              'Stroke',
+              (selectedItem!.properties['strokeColor'] is Color)
+                  ? HiveColor.fromColor(selectedItem!.properties['strokeColor'] as Color).toColor()
+                  : (selectedItem!.properties['strokeColor'] as HiveColor?)?.toColor() ?? Colors.black,
+              () => _showColorPicker('strokeColor')),
           _miniSlider('Stroke', (selectedItem!.properties['strokeWidth'] as double?) ?? 2.0, 0.0, 10.0, (v) => setState(() => selectedItem!.properties['strokeWidth'] = v), Icons.line_weight_rounded),
           _miniSlider('Radius', (selectedItem!.properties['cornerRadius'] as double?) ?? 12.0, 0.0, 50.0, (v) => setState(() => selectedItem!.properties['cornerRadius'] = v), Icons.rounded_corner_rounded),
           _miniIconButton('Image Fill', Icons.photo_library_rounded, () => _pickShapeImage()),
@@ -869,15 +1002,15 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             selectedItem!.properties['hasGradient'] = !(selectedItem!.properties['hasGradient'] == true);
           })),
           if (selectedItem!.properties['hasGradient'] == true) ...[
-            _miniColorSwatch('Grad A', ((selectedItem!.properties['gradientColors'] as List<Color>?) ?? [Colors.lightBlue, Colors.blueAccent]).first, () => _showColorPicker('gradientColor1', isGradient: true)),
-            _miniColorSwatch('Grad B', ((selectedItem!.properties['gradientColors'] as List<Color>?) ?? [Colors.lightBlue, Colors.blueAccent]).last, () => _showColorPicker('gradientColor2', isGradient: true)),
+            _miniColorSwatch('Grad A', ((selectedItem!.properties['gradientColors'] as List<HiveColor>?)?.map((hc) => hc.toColor()).toList() ?? [HiveColor.fromColor(Colors.lightBlue).toColor(), HiveColor.fromColor(Colors.blueAccent).toColor()]).first, () => _showColorPicker('gradientColor1', isGradient: true)),
+            _miniColorSwatch('Grad B', ((selectedItem!.properties['gradientColors'] as List<HiveColor>?)?.map((hc) => hc.toColor()).toList() ?? [HiveColor.fromColor(Colors.lightBlue).toColor(), HiveColor.fromColor(Colors.blueAccent).toColor()]).last, () => _showColorPicker('gradientColor2', isGradient: true)),
             _miniSlider('Angle', (selectedItem!.properties['gradientAngle'] as double?) ?? 0.0, -180.0, 180.0, (v) => setState(() => selectedItem!.properties['gradientAngle'] = v), Icons.rotate_right_rounded),
           ],
           _miniToggleIcon('Shadow', CupertinoIcons.moon_stars, selectedItem!.properties['hasShadow'] == true, () => setState(() {
             selectedItem!.properties['hasShadow'] = !(selectedItem!.properties['hasShadow'] == true);
           })),
           if (selectedItem!.properties['hasShadow'] == true) ...[
-            _miniColorSwatch('Shad', (selectedItem!.properties['shadowColor'] as Color?) ?? Colors.black54, () => _showColorPicker('shadowColor')),
+            _miniColorSwatch('Shad', (selectedItem!.properties['shadowColor'] as HiveColor?)?.toColor() ?? Colors.black54, () => _showColorPicker('shadowColor')),
             _miniSlider('SBlur', (selectedItem!.properties['shadowBlur'] as double?) ?? 8.0, 0.0, 40.0, (v) => setState(() => selectedItem!.properties['shadowBlur'] = v), Icons.blur_on_rounded),
             _miniSlider('SOpa', (selectedItem!.properties['shadowOpacity'] as double?) ?? 0.6, 0.0, 1.0, (v) => setState(() => selectedItem!.properties['shadowOpacity'] = v), Icons.opacity_rounded),
             _miniSlider('OffX', (selectedItem!.properties['shadowOffset'] as Offset?)?.dx ?? 4.0, -100.0, 100.0, (v) => setState(() {
@@ -891,8 +1024,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                 selectedItem!.properties['shadowOffset'] = Offset(cur.dx, value);
               });
             }, Icons.swap_vert_rounded),
-          ],
-        ];
+        ],
+      ];
     }
   }
 
@@ -1076,9 +1209,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         return 1 + likedFontFamilies.length;
       case 1:
         return 2; // Two options: Upload and Pixabay
+      
       case 2:
-        return sampleStickers.length;
-      case 3:
         return sampleShapes.length;
       default:
         return 0;
@@ -1122,9 +1254,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             Text('Upload', style: TextStyle(fontSize: 10.sp, fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
           ],
         );
+    
       case 2:
-        return Icon(sampleStickers[index], size: 32.sp, color: Colors.orange.shade600);
-      case 3:
         return Icon(sampleShapes[index]['icon'] as IconData, size: 32.sp, color: Colors.green.shade600);
       default:
         return const SizedBox();
@@ -1143,7 +1274,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             'fontWeight': FontWeight.normal,
             'fontStyle': FontStyle.normal,
             'textAlign': TextAlign.center,
-            'decoration': TextDecoration.none,
+            'decoration': 0, // TextDecoration.none
             'letterSpacing': 0.0,
             'hasShadow': false,
             'shadowColor': Colors.grey,
@@ -1160,7 +1291,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             'fontWeight': FontWeight.normal,
             'fontStyle': FontStyle.normal,
             'textAlign': TextAlign.center,
-            'decoration': TextDecoration.none,
+            'decoration': 0, // TextDecoration.none
             'letterSpacing': 0.0,
             'hasShadow': false,
             'shadowColor': Colors.grey,
@@ -1177,13 +1308,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           _navigateToPixabayImages(); // New Pixabay functionality
         }
         break;
+  
+    
       case 2:
-        _addCanvasItem(
-          CanvasItemType.sticker,
-          properties: {'icon': sampleStickers[index], 'color': Colors.orange},
-        );
-        break;
-      case 3:
         final shapeData = sampleShapes[index];
         _addCanvasItem(
           CanvasItemType.shape,
@@ -1193,7 +1320,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             'strokeColor': Colors.greenAccent,
             'strokeWidth': 2.0,
             'hasGradient': false,
-            'gradientColors': [Colors.lightGreen, Colors.green],
+            'gradientColors': [HiveColor.fromColor(Colors.lightGreen), HiveColor.fromColor(Colors.green)],
             'cornerRadius': 0.0,
           },
         );
@@ -1214,7 +1341,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       child: Container(
         margin: EdgeInsets.all(20.w),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: _currentProject!.canvasBackgroundColor.toColor(),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.08),
@@ -1446,16 +1573,38 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         final bool textHasGradient = props['hasGradient'] == true;
         final bool textHasShadow = props['hasShadow'] == true;
         final double textShadowOpacity = (props['shadowOpacity'] as double?) ?? 0.6;
-        final Color baseShadowColor = (props['shadowColor'] as Color?) ?? Colors.grey;
+        final Color baseShadowColor = (props['shadowColor'] is HiveColor)
+            ? (props['shadowColor'] as HiveColor).toColor()
+            : (props['shadowColor'] is Color)
+                ? (props['shadowColor'] as Color)
+                : Colors.grey;
         final Color effectiveShadowColor = baseShadowColor.withOpacity((baseShadowColor.opacity * textShadowOpacity).clamp(0.0, 1.0));
         final TextStyle baseStyle = TextStyle(
           fontSize: (props['fontSize'] ?? 24.0) as double,
           // Force solid white text when using ShaderMask gradient so the alpha is solid
-          color: textHasGradient ? Colors.white : (props['color'] as Color? ?? Colors.black),
-          fontWeight: (props['fontWeight'] as FontWeight?) ?? FontWeight.normal,
-          fontStyle: (props['fontStyle'] as FontStyle?) ?? FontStyle.normal,
-          decoration: (props['decoration'] as TextDecoration?) ?? TextDecoration.none,
-          decorationColor: props['color'] as Color?,
+          color: textHasGradient
+              ? Colors.white
+              : (props['color'] is HiveColor)
+                  ? (props['color'] as HiveColor).toColor()
+                  : (props['color'] is Color)
+                      ? (props['color'] as Color)
+                      : Colors.black,
+          fontWeight: (props['fontWeight'] is FontWeight)
+              ? (props['fontWeight'] as FontWeight)
+              : FontWeight.values.firstWhere(
+                    (e) => e.index == (props['fontWeight'] as int?),
+                    orElse: () => FontWeight.normal,
+                  ),
+          fontStyle: (props['fontStyle'] is FontStyle)
+              ? (props['fontStyle'] as FontStyle)
+              : FontStyle.values.firstWhere(
+                    (e) => e.index == (props['fontStyle'] as int?),
+                    orElse: () => FontStyle.normal,
+                  ),
+          decoration: _intToTextDecoration((props['decoration'] as int?) ?? 0),
+          decorationColor: (props['color'] is HiveColor)
+              ? (props['color'] as HiveColor).toColor()
+              : (props['color'] as Color?),
           letterSpacing: (props['letterSpacing'] as double?) ?? 0.0,
           shadows: textHasShadow
               ? [
@@ -1500,7 +1649,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           final Alignment end = Alignment(cx, sy);
           textWidget = ShaderMask(
             shaderCallback: (bounds) => LinearGradient(
-              colors: (props['gradientColors'] as List<Color>?) ?? [Colors.blue, Colors.purple],
+              colors: (props['gradientColors'] as List<HiveColor>?)?.map((hc) => hc.toColor()).toList() ?? [HiveColor.fromColor(Colors.blue).toColor(), HiveColor.fromColor(Colors.purple).toColor()],
               begin: begin,
               end: end,
             ).createShader(bounds),
@@ -1512,90 +1661,188 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         final String? filePath = item.properties['filePath'] as String?;
         final double blur = (item.properties['blur'] as double?) ?? 0.0;
         final bool hasGradient = (item.properties['hasGradient'] as bool?) ?? false;
-        final List<Color> grad = (item.properties['gradientColors'] as List<Color>?) ?? [Colors.blue, Colors.purple];
+        final List<Color> grad = (item.properties['gradientColors'] as List<HiveColor>?)?.map((e) => e.toColor()).toList() ?? [];
         final bool hasShadow = (item.properties['hasShadow'] as bool?) ?? false;
-        final Color shadowColor = (item.properties['shadowColor'] as Color?) ?? Colors.black54;
-        final Offset shadowOffset = (item.properties['shadowOffset'] as Offset?) ?? const Offset(4, 4);
+        final Color shadowColor = (item.properties['shadowColor'] is HiveColor)
+            ? (item.properties['shadowColor'] as HiveColor).toColor()
+            : (item.properties['shadowColor'] is Color)
+                ? (item.properties['shadowColor'] as Color)
+                : Colors.black54;
+        final Offset shadowOffset = (item.properties['shadowOffset'] as HiveOffset?)?.toOffset() ?? const Offset(4, 4);
         final double shadowBlur = (item.properties['shadowBlur'] as double?) ?? 8.0;
         final double shadowOpacity = (item.properties['shadowOpacity'] as double?) ?? 0.6;
         final double gradientAngle = (item.properties['gradientAngle'] as double?) ?? 0.0;
-        final double? displayW = (item.properties['displayWidth'] as double?);
-        final double? displayH = (item.properties['displayHeight'] as double?);
-        Widget content;
+        final Color tintColor = (item.properties['tint'] is HiveColor)
+            ? (item.properties['tint'] as HiveColor).toColor()
+            : (item.properties['tint'] is Color)
+                ? (item.properties['tint'] as Color)
+                : Colors.transparent;
 
-        final String? imageUrl = item.properties['imageUrl'] as String?;
+        // Define common image properties for use within ImageFilter and other places
+        final ui.ImageFilter filter = ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur);
 
-        if (filePath != null) {
-          content = SizedBox(
-            width: (displayW ?? 160.0).w,
-            height: (displayH ?? 160.0).h,
-            child: Image.file(
-              File(filePath),
-              fit: BoxFit.contain,
+        // Apply shadow to the image. 
+        Widget imageWidget = Stack(
+          children: [
+            if (hasShadow)
+              Transform.translate(
+                offset: shadowOffset,
+                child: Opacity(
+                  opacity: shadowOpacity,
+                  child: ImageFiltered(
+                    imageFilter: ui.ImageFilter.blur(sigmaX: shadowBlur, sigmaY: shadowBlur),
+                    child: _buildActualImage(filePath, item, tintColor, grad, hasGradient, gradientAngle),
+                  ),
+                ),
+              ),
+            _buildActualImage(filePath, item, tintColor, grad, hasGradient, gradientAngle),
+          ],
+        );
+
+        // Apply blur after shadow (if any)
+        if (blur > 0.0) {
+          imageWidget = ImageFiltered(imageFilter: filter, child: imageWidget);
+        }
+
+        // Scale and rotation applied after blur
+        return Transform.scale(
+          scale: item.scale,
+          child: Transform.rotate(
+            angle: item.rotation,
+            child: Opacity(
+              opacity: item.opacity,
+              child: imageWidget,
             ),
-          );
-        } else if (imageUrl != null) {
-          content = SizedBox(
-            width: (displayW ?? 160.0).w,
-            height: (displayH ?? 160.0).h,
-            child: CachedNetworkImage(
-              imageUrl: imageUrl,
-              fit: BoxFit.contain,
-              placeholder: (context, url) => Center(child: CircularProgressIndicator()),
-              errorWidget: (context, url, error) => Icon(Icons.error),
-            ),
-          );
-        } else {
-          content = Icon(
-            (item.properties['icon'] as IconData?) ?? Icons.image,
-            size: 90.sp,
-            color: (item.properties['color'] as Color?) ?? Colors.blue,
-          );
-        }
-
-        if (hasGradient) {
-          final double rad = gradientAngle * math.pi / 180.0;
-          final double cx = math.cos(rad);
-          final double sy = math.sin(rad);
-          final Alignment begin = Alignment(-cx, -sy);
-          final Alignment end = Alignment(cx, sy);
-          content = ShaderMask(
-            shaderCallback: (bounds) => LinearGradient(colors: grad, begin: begin, end: end).createShader(bounds),
-            blendMode: BlendMode.srcIn,
-            child: content,
-          );
-        } else {
-          final Color tint = (item.properties['tint'] as Color?) ?? Colors.transparent;
-          content = ColorFiltered(colorFilter: ColorFilter.mode(tint, BlendMode.overlay), child: content);
-        }
-        if (blur > 0) {
-          content = ImageFiltered(imageFilter: ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur), child: content);
-        }
-        return Container(
-          padding: EdgeInsets.all(8.w),
-          decoration: hasShadow
-              ? BoxDecoration(
-                  boxShadow: [
-                    BoxShadow(color: shadowColor.withOpacity(shadowOpacity.clamp(0.0, 1.0)), blurRadius: shadowBlur, offset: shadowOffset),
-                  ],
-                )
-              : null,
-          child: content,
+          ),
         );
       case CanvasItemType.sticker:
-        return Container(
-          padding: EdgeInsets.all(16.w),
-          child: Icon((item.properties['icon'] as IconData?) ?? Icons.emoji_emotions_rounded, size: 60.sp, color: (item.properties['color'] as Color?) ?? Colors.orange),
+        final props = item.properties;
+        final int iconCodePoint = (props['iconCodePoint'] as int?) ?? Icons.star.codePoint;
+        final String? iconFontFamily = props['iconFontFamily'] as String?;
+        final Color color = (props['color'] is HiveColor) ? (props['color'] as HiveColor).toColor() : Colors.yellow;
+        final double size = (props['size'] as double?) ?? 60.0;
+
+        return FittedBox(
+          fit: BoxFit.contain,
+          child: Icon(
+            IconData(iconCodePoint, fontFamily: iconFontFamily),
+            color: color,
+            size: size,
+          ),
         );
       case CanvasItemType.shape:
-        return SizedBox(
-          width: 120.w,
-          height: 120.h,
-          child: CustomPaint(
-            painter: _ShapePainter(item.properties),
+        final props = item.properties;
+        final String shape = (props['shape'] as String?) ?? 'rectangle';
+        final Color fillColor = (props['fillColor'] is HiveColor)
+            ? (props['fillColor'] as HiveColor).toColor()
+            : Colors.blue;
+        final Color strokeColor = (props['strokeColor'] is HiveColor)
+            ? (props['strokeColor'] as HiveColor).toColor()
+            : Colors.black;
+        final double strokeWidth = (props['strokeWidth'] as double?) ?? 2.0;
+        final double cornerRadius = (props['cornerRadius'] as double?) ?? 0.0;
+        final bool hasGradient = (props['hasGradient'] as bool?) ?? false;
+        final List<Color> gradientColors = (props['gradientColors'] as List<HiveColor>?)?.map((e) => e.toColor()).toList() ?? [];
+        final double gradientAngle = (props['gradientAngle'] as double?) ?? 0.0;
+        final bool hasShadow = (props['hasShadow'] as bool?) ?? false;
+        final HiveColor shadowColorHive = (props['shadowColor'] is HiveColor)
+            ? (props['shadowColor'] as HiveColor)
+            : (props['shadowColor'] is Color)
+                ? HiveColor.fromColor(props['shadowColor'] as Color)
+                : HiveColor.fromColor(Colors.black54);
+        final Offset shadowOffset = (props['shadowOffset'] as HiveOffset?)?.toOffset() ?? const Offset(4, 4);
+        final double shadowBlur = (props['shadowBlur'] as double?) ?? 8.0;
+        final double shadowOpacity = (props['shadowOpacity'] as double?) ?? 0.6;
+        final String? imagePath = props['imagePath'] as String?;
+        final HiveSize? hiveSize = props['size'] as HiveSize?;
+
+        Size itemSize = hiveSize?.toSize() ?? Size(100.0.w, 100.0.h);
+
+        Widget shapeWidget = CustomPaint(
+          painter: _ShapePainter(
+            {
+              'shape': shape,
+              'fillColor': HiveColor.fromColor(fillColor),
+              'strokeColor': HiveColor.fromColor(strokeColor),
+              'strokeWidth': strokeWidth,
+              'cornerRadius': cornerRadius,
+              'hasGradient': hasGradient,
+              'gradientColors': gradientColors.map((color) => HiveColor.fromColor(color)).toList(),
+              'gradientAngle': gradientAngle,
+              'hasShadow': hasShadow,
+              'shadowColor': shadowColorHive,
+              'shadowOffset': HiveOffset.fromOffset(shadowOffset),
+              'shadowBlur': shadowBlur,
+              'shadowOpacity': shadowOpacity,
+            }
+          ),
+          size: itemSize,
+        );
+
+        return Transform.scale(
+          scale: item.scale,
+          child: Transform.rotate(
+            angle: item.rotation,
+            child: Opacity(
+              opacity: item.opacity,
+              child: SizedBox(
+                width: itemSize.width,
+                height: itemSize.height,
+                child: FittedBox(fit: BoxFit.contain, child: shapeWidget), // Ensure the shape scales correctly within its bounds
+              ),
+            ),
           ),
         );
     }
+  }
+
+  Widget _buildActualImage(String? filePath, CanvasItem item, Color tintColor, List<Color> grad, bool hasGradient, double gradientAngle) {
+    final String? imageUrl = item.properties['imageUrl'] as String?;
+    final double? displayW = (item.properties['displayWidth'] as double?);
+    final double? displayH = (item.properties['displayHeight'] as double?);
+
+    Widget imageWidget;
+
+    if (filePath != null) {
+      imageWidget = Image.file(
+        File(filePath),
+        fit: BoxFit.contain,
+      );
+    } else if (imageUrl != null) {
+      imageWidget = CachedNetworkImage(
+        imageUrl: imageUrl,
+        fit: BoxFit.contain,
+        placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+        errorWidget: (context, url, error) => const Icon(Icons.error),
+      );
+    } else {
+      imageWidget = Icon(
+        (item.properties['icon'] as IconData?) ?? Icons.image,
+        size: 90.sp,
+        color: (item.properties['color'] as HiveColor?)?.toColor() ?? Colors.blue,
+      );
+    }
+
+    if (hasGradient) {
+      final double rad = gradientAngle * math.pi / 180.0;
+      final double cx = math.cos(rad);
+      final double sy = math.sin(rad);
+      final Alignment begin = Alignment(-cx, -sy);
+      final Alignment end = Alignment(cx, sy);
+      imageWidget = ShaderMask(
+        shaderCallback: (bounds) => LinearGradient(colors: grad, begin: begin, end: end).createShader(bounds),
+        blendMode: BlendMode.srcIn,
+        child: imageWidget,
+      );
+    } else {
+      imageWidget = ColorFiltered(colorFilter: ColorFilter.mode(tintColor, BlendMode.overlay), child: imageWidget);
+    }
+
+    return SizedBox(
+      width: (displayW ?? 160.0).w,
+      height: (displayH ?? 160.0).h,
+      child: imageWidget,
+    );
   }
 
   BoxDecoration _buildShapeDecoration(Map<String, dynamic> props) {
@@ -1978,12 +2225,12 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           _buildSliderOption('Shadow Blur', (props['shadowBlur'] as double?) ?? 8.0, 0.0, 40.0, (value) => setState(() => props['shadowBlur'] = value), Icons.blur_on_rounded),
           SizedBox(height: 16.h),
           _buildSliderOption('Shadow Offset X', (props['shadowOffset'] as Offset?)?.dx ?? 4.0, -100.0, 100.0, (v) => setState(() {
-            final Offset cur = (props['shadowOffset'] as Offset?) ?? const Offset(4, 4);
+            final cur = (props['shadowOffset'] as Offset?) ?? const Offset(4, 4);
             props['shadowOffset'] = Offset(v, cur.dy);
           }), Icons.swap_horiz_rounded),
           SizedBox(height: 16.h),
           _buildSliderOption('Shadow Offset Y', (props['shadowOffset'] as Offset?)?.dy ?? 4.0, -100.0, 100.0, (v) => setState(() {
-            final Offset cur = (props['shadowOffset'] as Offset?) ?? const Offset(4, 4);
+            final cur = (props['shadowOffset'] as Offset?) ?? const Offset(4, 4);
             props['shadowOffset'] = Offset(cur.dx, v);
           }), Icons.swap_vert_rounded),
         ],
@@ -2062,7 +2309,11 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             width: 44.w,
             height: 44.h,
             decoration: BoxDecoration(
-              color: (props[property] as Color?) ?? Colors.blue,
+              color: (props[property] is HiveColor)
+                  ? (props[property] as HiveColor).toColor()
+                  : (props[property] is int)
+                      ? HiveColor(props[property] as int).toColor()
+                      : (props[property] as Color?) ?? Colors.blue,
               borderRadius: BorderRadius.circular(12.r),
               border: Border.all(color: Colors.grey.shade300, width: 2),
               boxShadow: [
@@ -2345,26 +2596,38 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   }
 
   void _selectColor(String property, Color color, {bool isGradient = false}) {
+    if (selectedItem == null) return;
+    final previous = selectedItem!.copyWith();
     setState(() {
       if (selectedItem != null) {
         if (isGradient) {
-          final currentGradient = (selectedItem!.properties['gradientColors'] as List<Color>?) ?? [Colors.blue, Colors.purple];
+          final currentGradient = (selectedItem!.properties['gradientColors'] as List<HiveColor>?)?.map((hc) => hc.toColor()).toList() ?? [Colors.blue, Colors.purple];
+          final Map<String, dynamic> newProperties = Map.from(selectedItem!.properties);
           if (property == 'gradientColor1') {
-            selectedItem!.properties['gradientColors'] = [color, currentGradient.last];
+            newProperties['gradientColors'] = [HiveColor.fromColor(color), HiveColor.fromColor(currentGradient.last)];
           } else if (property == 'gradientColor2') {
-            selectedItem!.properties['gradientColors'] = [currentGradient.first, color];
+            newProperties['gradientColors'] = [HiveColor.fromColor(currentGradient.first), HiveColor.fromColor(color)];
           }
+          selectedItem = selectedItem!.copyWith(properties: newProperties);
         } else {
-          selectedItem!.properties[property] = color;
+          final Map<String, dynamic> newProperties = Map.from(selectedItem!.properties);
+          newProperties[property] = HiveColor.fromColor(color);
+          selectedItem = selectedItem!.copyWith(properties: newProperties);
         }
         if (!recentColors.contains(color)) {
           recentColors.insert(0, color);
           if (recentColors.length > 8) {
             recentColors.removeLast();
           }
+          userPreferences.recentColors = recentColors.map((e) => HiveColor.fromColor(e)).toList();
+          _userPreferencesBox.put('user_prefs_id', userPreferences);
         }
       }
     });
+    // Add to action history for undo/redo
+    if (selectedItem != null) {
+      _addAction(CanvasAction(type: 'modify', item: selectedItem, previousState: previous, timestamp: DateTime.now()));
+    }
   }
 
   Widget _buildActionBar() {
@@ -2526,9 +2789,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     final PixabayImage? selectedImage = await Navigator.push(context, MaterialPageRoute(builder: (context) => PixabayImagesPage()));
 
     if (selectedImage != null) {
-      // Use the selected image from Pixabay
-      // For now, let's just add it to the canvas as a new item.
-      // You might want to adjust the size and position based on your needs.
       _addCanvasItem(
         CanvasItemType.image,
         properties: {
@@ -2537,17 +2797,46 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           'blur': 0.0,
           'intrinsicWidth': selectedImage.views.toDouble(), // Using views as a placeholder for intrinsic width
           'intrinsicHeight': selectedImage.downloads.toDouble(), // Using downloads as a placeholder for intrinsic height
-          'displayWidth': 240.0, // Default display width
-          'displayHeight': 240.0 * (selectedImage.downloads / selectedImage.views), // Maintain aspect ratio
+          'displayWidth': 240.0, 
+          'displayHeight': 240.0 * (selectedImage.downloads / selectedImage.views), 
         },
       );
     }
+  }
+
+  List<Color> _getDisplayGradientColors() {
+    final dynamic rawGradientColors = selectedItem!.properties['gradientColors'];
+    if (rawGradientColors is List) {
+      final List<Color> convertedColors = rawGradientColors.map((e) {
+        if (e is HiveColor) return e.toColor();
+        if (e is Color) return e;
+        if (e is int) return HiveColor(e).toColor();
+        return Colors.transparent;
+      }).whereType<Color>().toList();
+
+      if (convertedColors.isNotEmpty) {
+        if (convertedColors.length == 1) {
+          return [convertedColors.first, convertedColors.first];
+        }
+        return convertedColors;
+      }
+    }
+    return [Colors.lightBlue, Colors.blueAccent];
   }
 
     @override
     Widget build(BuildContext context) {
       return Scaffold(
         backgroundColor: Colors.grey[100],
+        appBar: AppBar(
+          title: Text(_currentProject?.name ?? 'Poster Maker'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.save),
+              onPressed: _saveProject,
+            ),
+          ],
+        ),
         body: SafeArea(
           child: Column(children: [ _buildActionBar(), _buildCanvas(), _buildTopToolbar(),]),
         ),
@@ -2555,6 +2844,3 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       );
     }
   }
-
-
-

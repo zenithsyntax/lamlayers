@@ -18,6 +18,10 @@ class CanvasItem {
   Map<String, dynamic> properties;
   int layerIndex;
   bool isVisible;
+  bool isLocked;
+  String? groupId;
+  DateTime createdAt;
+  DateTime lastModified;
 
   CanvasItem({
     required this.id,
@@ -30,6 +34,10 @@ class CanvasItem {
     this.properties = const {},
     this.layerIndex = 0,
     this.isVisible = true,
+    this.isLocked = false,
+    this.groupId,
+    required this.createdAt,
+    required this.lastModified,
   });
 
   CanvasItem copyWith({
@@ -43,6 +51,10 @@ class CanvasItem {
     Map<String, dynamic>? properties,
     int? layerIndex,
     bool? isVisible,
+    bool? isLocked,
+    String? groupId,
+    DateTime? createdAt,
+    DateTime? lastModified,
   }) {
     return CanvasItem(
       id: id ?? this.id,
@@ -55,6 +67,10 @@ class CanvasItem {
       properties: properties ?? Map<String, dynamic>.from(this.properties),
       layerIndex: layerIndex ?? this.layerIndex,
       isVisible: isVisible ?? this.isVisible,
+      isLocked: isLocked ?? this.isLocked,
+      groupId: groupId ?? this.groupId,
+      createdAt: createdAt ?? this.createdAt,
+      lastModified: lastModified ?? DateTime.now(),
     );
   }
 }
