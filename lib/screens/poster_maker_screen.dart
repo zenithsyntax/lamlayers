@@ -18,6 +18,17 @@ import '../widgets/action_bar.dart';
 import 'google_font_screen.dart';
 import '../models/font_favorites.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:image/image.dart' as img;
+import 'package:path_provider/path_provider.dart';
+import 'package:screenshot/screenshot.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:lamlayers/screens/add_images.dart'; // Import the PixabayImagesPage
+import 'package:cached_network_image/cached_network_image.dart'; // Import for network images
 
 
 
@@ -870,13 +881,16 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             _miniSlider('SBlur', (selectedItem!.properties['shadowBlur'] as double?) ?? 8.0, 0.0, 40.0, (v) => setState(() => selectedItem!.properties['shadowBlur'] = v), Icons.blur_on_rounded),
             _miniSlider('SOpa', (selectedItem!.properties['shadowOpacity'] as double?) ?? 0.6, 0.0, 1.0, (v) => setState(() => selectedItem!.properties['shadowOpacity'] = v), Icons.opacity_rounded),
             _miniSlider('OffX', (selectedItem!.properties['shadowOffset'] as Offset?)?.dx ?? 4.0, -100.0, 100.0, (v) => setState(() {
-              final cur = (selectedItem!.properties['shadowOffset'] as Offset?) ?? const Offset(4, 4);
+              final Offset cur = (selectedItem!.properties['shadowOffset'] as Offset?) ?? const Offset(4, 4);
               selectedItem!.properties['shadowOffset'] = Offset(v, cur.dy);
             }), Icons.swap_horiz_rounded),
-            _miniSlider('OffY', (selectedItem!.properties['shadowOffset'] as Offset?)?.dy ?? 4.0, -100.0, 100.0, (v) => setState(() {
-              final cur = (selectedItem!.properties['shadowOffset'] as Offset?) ?? const Offset(4, 4);
-              selectedItem!.properties['shadowOffset'] = Offset(cur.dx, v);
-            }), Icons.swap_vert_rounded),
+            SizedBox(height: 16.h),
+            _buildSliderOption('Shadow Offset Y', (selectedItem!.properties['shadowOffset'] as Offset?)?.dy ?? 4.0, -100.0, 100.0, (value) {
+              setState(() {
+                final Offset cur = (selectedItem!.properties['shadowOffset'] as Offset?) ?? const Offset(4, 4);
+                selectedItem!.properties['shadowOffset'] = Offset(cur.dx, value);
+              });
+            }, Icons.swap_vert_rounded),
           ],
         ];
     }
@@ -1061,7 +1075,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         // 1 for the leading plus button + liked fonts as items
         return 1 + likedFontFamilies.length;
       case 1:
-        return 1; // Only the Upload option
+        return 2; // Two options: Upload and Pixabay
       case 2:
         return sampleStickers.length;
       case 3:
@@ -1118,26 +1132,34 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   }
 
   void _onTabItemTap(int index) {
+    HapticFeedback.lightImpact();
     switch (selectedTabIndex) {
       case 0:
         if (index == 0) {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const GoogleFontsPage()),
-          ).then((_) => setState(() {}));
-          return;
-        }
-        final family = likedFontFamilies[index - 1];
-        _addCanvasItem(
-          CanvasItemType.text,
-          properties: {
-            'text': 'Sample Text',
-            'fontSize': 24.0,
+          _addCanvasItem(CanvasItemType.text, properties: {
+            'text': 'New Text',
             'color': Colors.black,
+            'fontSize': 24.0,
             'fontWeight': FontWeight.normal,
             'fontStyle': FontStyle.normal,
             'textAlign': TextAlign.center,
-            'hasGradient': false,
-            'gradientColors': [Colors.blue, Colors.purple],
+            'decoration': TextDecoration.none,
+            'letterSpacing': 0.0,
+            'hasShadow': false,
+            'shadowColor': Colors.grey,
+            'shadowOffset': const Offset(2, 2),
+            'shadowBlur': 4.0,
+            'fontFamily': 'Roboto',
+          });
+        } else {
+          final family = likedFontFamilies[index - 1];
+          _addCanvasItem(CanvasItemType.text, properties: {
+            'text': 'New Text',
+            'color': Colors.black,
+            'fontSize': 24.0,
+            'fontWeight': FontWeight.normal,
+            'fontStyle': FontStyle.normal,
+            'textAlign': TextAlign.center,
             'decoration': TextDecoration.none,
             'letterSpacing': 0.0,
             'hasShadow': false,
@@ -1145,11 +1167,15 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             'shadowOffset': const Offset(2, 2),
             'shadowBlur': 4.0,
             'fontFamily': family,
-          },
-        );
+          });
+        }
         break;
       case 1:
-        _pickImage();
+        if (index == 0) {
+          _pickImage(); // Existing Upload functionality
+        } else if (index == 1) {
+          _navigateToPixabayImages(); // New Pixabay functionality
+        }
         break;
       case 2:
         _addCanvasItem(
@@ -1495,16 +1521,38 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         final double gradientAngle = (item.properties['gradientAngle'] as double?) ?? 0.0;
         final double? displayW = (item.properties['displayWidth'] as double?);
         final double? displayH = (item.properties['displayHeight'] as double?);
-        Widget content = filePath != null
-            ? SizedBox(
-                width: (displayW ?? 160.0).w,
-                height: (displayH ?? 160.0).h,
-                child: Image.file(
-                  File(filePath),
-                  fit: BoxFit.contain,
-                ),
-              )
-            : Icon((item.properties['icon'] as IconData?) ?? Icons.image, size: 90.sp, color: (item.properties['color'] as Color?) ?? Colors.blue);
+        Widget content;
+
+        final String? imageUrl = item.properties['imageUrl'] as String?;
+
+        if (filePath != null) {
+          content = SizedBox(
+            width: (displayW ?? 160.0).w,
+            height: (displayH ?? 160.0).h,
+            child: Image.file(
+              File(filePath),
+              fit: BoxFit.contain,
+            ),
+          );
+        } else if (imageUrl != null) {
+          content = SizedBox(
+            width: (displayW ?? 160.0).w,
+            height: (displayH ?? 160.0).h,
+            child: CachedNetworkImage(
+              imageUrl: imageUrl,
+              fit: BoxFit.contain,
+              placeholder: (context, url) => Center(child: CircularProgressIndicator()),
+              errorWidget: (context, url, error) => Icon(Icons.error),
+            ),
+          );
+        } else {
+          content = Icon(
+            (item.properties['icon'] as IconData?) ?? Icons.image,
+            size: 90.sp,
+            color: (item.properties['color'] as Color?) ?? Colors.blue,
+          );
+        }
+
         if (hasGradient) {
           final double rad = gradientAngle * math.pi / 180.0;
           final double cx = math.cos(rad);
@@ -1929,19 +1977,15 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           SizedBox(height: 16.h),
           _buildSliderOption('Shadow Blur', (props['shadowBlur'] as double?) ?? 8.0, 0.0, 40.0, (value) => setState(() => props['shadowBlur'] = value), Icons.blur_on_rounded),
           SizedBox(height: 16.h),
-          _buildSliderOption('Shadow Offset X', (props['shadowOffset'] as Offset?)?.dx ?? 4.0, -100.0, 100.0, (value) {
-            setState(() {
-              final Offset cur = (props['shadowOffset'] as Offset?) ?? const Offset(4, 4);
-              props['shadowOffset'] = Offset(value, cur.dy);
-            });
-          }, Icons.swap_horiz_rounded),
+          _buildSliderOption('Shadow Offset X', (props['shadowOffset'] as Offset?)?.dx ?? 4.0, -100.0, 100.0, (v) => setState(() {
+            final Offset cur = (props['shadowOffset'] as Offset?) ?? const Offset(4, 4);
+            props['shadowOffset'] = Offset(v, cur.dy);
+          }), Icons.swap_horiz_rounded),
           SizedBox(height: 16.h),
-          _buildSliderOption('Shadow Offset Y', (props['shadowOffset'] as Offset?)?.dy ?? 4.0, -100.0, 100.0, (value) {
-            setState(() {
-              final Offset cur = (props['shadowOffset'] as Offset?) ?? const Offset(4, 4);
-              props['shadowOffset'] = Offset(cur.dx, value);
-            });
-          }, Icons.swap_vert_rounded),
+          _buildSliderOption('Shadow Offset Y', (props['shadowOffset'] as Offset?)?.dy ?? 4.0, -100.0, 100.0, (v) => setState(() {
+            final Offset cur = (props['shadowOffset'] as Offset?) ?? const Offset(4, 4);
+            props['shadowOffset'] = Offset(cur.dx, v);
+          }), Icons.swap_vert_rounded),
         ],
       ],
     );
@@ -1966,9 +2010,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         SizedBox(height: 16.h),
         _buildColorOption('Stroke Color', 'strokeColor', props),
         SizedBox(height: 16.h),
-        _buildSliderOption('Stroke Width', (props['strokeWidth'] as double?) ?? 2.0, 0.0, 10.0, (value) => setState(() => props['strokeWidth'] = value), Icons.line_weight_rounded),
+        _buildSliderOption('Stroke Width', (props['strokeWidth'] as double?) ?? 2.0, 0.0, 10.0, (v) => setState(() => props['strokeWidth'] = v), Icons.line_weight_rounded),
         SizedBox(height: 16.h),
-        _buildSliderOption('Corner Radius', (props['cornerRadius'] as double?) ?? 12.0, 0.0, 50.0, (value) => setState(() => props['cornerRadius'] = value), Icons.rounded_corner_rounded),
+        _buildSliderOption('Corner Radius', (props['cornerRadius'] as double?) ?? 12.0, 0.0, 50.0, (v) => setState(() => props['cornerRadius'] = v), Icons.rounded_corner_rounded),
         SizedBox(height: 20.h),
         _buildToggleOption('Gradient Fill', (props['hasGradient'] as bool?) ?? false, Icons.gradient_rounded, (value) => setState(() => props['hasGradient'] = value)),
         SizedBox(height: 16.h),
@@ -1987,23 +2031,19 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           SizedBox(height: 16.h),
           _buildColorOption('Shadow Color', 'shadowColor', props),
           SizedBox(height: 16.h),
-          _buildSliderOption('Shadow Blur', (props['shadowBlur'] as double?) ?? 8.0, 0.0, 40.0, (value) => setState(() => props['shadowBlur'] = value), Icons.blur_on_rounded),
+          _buildSliderOption('Shadow Blur', (props['shadowBlur'] as double?) ?? 8.0, 0.0, 40.0, (v) => setState(() => props['shadowBlur'] = v), Icons.blur_on_rounded),
           SizedBox(height: 16.h),
-          _buildSliderOption('Shadow Opacity', (props['shadowOpacity'] as double?) ?? 0.6, 0.0, 1.0, (value) => setState(() => props['shadowOpacity'] = value), Icons.opacity_rounded),
+          _buildSliderOption('Shadow Opacity', (props['shadowOpacity'] as double?) ?? 0.6, 0.0, 1.0, (v) => setState(() => props['shadowOpacity'] = v), Icons.opacity_rounded),
           SizedBox(height: 16.h),
-          _buildSliderOption('Shadow Offset X', (props['shadowOffset'] as Offset?)?.dx ?? 4.0, -100.0, 100.0, (value) {
-            setState(() {
-              final Offset cur = (props['shadowOffset'] as Offset?) ?? const Offset(4, 4);
-              props['shadowOffset'] = Offset(value, cur.dy);
-            });
-          }, Icons.swap_horiz_rounded),
+          _buildSliderOption('Shadow Offset X', (props['shadowOffset'] as Offset?)?.dx ?? 4.0, -100.0, 100.0, (v) => setState(() {
+            final Offset cur = (props['shadowOffset'] as Offset?) ?? const Offset(4, 4);
+            props['shadowOffset'] = Offset(v, cur.dy);
+          }), Icons.swap_horiz_rounded),
           SizedBox(height: 16.h),
-          _buildSliderOption('Shadow Offset Y', (props['shadowOffset'] as Offset?)?.dy ?? 4.0, -100.0, 100.0, (value) {
-            setState(() {
-              final Offset cur = (props['shadowOffset'] as Offset?) ?? const Offset(4, 4);
-              props['shadowOffset'] = Offset(cur.dx, value);
-            });
-          }, Icons.swap_vert_rounded),
+          _buildSliderOption('Shadow Offset Y', (props['shadowOffset'] as Offset?)?.dy ?? 4.0, -100.0, 100.0, (v) => setState(() {
+            final Offset cur = (props['shadowOffset'] as Offset?) ?? const Offset(4, 4);
+            props['shadowOffset'] = Offset(cur.dx, v);
+          }), Icons.swap_vert_rounded),
         ],
       ],
     );
@@ -2479,6 +2519,28 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Export failed')));
+    }
+  }
+
+  Future<void> _navigateToPixabayImages() async {
+    final PixabayImage? selectedImage = await Navigator.push(context, MaterialPageRoute(builder: (context) => PixabayImagesPage()));
+
+    if (selectedImage != null) {
+      // Use the selected image from Pixabay
+      // For now, let's just add it to the canvas as a new item.
+      // You might want to adjust the size and position based on your needs.
+      _addCanvasItem(
+        CanvasItemType.image,
+        properties: {
+          'imageUrl': selectedImage.webformatURL, // Use imageUrl for network images
+          'tint': Colors.transparent,
+          'blur': 0.0,
+          'intrinsicWidth': selectedImage.views.toDouble(), // Using views as a placeholder for intrinsic width
+          'intrinsicHeight': selectedImage.downloads.toDouble(), // Using downloads as a placeholder for intrinsic height
+          'displayWidth': 240.0, // Default display width
+          'displayHeight': 240.0 * (selectedImage.downloads / selectedImage.views), // Maintain aspect ratio
+        },
+      );
     }
   }
 
