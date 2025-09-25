@@ -24,6 +24,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:lamlayers/screens/google_font_screen.dart';
+import 'dart:async'; // Import for Timer
 
 
 
@@ -49,7 +50,11 @@ class _ShapePainter extends CustomPainter {
     final Color fillColor = (props['fillColor'] as HiveColor?)?.toColor() ?? Colors.blue;
     final Color strokeColor = (props['strokeColor'] as HiveColor?)?.toColor() ?? Colors.black;
     final bool hasGradient = (props['hasGradient'] as bool?) ?? false;
-    final List<Color> gradientColors = (props['gradientColors'] as List<HiveColor>?)?.map((hc) => hc.toColor()).toList() ?? [];
+    final List<Color> gradientColors = (props['gradientColors'] as List<dynamic>?)
+            ?.map((e) => (e is HiveColor ? e : (e is int ? HiveColor(e) : null))?.toColor())
+            .whereType<Color>()
+            .toList() ??
+        [];
     final double cornerRadius = (props['cornerRadius'] as double?) ?? 12.0;
     final ui.Image? fillImage = props['image'] as ui.Image?;
     final bool hasShadow = (props['hasShadow'] as bool?) ?? false;
@@ -358,6 +363,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   late Box<PosterProject> _projectBox;
   late Box<UserPreferences> _userPreferencesBox;
   late UserPreferences userPreferences;
+  Timer? _autoSaveTimer;
 
   @override
   void initState() {
@@ -365,6 +371,10 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     _projectBox = Hive.box<PosterProject>('posterProjects');
     _userPreferencesBox = Hive.box<UserPreferences>('userPreferences');
     userPreferences = _userPreferencesBox.get('user_prefs_id') ?? UserPreferences();
+
+    _autoSaveTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      _saveProject();
+    });
 
     if (widget.projectId != null) {
       _currentProject = _projectBox.get(widget.projectId);
@@ -435,7 +445,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     }
 
     if (userPreferences.recentColors.isNotEmpty) {
-      for (var recentColor in userPreferences.recentColors) {
+      final List<HiveColor> hiveRecentColors = List<HiveColor>.from(userPreferences.recentColors);
+      for (var recentColor in hiveRecentColors) {
         recentColors.add(recentColor.toColor());
       }
     }
@@ -447,6 +458,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     _bottomSheetController.dispose();
     _selectionController.dispose();
     _itemAddController.dispose();
+    _autoSaveTimer?.cancel();
     super.dispose();
   }
 
@@ -955,8 +967,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             selectedItem!.properties['hasGradient'] = !(selectedItem!.properties['hasGradient'] == true);
           })),
           if (selectedItem!.properties['hasGradient'] == true) ...[
-            _miniColorSwatch('Grad A', ((selectedItem!.properties['gradientColors'] as List<HiveColor>?)?.map((hc) => hc.toColor()).toList() ?? [HiveColor.fromColor(Colors.lightBlue).toColor(), HiveColor.fromColor(Colors.blueAccent).toColor()]).first, () => _showColorPicker('gradientColor1', isGradient: true)),
-            _miniColorSwatch('Grad B', ((selectedItem!.properties['gradientColors'] as List<HiveColor>?)?.map((hc) => hc.toColor()).toList() ?? [HiveColor.fromColor(Colors.lightBlue).toColor(), HiveColor.fromColor(Colors.blueAccent).toColor()]).last, () => _showColorPicker('gradientColor2', isGradient: true)),
+            _miniColorSwatch('Grad A', ((selectedItem!.properties['gradientColors'] as List<dynamic>?)?.map((e) => (e as HiveColor).toColor()).toList() ?? [HiveColor.fromColor(Colors.lightBlue).toColor(), HiveColor.fromColor(Colors.blueAccent).toColor()]).first, () => _showColorPicker('gradientColor1', isGradient: true)),
+            _miniColorSwatch('Grad B', ((selectedItem!.properties['gradientColors'] as List<dynamic>?)?.map((e) => (e as HiveColor).toColor()).toList() ?? [HiveColor.fromColor(Colors.lightBlue).toColor(), HiveColor.fromColor(Colors.blueAccent).toColor()]).last, () => _showColorPicker('gradientColor2', isGradient: true)),
             _miniSlider('Angle', (selectedItem!.properties['gradientAngle'] as double?) ?? 0.0, -180.0, 180.0, (v) => setState(() => selectedItem!.properties['gradientAngle'] = v), Icons.rotate_right_rounded),
           ],
           _miniToggleIcon('Shadow', CupertinoIcons.moon_stars, selectedItem!.properties['hasShadow'] == true, () => setState(() {
@@ -1003,8 +1015,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             selectedItem!.properties['hasGradient'] = !(selectedItem!.properties['hasGradient'] == true);
           })),
           if (selectedItem!.properties['hasGradient'] == true) ...[
-            _miniColorSwatch('Grad A', ((selectedItem!.properties['gradientColors'] as List<HiveColor>?)?.map((hc) => hc.toColor()).toList() ?? [HiveColor.fromColor(Colors.lightBlue).toColor(), HiveColor.fromColor(Colors.blueAccent).toColor()]).first, () => _showColorPicker('gradientColor1', isGradient: true)),
-            _miniColorSwatch('Grad B', ((selectedItem!.properties['gradientColors'] as List<HiveColor>?)?.map((hc) => hc.toColor()).toList() ?? [HiveColor.fromColor(Colors.lightBlue).toColor(), HiveColor.fromColor(Colors.blueAccent).toColor()]).last, () => _showColorPicker('gradientColor2', isGradient: true)),
+            _miniColorSwatch('Grad A', ((selectedItem!.properties['gradientColors'] as List<dynamic>?)?.map((e) => (e as HiveColor).toColor()).toList() ?? [HiveColor.fromColor(Colors.lightBlue).toColor(), HiveColor.fromColor(Colors.blueAccent).toColor()]).first, () => _showColorPicker('gradientColor1', isGradient: true)),
+            _miniColorSwatch('Grad B', ((selectedItem!.properties['gradientColors'] as List<dynamic>?)?.map((e) => (e as HiveColor).toColor()).toList() ?? [HiveColor.fromColor(Colors.lightBlue).toColor(), HiveColor.fromColor(Colors.blueAccent).toColor()]).last, () => _showColorPicker('gradientColor2', isGradient: true)),
             _miniSlider('Angle', (selectedItem!.properties['gradientAngle'] as double?) ?? 0.0, -180.0, 180.0, (v) => setState(() => selectedItem!.properties['gradientAngle'] = v), Icons.rotate_right_rounded),
           ],
           _miniToggleIcon('Shadow', CupertinoIcons.moon_stars, selectedItem!.properties['hasShadow'] == true, () => setState(() {
@@ -1657,7 +1669,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           final Alignment end = Alignment(cx, sy);
           textWidget = ShaderMask(
             shaderCallback: (bounds) => LinearGradient(
-              colors: (props['gradientColors'] as List<HiveColor>?)?.map((hc) => hc.toColor()).toList() ?? [HiveColor.fromColor(Colors.blue).toColor(), HiveColor.fromColor(Colors.purple).toColor()],
+              colors: (props['gradientColors'] as List<dynamic>?)?.map((e) => (e as HiveColor).toColor()).toList() ?? [HiveColor.fromColor(Colors.blue).toColor(), HiveColor.fromColor(Colors.purple).toColor()],
               begin: begin,
               end: end,
             ).createShader(bounds),
@@ -1669,7 +1681,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         final String? filePath = item.properties['filePath'] as String?;
         final double blur = (item.properties['blur'] as double?) ?? 0.0;
         final bool hasGradient = (item.properties['hasGradient'] as bool?) ?? false;
-        final List<Color> grad = (item.properties['gradientColors'] as List<HiveColor>?)?.map((e) => e.toColor()).toList() ?? [];
+        final List<Color> grad = (item.properties['gradientColors'] as List<dynamic>?)?.map((e) => (e is HiveColor ? e : (e is int ? HiveColor(e) : null))?.toColor()).whereType<Color>().toList() ?? [];
         final bool hasShadow = (item.properties['hasShadow'] as bool?) ?? false;
         final Color shadowColor = (item.properties['shadowColor'] is HiveColor)
             ? (item.properties['shadowColor'] as HiveColor).toColor()
@@ -1750,7 +1762,11 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         final double strokeWidth = (props['strokeWidth'] as double?) ?? 2.0;
         final double cornerRadius = (props['cornerRadius'] as double?) ?? 0.0;
         final bool hasGradient = (props['hasGradient'] as bool?) ?? false;
-        final List<Color> gradientColors = (props['gradientColors'] as List<HiveColor>?)?.map((e) => e.toColor()).toList() ?? [];
+        final List<Color> gradientColors = (props['gradientColors'] as List<dynamic>?)
+                ?.map((e) => (e is HiveColor ? e : (e is int ? HiveColor(e) : null))?.toColor())
+                .whereType<Color>()
+                .toList() ??
+            [];
         final double gradientAngle = (props['gradientAngle'] as double?) ?? 0.0;
         final bool hasShadow = (props['hasShadow'] as bool?) ?? false;
         final HiveColor shadowColorHive = (props['shadowColor'] is HiveColor)
@@ -2609,7 +2625,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     setState(() {
       if (selectedItem != null) {
         if (isGradient) {
-          final currentGradient = (selectedItem!.properties['gradientColors'] as List<HiveColor>?)?.map((hc) => hc.toColor()).toList() ?? [Colors.blue, Colors.purple];
+          final currentGradient = (selectedItem!.properties['gradientColors'] as List<dynamic>?)?.map((e) => (e as HiveColor).toColor()).toList() ?? [Colors.blue, Colors.purple];
           final Map<String, dynamic> newProperties = Map.from(selectedItem!.properties);
           if (property == 'gradientColor1') {
             newProperties['gradientColors'] = [HiveColor.fromColor(color), HiveColor.fromColor(currentGradient.last)];

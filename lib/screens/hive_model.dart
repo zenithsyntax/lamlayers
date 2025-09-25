@@ -299,6 +299,22 @@ class HiveSize {
   static HiveSize fromSize(Size size) => HiveSize(size.width, size.height);
 }
 
+// Adapter for Flutter's Color class
+class ColorAdapter extends TypeAdapter<Color> {
+  @override
+  final typeId = 18; // Make sure this typeId is unique and not already used
+
+  @override
+  Color read(BinaryReader reader) {
+    return Color(reader.readInt());
+  }
+
+  @override
+  void write(BinaryWriter writer, Color obj) {
+    writer.writeInt(obj.value);
+  }
+}
+
 // Enums
 @HiveType(typeId: 7)
 enum HiveCanvasItemType {

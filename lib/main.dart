@@ -29,6 +29,7 @@ void main() async {
   Hive.registerAdapter(HiveStickerPropertiesAdapter());
   Hive.registerAdapter(ProjectTemplateAdapter());
   Hive.registerAdapter(UserPreferencesAdapter());
+  Hive.registerAdapter(ColorAdapter()); // Register the new ColorAdapter
 
   await Hive.openBox<PosterProject>('posterProjects');
   await Hive.openBox<UserPreferences>('userPreferences');
