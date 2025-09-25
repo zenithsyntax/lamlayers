@@ -181,7 +181,7 @@ class HiveCanvasItemAdapter extends TypeAdapter<HiveCanvasItem> {
     return HiveCanvasItem(
       id: fields[0] as String,
       type: fields[1] as HiveCanvasItemType,
-      position: fields[2] as HiveOffset,
+      position: fields[2] as Offset,
       scale: fields[3] as double,
       rotation: fields[4] as double,
       opacity: fields[5] as double,
@@ -238,46 +238,9 @@ class HiveCanvasItemAdapter extends TypeAdapter<HiveCanvasItem> {
           typeId == other.typeId;
 }
 
-class HiveOffsetAdapter extends TypeAdapter<HiveOffset> {
-  @override
-  final int typeId = 4;
-
-  @override
-  HiveOffset read(BinaryReader reader) {
-    final numOfFields = reader.readByte();
-    final fields = <int, dynamic>{
-      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
-    };
-    return HiveOffset(
-      fields[0] as double,
-      fields[1] as double,
-    );
-  }
-
-  @override
-  void write(BinaryWriter writer, HiveOffset obj) {
-    writer
-      ..writeByte(2)
-      ..writeByte(0)
-      ..write(obj.dx)
-      ..writeByte(1)
-      ..write(obj.dy);
-  }
-
-  @override
-  int get hashCode => typeId.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is HiveOffsetAdapter &&
-          runtimeType == other.runtimeType &&
-          typeId == other.typeId;
-}
-
 class HiveColorAdapter extends TypeAdapter<HiveColor> {
   @override
-  final int typeId = 5;
+  final int typeId = 4;
 
   @override
   HiveColor read(BinaryReader reader) {
@@ -311,7 +274,7 @@ class HiveColorAdapter extends TypeAdapter<HiveColor> {
 
 class HiveSizeAdapter extends TypeAdapter<HiveSize> {
   @override
-  final int typeId = 6;
+  final int typeId = 5;
 
   @override
   HiveSize read(BinaryReader reader) {
@@ -348,7 +311,7 @@ class HiveSizeAdapter extends TypeAdapter<HiveSize> {
 
 class HiveCanvasActionAdapter extends TypeAdapter<HiveCanvasAction> {
   @override
-  final int typeId = 10;
+  final int typeId = 9;
 
   @override
   HiveCanvasAction read(BinaryReader reader) {
@@ -397,7 +360,7 @@ class HiveCanvasActionAdapter extends TypeAdapter<HiveCanvasAction> {
 
 class HiveTextPropertiesAdapter extends TypeAdapter<HiveTextProperties> {
   @override
-  final int typeId = 12;
+  final int typeId = 11;
 
   @override
   HiveTextProperties read(BinaryReader reader) {
@@ -409,9 +372,9 @@ class HiveTextPropertiesAdapter extends TypeAdapter<HiveTextProperties> {
       text: fields[0] as String,
       fontSize: fields[1] as double,
       color: fields[2] as HiveColor,
-      fontWeight: fields[3] as int,
-      fontStyle: fields[4] as int,
-      textAlign: fields[5] as int,
+      fontWeight: fields[3] as FontWeight,
+      fontStyle: fields[4] as FontStyle,
+      textAlign: fields[5] as TextAlign,
       hasGradient: fields[6] as bool,
       gradientColors: (fields[7] as List).cast<HiveColor>(),
       gradientAngle: fields[8] as double,
@@ -419,7 +382,7 @@ class HiveTextPropertiesAdapter extends TypeAdapter<HiveTextProperties> {
       letterSpacing: fields[10] as double,
       hasShadow: fields[11] as bool,
       shadowColor: fields[12] as HiveColor,
-      shadowOffset: fields[13] as HiveOffset,
+      shadowOffset: fields[13] as Offset,
       shadowBlur: fields[14] as double,
       shadowOpacity: fields[15] as double,
       fontFamily: fields[16] as String?,
@@ -479,7 +442,7 @@ class HiveTextPropertiesAdapter extends TypeAdapter<HiveTextProperties> {
 
 class HiveImagePropertiesAdapter extends TypeAdapter<HiveImageProperties> {
   @override
-  final int typeId = 13;
+  final int typeId = 12;
 
   @override
   HiveImageProperties read(BinaryReader reader) {
@@ -497,7 +460,7 @@ class HiveImagePropertiesAdapter extends TypeAdapter<HiveImageProperties> {
       gradientAngle: fields[6] as double,
       hasShadow: fields[7] as bool,
       shadowColor: fields[8] as HiveColor,
-      shadowOffset: fields[9] as HiveOffset,
+      shadowOffset: fields[9] as Offset,
       shadowBlur: fields[10] as double,
       shadowOpacity: fields[11] as double,
       intrinsicWidth: fields[12] as double?,
@@ -558,7 +521,7 @@ class HiveImagePropertiesAdapter extends TypeAdapter<HiveImageProperties> {
 
 class HiveShapePropertiesAdapter extends TypeAdapter<HiveShapeProperties> {
   @override
-  final int typeId = 14;
+  final int typeId = 13;
 
   @override
   HiveShapeProperties read(BinaryReader reader) {
@@ -577,7 +540,7 @@ class HiveShapePropertiesAdapter extends TypeAdapter<HiveShapeProperties> {
       cornerRadius: fields[7] as double,
       hasShadow: fields[8] as bool,
       shadowColor: fields[9] as HiveColor,
-      shadowOffset: fields[10] as HiveOffset,
+      shadowOffset: fields[10] as Offset,
       shadowBlur: fields[11] as double,
       shadowOpacity: fields[12] as double,
       imagePath: fields[13] as String?,
@@ -634,7 +597,7 @@ class HiveShapePropertiesAdapter extends TypeAdapter<HiveShapeProperties> {
 
 class HiveStickerPropertiesAdapter extends TypeAdapter<HiveStickerProperties> {
   @override
-  final int typeId = 15;
+  final int typeId = 14;
 
   @override
   HiveStickerProperties read(BinaryReader reader) {
@@ -677,7 +640,7 @@ class HiveStickerPropertiesAdapter extends TypeAdapter<HiveStickerProperties> {
 
 class ProjectTemplateAdapter extends TypeAdapter<ProjectTemplate> {
   @override
-  final int typeId = 16;
+  final int typeId = 15;
 
   @override
   ProjectTemplate read(BinaryReader reader) {
@@ -732,7 +695,7 @@ class ProjectTemplateAdapter extends TypeAdapter<ProjectTemplate> {
 
 class UserPreferencesAdapter extends TypeAdapter<UserPreferences> {
   @override
-  final int typeId = 17;
+  final int typeId = 16;
 
   @override
   UserPreferences read(BinaryReader reader) {
@@ -796,7 +759,7 @@ class UserPreferencesAdapter extends TypeAdapter<UserPreferences> {
 
 class HiveCanvasItemTypeAdapter extends TypeAdapter<HiveCanvasItemType> {
   @override
-  final int typeId = 7;
+  final int typeId = 6;
 
   @override
   HiveCanvasItemType read(BinaryReader reader) {
@@ -845,7 +808,7 @@ class HiveCanvasItemTypeAdapter extends TypeAdapter<HiveCanvasItemType> {
 
 class ExportFormatAdapter extends TypeAdapter<ExportFormat> {
   @override
-  final int typeId = 8;
+  final int typeId = 7;
 
   @override
   ExportFormat read(BinaryReader reader) {
@@ -894,7 +857,7 @@ class ExportFormatAdapter extends TypeAdapter<ExportFormat> {
 
 class ExportQualityAdapter extends TypeAdapter<ExportQuality> {
   @override
-  final int typeId = 9;
+  final int typeId = 8;
 
   @override
   ExportQuality read(BinaryReader reader) {
@@ -943,7 +906,7 @@ class ExportQualityAdapter extends TypeAdapter<ExportQuality> {
 
 class ActionTypeAdapter extends TypeAdapter<ActionType> {
   @override
-  final int typeId = 11;
+  final int typeId = 10;
 
   @override
   ActionType read(BinaryReader reader) {

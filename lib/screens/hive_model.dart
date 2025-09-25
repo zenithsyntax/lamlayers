@@ -177,7 +177,7 @@ class HiveCanvasItem {
   HiveCanvasItemType type;
 
   @HiveField(2)
-  HiveOffset position;
+  Offset position;
 
   @HiveField(3)
   double scale;
@@ -228,7 +228,7 @@ class HiveCanvasItem {
   HiveCanvasItem copyWith({
     String? id,
     HiveCanvasItemType? type,
-    HiveOffset? position,
+    Offset? position,
     double? scale,
     double? rotation,
     double? opacity,
@@ -258,21 +258,6 @@ class HiveCanvasItem {
 
 // Custom Hive Types for Flutter types
 @HiveType(typeId: 4)
-class HiveOffset {
-  @HiveField(0)
-  double dx;
-
-  @HiveField(1)
-  double dy;
-
-  HiveOffset(this.dx, this.dy);
-
-  Offset toOffset() => Offset(dx, dy);
-  
-  static HiveOffset fromOffset(Offset offset) => HiveOffset(offset.dx, offset.dy);
-}
-
-@HiveType(typeId: 5)
 class HiveColor {
   @HiveField(0)
   final int value;
@@ -284,7 +269,7 @@ class HiveColor {
   static HiveColor fromColor(Color color) => HiveColor(color.value);
 }
 
-@HiveType(typeId: 6)
+@HiveType(typeId: 5)
 class HiveSize {
   @HiveField(0)
   double width;
@@ -316,7 +301,7 @@ class ColorAdapter extends TypeAdapter<Color> {
 }
 
 // Enums
-@HiveType(typeId: 7)
+@HiveType(typeId: 6)
 enum HiveCanvasItemType {
   @HiveField(0)
   text,
@@ -331,7 +316,7 @@ enum HiveCanvasItemType {
   shape,
 }
 
-@HiveType(typeId: 8)
+@HiveType(typeId: 7)
 enum ExportFormat {
   @HiveField(0)
   png,
@@ -346,7 +331,7 @@ enum ExportFormat {
   svg,
 }
 
-@HiveType(typeId: 9)
+@HiveType(typeId: 8)
 enum ExportQuality {
   @HiveField(0)
   low,
@@ -362,7 +347,7 @@ enum ExportQuality {
 }
 
 // Action History for Undo/Redo
-@HiveType(typeId: 10)
+@HiveType(typeId: 9)
 class HiveCanvasAction {
   @HiveField(0)
   String id;
@@ -392,7 +377,7 @@ class HiveCanvasAction {
   });
 }
 
-@HiveType(typeId: 11)
+@HiveType(typeId: 10)
 enum ActionType {
   @HiveField(0)
   add,
@@ -423,7 +408,7 @@ enum ActionType {
 }
 
 // Text Properties Model
-@HiveType(typeId: 12)
+@HiveType(typeId: 11)
 class HiveTextProperties {
   @HiveField(0)
   String text;
@@ -435,13 +420,13 @@ class HiveTextProperties {
   HiveColor color;
 
   @HiveField(3)
-  int fontWeight; // FontWeight.w400, etc.
+  FontWeight fontWeight; // FontWeight.w400, etc.
 
   @HiveField(4)
-  int fontStyle; // FontStyle.normal = 0, FontStyle.italic = 1
+  FontStyle fontStyle; // FontStyle.normal = 0, FontStyle.italic = 1
 
   @HiveField(5)
-  int textAlign; // TextAlign enum values
+  TextAlign textAlign; // TextAlign enum values
 
   @HiveField(6)
   bool hasGradient;
@@ -465,7 +450,7 @@ class HiveTextProperties {
   HiveColor shadowColor;
 
   @HiveField(13)
-  HiveOffset shadowOffset;
+  Offset shadowOffset;
 
   @HiveField(14)
   double shadowBlur;
@@ -480,9 +465,9 @@ class HiveTextProperties {
     required this.text,
     required this.fontSize,
     required this.color,
-    this.fontWeight = 400,
-    this.fontStyle = 0,
-    this.textAlign = 1, // TextAlign.center
+    this.fontWeight = FontWeight.w400,
+    this.fontStyle = FontStyle.normal,
+    this.textAlign = TextAlign.center,
     this.hasGradient = false,
     this.gradientColors = const [],
     this.gradientAngle = 0.0,
@@ -498,7 +483,7 @@ class HiveTextProperties {
 }
 
 // Image Properties Model
-@HiveType(typeId: 13)
+@HiveType(typeId: 12)
 class HiveImageProperties {
   @HiveField(0)
   String? filePath;
@@ -528,7 +513,7 @@ class HiveImageProperties {
   HiveColor shadowColor;
 
   @HiveField(9)
-  HiveOffset shadowOffset;
+  Offset shadowOffset;
 
   @HiveField(10)
   double shadowBlur;
@@ -569,7 +554,7 @@ class HiveImageProperties {
 }
 
 // Shape Properties Model
-@HiveType(typeId: 14)
+@HiveType(typeId: 13)
 class HiveShapeProperties {
   @HiveField(0)
   String shape;
@@ -602,7 +587,7 @@ class HiveShapeProperties {
   HiveColor shadowColor;
 
   @HiveField(10)
-  HiveOffset shadowOffset;
+  Offset shadowOffset;
 
   @HiveField(11)
   double shadowBlur;
@@ -636,7 +621,7 @@ class HiveShapeProperties {
 }
 
 // Sticker Properties Model
-@HiveType(typeId: 15)
+@HiveType(typeId: 14)
 class HiveStickerProperties {
   @HiveField(0)
   int iconCodePoint;
@@ -659,7 +644,7 @@ class HiveStickerProperties {
 }
 
 // Project Template Model
-@HiveType(typeId: 16)
+@HiveType(typeId: 15)
 class ProjectTemplate {
   @HiveField(0)
   String id;
@@ -698,7 +683,7 @@ class ProjectTemplate {
 }
 
 // User Preferences
-@HiveType(typeId: 17)
+@HiveType(typeId: 16)
 class UserPreferences {
   @HiveField(0)
   bool autoSave;
@@ -746,4 +731,67 @@ class UserPreferences {
     this.language = 'en',
     this.darkMode = false,
   });
+}
+
+class FontWeightAdapter extends TypeAdapter<FontWeight> {
+  @override
+  final typeId = 19; // Unique typeId
+
+  @override
+  FontWeight read(BinaryReader reader) {
+    return FontWeight.values[reader.readByte()];
+  }
+
+  @override
+  void write(BinaryWriter writer, FontWeight obj) {
+    writer.writeByte(obj.index);
+  }
+}
+
+class FontStyleAdapter extends TypeAdapter<FontStyle> {
+  @override
+  final typeId = 20; // Unique typeId
+
+  @override
+  FontStyle read(BinaryReader reader) {
+    return FontStyle.values[reader.readByte()];
+  }
+
+  @override
+  void write(BinaryWriter writer, FontStyle obj) {
+    writer.writeByte(obj.index);
+  }
+}
+
+class TextAlignAdapter extends TypeAdapter<TextAlign> {
+  @override
+  final typeId = 21; // Unique typeId
+
+  @override
+  TextAlign read(BinaryReader reader) {
+    return TextAlign.values[reader.readByte()];
+  }
+
+  @override
+  void write(BinaryWriter writer, TextAlign obj) {
+    writer.writeByte(obj.index);
+  }
+}
+
+class OffsetAdapter extends TypeAdapter<Offset> {
+  @override
+  final typeId = 22; // Unique typeId
+
+  @override
+  Offset read(BinaryReader reader) {
+    final dx = reader.readDouble();
+    final dy = reader.readDouble();
+    return Offset(dx, dy);
+  }
+
+  @override
+  void write(BinaryWriter writer, Offset obj) {
+    writer.writeDouble(obj.dx);
+    writer.writeDouble(obj.dy);
+  }
 }

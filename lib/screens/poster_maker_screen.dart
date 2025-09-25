@@ -64,7 +64,7 @@ class _ShapePainter extends CustomPainter {
             ? HiveColor.fromColor(props['shadowColor'] as Color)
             : HiveColor.fromColor(Colors.black54);
     final double shadowBlur = (props['shadowBlur'] as double?) ?? 8.0;
-    final Offset shadowOffset = (props['shadowOffset'] as HiveOffset?)?.toOffset() ?? const Offset(4, 4);
+    final Offset shadowOffset = (props['shadowOffset'] as Offset?) ?? const Offset(4, 4);
     final double shadowOpacity = (props['shadowOpacity'] as double?) ?? 0.6;
     final double gradientAngle = (props['gradientAngle'] as double?) ?? 0.0; 
 
@@ -420,7 +420,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       canvasItems = _currentProject!.canvasItems.map((hiveItem) => CanvasItem(
         id: hiveItem.id,
         type: CanvasItemType.values.firstWhere((e) => e.toString().split('.').last == hiveItem.type.toString().split('.').last),
-        position: hiveItem.position.toOffset(),
+        position: hiveItem.position,
         scale: hiveItem.scale,
         rotation: hiveItem.rotation,
         opacity: hiveItem.opacity,
@@ -469,7 +469,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       _currentProject!.canvasItems = canvasItems.map((item) => HiveCanvasItem(
         id: item.id,
         type: HiveCanvasItemType.values.firstWhere((e) => e.toString().split('.').last == item.type.toString().split('.').last),
-        position: HiveOffset.fromOffset(item.position),
+        position: item.position,
         scale: item.scale,
         rotation: item.rotation,
         opacity: item.opacity,
@@ -597,7 +597,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           'letterSpacing': 0.0,
           'hasShadow': false,
           'shadowColor': HiveColor.fromColor(Colors.black.withOpacity(0.6)),
-          'shadowOffset': HiveOffset.fromOffset(const Offset(4, 4)),
+          'shadowOffset': const Offset(4, 4),
           'shadowBlur': 4.0,
           'shadowOpacity': 0.6,
         };
@@ -610,7 +610,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           'gradientAngle': 0.0,
           'hasShadow': false,
           'shadowColor': HiveColor.fromColor(Colors.black.withOpacity(0.6)),
-          'shadowOffset': HiveOffset.fromOffset(const Offset(8, 8)),
+          'shadowOffset': const Offset(8, 8),
           'shadowBlur': 8.0,
           'shadowOpacity': 0.6,
         };
@@ -631,7 +631,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           'cornerRadius': 0.0,
           'hasShadow': false,
           'shadowColor': HiveColor.fromColor(Colors.black.withOpacity(0.6)),
-          'shadowOffset': HiveOffset.fromOffset(const Offset(8, 8)),
+          'shadowOffset': const Offset(8, 8),
           'shadowBlur': 8.0,
           'shadowOpacity': 0.6,
         };
@@ -1688,7 +1688,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             : (item.properties['shadowColor'] is Color)
                 ? (item.properties['shadowColor'] as Color)
                 : Colors.black54;
-        final Offset shadowOffset = (item.properties['shadowOffset'] as HiveOffset?)?.toOffset() ?? const Offset(4, 4);
+        final Offset shadowOffset = (item.properties['shadowOffset'] as Offset?) ?? const Offset(4, 4);
         final double shadowBlur = (item.properties['shadowBlur'] as double?) ?? 8.0;
         final double shadowOpacity = (item.properties['shadowOpacity'] as double?) ?? 0.6;
         final double gradientAngle = (item.properties['gradientAngle'] as double?) ?? 0.0;
@@ -1774,7 +1774,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             : (props['shadowColor'] is Color)
                 ? HiveColor.fromColor(props['shadowColor'] as Color)
                 : HiveColor.fromColor(Colors.black54);
-        final Offset shadowOffset = (props['shadowOffset'] as HiveOffset?)?.toOffset() ?? const Offset(4, 4);
+        final Offset shadowOffset = (props['shadowOffset'] as Offset?) ?? const Offset(4, 4);
         final double shadowBlur = (props['shadowBlur'] as double?) ?? 8.0;
         final double shadowOpacity = (props['shadowOpacity'] as double?) ?? 0.6;
         final String? imagePath = props['imagePath'] as String?;
@@ -1795,7 +1795,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               'gradientAngle': gradientAngle,
               'hasShadow': hasShadow,
               'shadowColor': shadowColorHive,
-              'shadowOffset': HiveOffset.fromOffset(shadowOffset),
+              'shadowOffset': shadowOffset,
               'shadowBlur': shadowBlur,
               'shadowOpacity': shadowOpacity,
             }

@@ -15,7 +15,7 @@ void main() async {
   Hive.registerAdapter(ProjectSettingsAdapter());
   Hive.registerAdapter(ExportSettingsAdapter());
   Hive.registerAdapter(HiveCanvasItemAdapter());
-  Hive.registerAdapter(HiveOffsetAdapter());
+  Hive.registerAdapter(OffsetAdapter());
   Hive.registerAdapter(HiveColorAdapter());
   Hive.registerAdapter(HiveSizeAdapter());
   Hive.registerAdapter(HiveCanvasItemTypeAdapter());
@@ -30,6 +30,9 @@ void main() async {
   Hive.registerAdapter(ProjectTemplateAdapter());
   Hive.registerAdapter(UserPreferencesAdapter());
   Hive.registerAdapter(ColorAdapter()); // Register the new ColorAdapter
+  Hive.registerAdapter(FontWeightAdapter()); // Register FontWeightAdapter
+  Hive.registerAdapter(FontStyleAdapter()); // Register FontStyleAdapter
+  Hive.registerAdapter(TextAlignAdapter()); // Register TextAlignAdapter
 
   await Hive.openBox<PosterProject>('posterProjects');
   await Hive.openBox<UserPreferences>('userPreferences');
