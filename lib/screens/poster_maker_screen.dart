@@ -767,7 +767,7 @@ void _deselectItem() {
   Widget _buildTopEditToolbar() {
     // Compact editing UI shown at the top when an item is selected
     return Container(
-      height: 170.h,
+      height: 160.h,
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -793,11 +793,11 @@ void _deselectItem() {
                   ),
                   child: Icon(_getItemTypeIcon(selectedItem!.type), color: Colors.white, size: 20.sp),
                 ),
-                SizedBox(width: 12.w),
-                Text('${selectedItem!.type.name.toUpperCase()} ', style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.bold, color: Colors.grey[800])),
+                // SizedBox(width: 12.w),
+                // Text('${selectedItem!.type.name.toUpperCase()} ', style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.bold, color: Colors.grey[800])),
                 const Spacer(),
                 _buildEditModeSegmentedControl(),
-                SizedBox(width: 12.w),
+                const Spacer(),
                 GestureDetector(
                   onTap: _deselectItem,
                   child: Container(
@@ -809,9 +809,9 @@ void _deselectItem() {
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.close_rounded, size: 16.sp, color: Colors.grey[700]),
-                        SizedBox(width: 6.w),
-                        Text('Done', style: TextStyle(fontSize: 12.sp, color: Colors.grey[700], fontWeight: FontWeight.w600)),
+                        Icon(Icons.check, size: 16.sp, color: Colors.grey[700]),
+                        // SizedBox(width: 6.w),
+                        // Text('Done', style: TextStyle(fontSize: 12.sp, color: Colors.grey[700], fontWeight: FontWeight.w600)),
                       ],
                     ),
                   ),
@@ -834,21 +834,43 @@ void _deselectItem() {
     );
   }
 
-  Widget _buildEditModeSegmentedControl() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Row(
-        children: [
-          _buildSegmentButton('General', 0),
-          _buildSegmentButton('Type', 1),
-        ],
-      ),
-    );
+// Replace the _buildEditModeSegmentedControl method with this updated version:
+
+Widget _buildEditModeSegmentedControl() {
+  final List<String> tabs = ['General', 'Type'];
+  
+  // Add Shadow and Gradient tabs based on item type
+  if (selectedItem != null) {
+    switch (selectedItem!.type) {
+      case CanvasItemType.text:
+      case CanvasItemType.image:
+      case CanvasItemType.shape:
+        tabs.addAll(['Shadow', 'Gradient']);
+        break;
+      case CanvasItemType.sticker:
+        // Stickers don't typically have shadow/gradient options
+        break;
+    }
   }
+
+  return Container(
+    decoration: BoxDecoration(
+      color: Colors.grey[100],
+      borderRadius: BorderRadius.circular(12.r),
+      border: Border.all(color: Colors.grey.shade300),
+    ),
+    child: SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: tabs.asMap().entries.map((entry) {
+          final int index = entry.key;
+          final String label = entry.value;
+          return _buildSegmentButton(label, index);
+        }).toList(),
+      ),
+    ),
+  );
+}
 
   Widget _buildSegmentButton(String label, int index) {
     final bool isActive = editTopbarTabIndex == index;
@@ -874,177 +896,182 @@ void _deselectItem() {
     );
   }
 
-  List<Widget> _buildTopbarQuickControls() {
-    if (selectedItem == null) return [];
-    if (editTopbarTabIndex == 0) {
-      // General controls
+ List<Widget> _buildTopbarQuickControls() {
+  if (selectedItem == null) return [];
+  
+  switch (editTopbarTabIndex) {
+    case 0: // General controls
       return [
         _miniSlider('Opacity', selectedItem!.opacity, 0.1, 1.0, (v) => setState(() => selectedItem!.opacity = v), Icons.opacity_rounded),
-      _miniSlider('Scale', selectedItem!.scale, 0.3, 10.0, (v) => setState(() => selectedItem!.scale = v), Icons.zoom_out_map_rounded),
+        _miniSlider('Scale', selectedItem!.scale, 0.3, 10.0, (v) => setState(() => selectedItem!.scale = v), Icons.zoom_out_map_rounded),
         _miniSlider('Rotate', selectedItem!.rotation * 180 / 3.14159, -180, 180, (v) => setState(() => selectedItem!.rotation = v * 3.14159 / 180), Icons.rotate_right_rounded),
         _miniIconButton('Duplicate', Icons.copy_rounded, () => _duplicateItem(selectedItem!)),
         _miniIconButton('Delete', Icons.delete_rounded, () => _removeItem(selectedItem!)),
         _miniIconButton('Front', Icons.vertical_align_top_rounded, () => _bringToFront(selectedItem!)),
         _miniIconButton('Back', Icons.vertical_align_bottom_rounded, () => _sendToBack(selectedItem!)),
       ];
-    }
-    // Type specific
-    switch (selectedItem!.type) {
-      case CanvasItemType.text:
-        return [
-          _miniTextField('Text', (selectedItem!.properties['text'] as String?) ?? '', (v) => setState(() => selectedItem!.properties['text'] = v)),
-          _miniSlider('Font', (selectedItem!.properties['fontSize'] as double?) ?? 24.0, 10.0, 72.0, (v) => setState(() => selectedItem!.properties['fontSize'] = v), Icons.format_size_rounded),
-          _miniToggleIcon('Bold', Icons.format_bold_rounded, selectedItem!.properties['fontWeight'] == FontWeight.bold, () => setState(() {
-            selectedItem!.properties['fontWeight'] = (selectedItem!.properties['fontWeight'] == FontWeight.bold) ? FontWeight.normal : FontWeight.bold;
-          })),
-          _miniToggleIcon('Italic', Icons.format_italic_rounded, selectedItem!.properties['fontStyle'] == FontStyle.italic, () => setState(() {
-            selectedItem!.properties['fontStyle'] = (selectedItem!.properties['fontStyle'] == FontStyle.italic) ? FontStyle.normal : FontStyle.italic;
-          })),
-          _miniToggleIcon('Underline', Icons.format_underlined_rounded, (selectedItem!.properties['decoration'] as int?) == 1, () => setState(() {
-            selectedItem!.properties['decoration'] = ((selectedItem!.properties['decoration'] as int?) == 1) ? 0 : 1;
-          })),
-          _miniColorSwatch(
-              'Color',
-              (selectedItem!.properties['hasGradient'] == true)
-                  ? ((selectedItem!.properties['gradientColors'] as List<dynamic>?)?.map((e) {
-                        if (e is HiveColor) return e.toColor();
-                        if (e is Color) return e;
-                        if (e is int) return HiveColor(e).toColor();
-                        return Colors.transparent; // Default or error color
-                      }).toList() ?? [Colors.blue, Colors.purple]).first
-                  : (selectedItem!.properties['color'] is HiveColor)
-                      ? (selectedItem!.properties['color'] as HiveColor).toColor()
-                      : (selectedItem!.properties['color'] is Color)
-                          ? (selectedItem!.properties['color'] as Color)
-                          : Colors.black,
-              () => _showColorPicker(
-                  (selectedItem!.properties['hasGradient'] == true) ? 'gradientColor1' : 'color',
-                  isGradient: selectedItem!.properties['hasGradient'] == true)),
-          _miniToggleIcon('Gradient', Icons.gradient_rounded, selectedItem!.properties['hasGradient'] == true, () => setState(() {
-            selectedItem!.properties['hasGradient'] = !(selectedItem!.properties['hasGradient'] == true);
-          })),
-          if (selectedItem!.properties['hasGradient'] == true) ...[
-            _miniColorSwatch(
-              'Grad A',
-              _getDisplayGradientColors().first,
-              () => _showColorPicker('gradientColor1', isGradient: true),
-            ),
-            _miniColorSwatch(
-              'Grad B',
-              _getDisplayGradientColors().last,
-              () => _showColorPicker('gradientColor2', isGradient: true),
-            ),
-            _miniSlider('Angle', (selectedItem!.properties['gradientAngle'] as double?) ?? 0.0, -180.0, 180.0, (v) => setState(() => selectedItem!.properties['gradientAngle'] = v), Icons.rotate_right_rounded),
-          ],
-          _miniToggleIcon('Shadow', CupertinoIcons.moon_stars, selectedItem!.properties['hasShadow'] == true, () => setState(() {
-            selectedItem!.properties['hasShadow'] = !(selectedItem!.properties['hasShadow'] == true);
-          })),
-          if (selectedItem!.properties['hasShadow'] == true) ...[
-            _miniColorSwatch(
-                'Shad',
-                (selectedItem!.properties['shadowColor'] is int)
-                    ? HiveColor(selectedItem!.properties['shadowColor'] as int).toColor()
-                    : (selectedItem!.properties['shadowColor'] is MaterialColor || selectedItem!.properties['shadowColor'] is Color)
-                        ? (selectedItem!.properties['shadowColor'] as Color)
-                        : Colors.grey,
-                () => _showColorPicker('shadowColor')),
-            _miniSlider('Blur', (selectedItem!.properties['shadowBlur'] as double?) ?? 4.0, 0.0, 20.0, (v) => setState(() => selectedItem!.properties['shadowBlur'] = v), Icons.blur_on_rounded),
-            _miniSlider('SOpa', (selectedItem!.properties['shadowOpacity'] as double?) ?? 0.6, 0.0, 1.0, (v) => setState(() => selectedItem!.properties['shadowOpacity'] = v), Icons.opacity_rounded),
-            _miniSlider('OffX', (selectedItem!.properties['shadowOffset'] as Offset?)?.dx ?? 2.0, -50.0, 50.0, (v) => setState(() {
-              final cur = (selectedItem!.properties['shadowOffset'] as Offset?) ?? const Offset(2, 2);
-              selectedItem!.properties['shadowOffset'] = Offset(v, cur.dy);
-            }), Icons.swap_horiz_rounded),
-            _miniSlider('OffY', (selectedItem!.properties['shadowOffset'] as Offset?)?.dy ?? 2.0, -50.0, 50.0, (v) => setState(() {
-              final cur = (selectedItem!.properties['shadowOffset'] as Offset?) ?? const Offset(2, 2);
-              selectedItem!.properties['shadowOffset'] = Offset(cur.dx, v);
-            }), Icons.swap_vert_rounded),
-          ],
-        ];
-      case CanvasItemType.image:
-        return [
-          _miniIconButton('Edit Image', Icons.edit_rounded, _editSelectedImage),
-          _miniColorSwatch('Tint', selectedItem!.properties['tint'] as Color? ?? Colors.transparent, () => _showColorPicker('tint')),
-          _miniSlider('Blur', (selectedItem!.properties['blur'] as double?) ?? 0.0, 0.0, 10.0, (v) => setState(() => selectedItem!.properties['blur'] = v), Icons.blur_on_rounded),
-          _miniIconButton('Replace', Icons.photo_library_rounded, () => _pickImage(replace: true)),
-          _miniToggleIcon('Gradient', Icons.gradient_rounded, selectedItem!.properties['hasGradient'] == true, () => setState(() {
-            selectedItem!.properties['hasGradient'] = !(selectedItem!.properties['hasGradient'] == true);
-          })),
-          if (selectedItem!.properties['hasGradient'] == true) ...[
-            _miniColorSwatch('Grad A', ((selectedItem!.properties['gradientColors'] as List<dynamic>?)?.map((e) => (e as HiveColor).toColor()).toList() ?? [HiveColor.fromColor(Colors.lightBlue).toColor(), HiveColor.fromColor(Colors.blueAccent).toColor()]).first, () => _showColorPicker('gradientColor1', isGradient: true)),
-            _miniColorSwatch('Grad B', ((selectedItem!.properties['gradientColors'] as List<dynamic>?)?.map((e) => (e as HiveColor).toColor()).toList() ?? [HiveColor.fromColor(Colors.lightBlue).toColor(), HiveColor.fromColor(Colors.blueAccent).toColor()]).last, () => _showColorPicker('gradientColor2', isGradient: true)),
-            _miniSlider('Angle', (selectedItem!.properties['gradientAngle'] as double?) ?? 0.0, -180.0, 180.0, (v) => setState(() => selectedItem!.properties['gradientAngle'] = v), Icons.rotate_right_rounded),
-          ],
-          _miniToggleIcon('Shadow', CupertinoIcons.moon_stars, selectedItem!.properties['hasShadow'] == true, () => setState(() {
-            selectedItem!.properties['hasShadow'] = !(selectedItem!.properties['hasShadow'] == true);
-          })),
-          if (selectedItem!.properties['hasShadow'] == true) ...[
-            _miniColorSwatch('Shad', (selectedItem!.properties['shadowColor'] as HiveColor?)?.toColor() ?? Colors.black54, () => _showColorPicker('shadowColor')),
-            _miniSlider('SBlur', (selectedItem!.properties['shadowBlur'] as double?) ?? 8.0, 0.0, 40.0, (v) => setState(() => selectedItem!.properties['shadowBlur'] = v), Icons.blur_on_rounded),
-            _miniSlider('SOpa', (selectedItem!.properties['shadowOpacity'] as double?) ?? 0.6, 0.0, 1.0, (v) => setState(() => selectedItem!.properties['shadowOpacity'] = v), Icons.opacity_rounded),
-            _miniSlider('OffX', (selectedItem!.properties['shadowOffset'] as Offset?)?.dx ?? 4.0, -100.0, 100.0, (v) => setState(() {
-              final cur = (selectedItem!.properties['shadowOffset'] as Offset?) ?? const Offset(4, 4);
-              selectedItem!.properties['shadowOffset'] = Offset(v, cur.dy);
-            }), Icons.swap_horiz_rounded),
-            _miniSlider('OffY', (selectedItem!.properties['shadowOffset'] as Offset?)?.dy ?? 4.0, -100.0, 100.0, (v) => setState(() {
-              final cur = (selectedItem!.properties['shadowOffset'] as Offset?) ?? const Offset(4, 4);
-              selectedItem!.properties['shadowOffset'] = Offset(cur.dx, v);
-            }), Icons.swap_vert_rounded),
-          ],
-        ];
-      case CanvasItemType.sticker:
-        return [
-          _miniColorSwatch('Color', (selectedItem!.properties['color'] as HiveColor?)?.toColor() ?? Colors.orange, () => _showColorPicker('color')),
-        ];
-      case CanvasItemType.shape:
-        return [
-          _miniColorSwatch(
-              'Fill',
-              (selectedItem!.properties['fillColor'] is Color)
-                  ? HiveColor.fromColor(selectedItem!.properties['fillColor'] as Color).toColor()
-                  : (selectedItem!.properties['fillColor'] as HiveColor?)?.toColor() ?? Colors.blue,
-              () => _showColorPicker('fillColor')),
-          _miniColorSwatch(
-              'Stroke',
-              (selectedItem!.properties['strokeColor'] is Color)
-                  ? HiveColor.fromColor(selectedItem!.properties['strokeColor'] as Color).toColor()
-                  : (selectedItem!.properties['strokeColor'] as HiveColor?)?.toColor() ?? Colors.black,
-              () => _showColorPicker('strokeColor')),
-          _miniSlider('Stroke', (selectedItem!.properties['strokeWidth'] as double?) ?? 2.0, 0.0, 10.0, (v) => setState(() => selectedItem!.properties['strokeWidth'] = v), Icons.line_weight_rounded),
-          _miniSlider('Radius', (selectedItem!.properties['cornerRadius'] as double?) ?? 12.0, 0.0, 50.0, (v) => setState(() => selectedItem!.properties['cornerRadius'] = v), Icons.rounded_corner_rounded),
-          _miniIconButton('Image Fill', Icons.photo_library_rounded, () => _pickShapeImage()),
-          if (selectedItem!.properties['image'] != null)
-            _miniIconButton('Clear Image', Icons.delete_sweep_rounded, () => setState(() => selectedItem!.properties['image'] = null)),
-          _miniToggleIcon('Gradient', Icons.gradient_rounded, selectedItem!.properties['hasGradient'] == true, () => setState(() {
-            selectedItem!.properties['hasGradient'] = !(selectedItem!.properties['hasGradient'] == true);
-          })),
-          if (selectedItem!.properties['hasGradient'] == true) ...[
-            _miniColorSwatch('Grad A', ((selectedItem!.properties['gradientColors'] as List<dynamic>?)?.map((e) => (e as HiveColor).toColor()).toList() ?? [HiveColor.fromColor(Colors.lightBlue).toColor(), HiveColor.fromColor(Colors.blueAccent).toColor()]).first, () => _showColorPicker('gradientColor1', isGradient: true)),
-            _miniColorSwatch('Grad B', ((selectedItem!.properties['gradientColors'] as List<dynamic>?)?.map((e) => (e as HiveColor).toColor()).toList() ?? [HiveColor.fromColor(Colors.lightBlue).toColor(), HiveColor.fromColor(Colors.blueAccent).toColor()]).last, () => _showColorPicker('gradientColor2', isGradient: true)),
-            _miniSlider('Angle', (selectedItem!.properties['gradientAngle'] as double?) ?? 0.0, -180.0, 180.0, (v) => setState(() => selectedItem!.properties['gradientAngle'] = v), Icons.rotate_right_rounded),
-          ],
-          _miniToggleIcon('Shadow', CupertinoIcons.moon_stars, selectedItem!.properties['hasShadow'] == true, () => setState(() {
-            selectedItem!.properties['hasShadow'] = !(selectedItem!.properties['hasShadow'] == true);
-          })),
-          if (selectedItem!.properties['hasShadow'] == true) ...[
-            _miniColorSwatch('Shad', (selectedItem!.properties['shadowColor'] as HiveColor?)?.toColor() ?? Colors.black54, () => _showColorPicker('shadowColor')),
-            _miniSlider('SBlur', (selectedItem!.properties['shadowBlur'] as double?) ?? 8.0, 0.0, 40.0, (v) => setState(() => selectedItem!.properties['shadowBlur'] = v), Icons.blur_on_rounded),
-            _miniSlider('SOpa', (selectedItem!.properties['shadowOpacity'] as double?) ?? 0.6, 0.0, 1.0, (v) => setState(() => selectedItem!.properties['shadowOpacity'] = v), Icons.opacity_rounded),
-            _miniSlider('OffX', (selectedItem!.properties['shadowOffset'] as Offset?)?.dx ?? 4.0, -100.0, 100.0, (v) => setState(() {
-              final Offset cur = (selectedItem!.properties['shadowOffset'] as Offset?) ?? const Offset(4, 4);
-              selectedItem!.properties['shadowOffset'] = Offset(v, cur.dy);
-            }), Icons.swap_horiz_rounded),
-            SizedBox(height: 16.h),
-            _buildSliderOption('Shadow Offset Y', (selectedItem!.properties['shadowOffset'] as Offset?)?.dy ?? 4.0, -100.0, 100.0, (value) {
-              setState(() {
-                final Offset cur = (selectedItem!.properties['shadowOffset'] as Offset?) ?? const Offset(4, 4);
-                selectedItem!.properties['shadowOffset'] = Offset(cur.dx, value);
-              });
-            }, Icons.swap_vert_rounded),
-        ],
-      ];
-    }
+      
+    case 1: // Type specific controls
+      return _buildTypeSpecificQuickControls();
+      
+    case 2: // Shadow controls
+      return _buildShadowQuickControls();
+      
+    case 3: // Gradient controls
+      return _buildGradientQuickControls();
+      
+    default:
+      return [];
   }
+}
 
+List<Widget> _buildShadowQuickControls() {
+  if (selectedItem == null) return [];
+  
+  final props = selectedItem!.properties;
+  final bool hasShadow = props['hasShadow'] == true;
+  
+  return [
+    _miniToggleIcon('Enable Shadow', CupertinoIcons.moon_stars, hasShadow, () => setState(() {
+      props['hasShadow'] = !hasShadow;
+    })),
+    if (hasShadow) ...[
+      _miniColorSwatch(
+        'Color',
+        (props['shadowColor'] is HiveColor)
+            ? (props['shadowColor'] as HiveColor).toColor()
+            : (props['shadowColor'] is Color)
+                ? (props['shadowColor'] as Color)
+                : Colors.black54,
+        () => _showColorPicker('shadowColor')
+      ),
+      _miniSlider('Blur', (props['shadowBlur'] as double?) ?? 4.0, 0.0, 40.0, 
+        (v) => setState(() => props['shadowBlur'] = v), Icons.blur_on_rounded),
+      _miniSlider('Opacity', (props['shadowOpacity'] as double?) ?? 0.6, 0.0, 1.0, 
+        (v) => setState(() => props['shadowOpacity'] = v), Icons.opacity_rounded),
+      _miniSlider('Offset X', (props['shadowOffset'] as Offset?)?.dx ?? 4.0, -100.0, 100.0, 
+        (v) => setState(() {
+          final cur = (props['shadowOffset'] as Offset?) ?? const Offset(4, 4);
+          props['shadowOffset'] = Offset(v, cur.dy);
+        }), Icons.swap_horiz_rounded),
+      _miniSlider('Offset Y', (props['shadowOffset'] as Offset?)?.dy ?? 4.0, -100.0, 100.0, 
+        (v) => setState(() {
+          final cur = (props['shadowOffset'] as Offset?) ?? const Offset(4, 4);
+          props['shadowOffset'] = Offset(cur.dx, v);
+        }), Icons.swap_vert_rounded),
+    ],
+  ];
+}
+
+List<Widget> _buildGradientQuickControls() {
+  if (selectedItem == null) return [];
+  
+  final props = selectedItem!.properties;
+  final bool hasGradient = props['hasGradient'] == true;
+  
+  return [
+    _miniToggleIcon('Enable Gradient', Icons.gradient_rounded, hasGradient, () => setState(() {
+      props['hasGradient'] = !hasGradient;
+      // Initialize gradient colors if not present
+      if (hasGradient && (props['gradientColors'] == null || (props['gradientColors'] as List).isEmpty)) {
+        props['gradientColors'] = [
+          HiveColor.fromColor(Colors.blue), 
+          HiveColor.fromColor(Colors.purple)
+        ];
+      }
+    })),
+    if (hasGradient) ...[
+      _miniColorSwatch(
+        'Color A',
+        _getDisplayGradientColors().first,
+        () => _showColorPicker('gradientColor1', isGradient: true),
+      ),
+      _miniColorSwatch(
+        'Color B',
+        _getDisplayGradientColors().last,
+        () => _showColorPicker('gradientColor2', isGradient: true),
+      ),
+      _miniSlider('Angle', (props['gradientAngle'] as double?) ?? 0.0, -180.0, 180.0, 
+        (v) => setState(() => props['gradientAngle'] = v), Icons.rotate_right_rounded),
+    ],
+  ];
+}
+
+List<Widget> _buildTypeSpecificQuickControls() {
+  if (selectedItem == null) return [];
+  
+  switch (selectedItem!.type) {
+    case CanvasItemType.text:
+      return [
+        _miniTextEditButton('Text', (selectedItem!.properties['text'] as String?) ?? '', 
+          (v) => setState(() => selectedItem!.properties['text'] = v)),
+        _miniSlider('Font Size', (selectedItem!.properties['fontSize'] as double?) ?? 24.0, 10.0, 72.0, 
+          (v) => setState(() => selectedItem!.properties['fontSize'] = v), Icons.format_size_rounded),
+        _miniToggleIcon('Bold', Icons.format_bold_rounded, 
+          selectedItem!.properties['fontWeight'] == FontWeight.bold, () => setState(() {
+            selectedItem!.properties['fontWeight'] = 
+              (selectedItem!.properties['fontWeight'] == FontWeight.bold) ? FontWeight.normal : FontWeight.bold;
+          })),
+        _miniToggleIcon('Italic', Icons.format_italic_rounded, 
+          selectedItem!.properties['fontStyle'] == FontStyle.italic, () => setState(() {
+            selectedItem!.properties['fontStyle'] = 
+              (selectedItem!.properties['fontStyle'] == FontStyle.italic) ? FontStyle.normal : FontStyle.italic;
+          })),
+        _miniColorSwatch(
+          'Color',
+          (selectedItem!.properties['color'] is HiveColor)
+              ? (selectedItem!.properties['color'] as HiveColor).toColor()
+              : Colors.black,
+          () => _showColorPicker('color')
+        ),
+      ];
+      
+    case CanvasItemType.image:
+      return [
+        _miniIconButton('Edit Image', Icons.edit_rounded, _editSelectedImage),
+        _miniIconButton('Replace', Icons.photo_library_rounded, () => _pickImage(replace: true)),
+        // _miniColorSwatch('Tint', selectedItem!.properties['tint'] as Color? ?? Colors.transparent, 
+        //   () => _showColorPicker('tint')),
+        _miniSlider('Blur', (selectedItem!.properties['blur'] as double?) ?? 0.0, 0.0, 10.0, 
+          (v) => setState(() => selectedItem!.properties['blur'] = v), Icons.blur_on_rounded),
+      ];
+      
+    case CanvasItemType.shape:
+      return [
+        _miniColorSwatch(
+          'Fill',
+          (selectedItem!.properties['fillColor'] is HiveColor)
+              ? (selectedItem!.properties['fillColor'] as HiveColor).toColor()
+              : Colors.blue,
+          () => _showColorPicker('fillColor')
+        ),
+        _miniColorSwatch(
+          'Stroke',
+          (selectedItem!.properties['strokeColor'] is HiveColor)
+              ? (selectedItem!.properties['strokeColor'] as HiveColor).toColor()
+              : Colors.black,
+          () => _showColorPicker('strokeColor')
+        ),
+        _miniSlider('Stroke Width', (selectedItem!.properties['strokeWidth'] as double?) ?? 2.0, 0.0, 10.0, 
+          (v) => setState(() => selectedItem!.properties['strokeWidth'] = v), Icons.line_weight_rounded),
+        _miniSlider('Corner Radius', (selectedItem!.properties['cornerRadius'] as double?) ?? 12.0, 0.0, 50.0, 
+          (v) => setState(() => selectedItem!.properties['cornerRadius'] = v), Icons.rounded_corner_rounded),
+        _miniIconButton('Image Fill', Icons.photo_library_rounded, () => _pickShapeImage()),
+        if (selectedItem!.properties['image'] != null)
+          _miniIconButton('Clear Image', Icons.delete_sweep_rounded, 
+            () => setState(() => selectedItem!.properties['image'] = null)),
+      ];
+      
+    case CanvasItemType.sticker:
+      return [
+        _miniColorSwatch('Color', (selectedItem!.properties['color'] as HiveColor?)?.toColor() ?? Colors.orange, 
+          () => _showColorPicker('color')),
+      ];
+      
+    default:
+      return [];
+  }
+}
   Widget _miniIconButton(String tooltip, IconData icon, VoidCallback onTap) {
     return Padding(
       padding: EdgeInsets.only(right: 10.w),
@@ -1116,52 +1143,309 @@ void _deselectItem() {
     );
   }
 
-  Widget _miniTextField(String label, String value, ValueChanged<String> onChanged) {
-    return Container
-      (
-      width: 260.w,
-      margin: EdgeInsets.only(right: 12.w),
-      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(14.r),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.text_fields_rounded, size: 16.sp, color: Colors.grey[600]),
-              SizedBox(width: 8.w),
-              Text(label, style: TextStyle(fontSize: 12.sp, color: Colors.grey[700], fontWeight: FontWeight.w600)),
-            ],
-          ),
-          SizedBox(height: 6.h),
-          Container(
+// Replace the _miniTextField method with this button version:
+Widget _miniTextEditButton(String label, String value, ValueChanged<String> onChanged) {
+  return Container(
+    width: 260.w,
+    margin: EdgeInsets.only(right: 12.w),
+    padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+    decoration: BoxDecoration(
+      color: Colors.grey[50],
+      borderRadius: BorderRadius.circular(14.r),
+      border: Border.all(color: Colors.grey.shade200),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.text_fields_rounded, size: 16.sp, color: Colors.grey[600]),
+            SizedBox(width: 8.w),
+            Text(label, style: TextStyle(fontSize: 12.sp, color: Colors.grey[700], fontWeight: FontWeight.w600)),
+          ],
+        ),
+        SizedBox(height: 6.h),
+        GestureDetector(
+          onTap: () => _showTextEditDialog(value, onChanged),
+          child: Container(
+            width: double.infinity,
+            padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(10.r),
               border: Border.all(color: Colors.grey.shade300),
             ),
-            child: TextFormField(
-              initialValue: value,
-              onChanged: onChanged,
-              style: TextStyle(fontSize: 12.sp),
-              decoration: InputDecoration(
-                isDense: true,
-                contentPadding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
-                border: InputBorder.none,
-                hintText: 'Enter text',
-                hintStyle: TextStyle(color: Colors.grey[400]),
-              ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    value.isEmpty ? 'Tap to edit text' : value,
+                    style: TextStyle(
+                      fontSize: 12.sp,
+                      color: value.isEmpty ? Colors.grey[400] : Colors.grey[800],
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                SizedBox(width: 8.w),
+                Icon(Icons.edit_rounded, size: 14.sp, color: Colors.blue.shade400),
+              ],
             ),
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
 
+// Add this method to show the text editing dialog:
+void _showTextEditDialog(String currentText, ValueChanged<String> onChanged) {
+  final TextEditingController controller = TextEditingController(text: currentText);
+  final FocusNode focusNode = FocusNode();
+  
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (BuildContext context) {
+      return Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: EdgeInsets.all(20.w),
+        child: Container(
+          width: double.infinity,
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.7,
+            minHeight: 300.h,
+          ),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24.r),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.15),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Container(
+                padding: EdgeInsets.all(20.w),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.blue.shade400, Colors.blue.shade600],
+                  ),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(24.r),
+                    topRight: Radius.circular(24.r),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.text_fields_rounded, color: Colors.white, size: 24.sp),
+                    SizedBox(width: 12.w),
+                    Text(
+                      'Edit Text',
+                      style: TextStyle(
+                        fontSize: 20.sp,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: () => Navigator.of(context).pop(),
+                      child: Container(
+                        padding: EdgeInsets.all(8.w),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8.r),
+                        ),
+                        child: Icon(Icons.close_rounded, color: Colors.white, size: 18.sp),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Text editing area
+              Flexible(
+                child: Container(
+                  padding: EdgeInsets.all(20.w),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Enter your text:',
+                        style: TextStyle(
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[800],
+                        ),
+                      ),
+                      SizedBox(height: 12.h),
+                      
+                      // Multi-line text field
+                      Flexible(
+                        child: Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[50],
+                            borderRadius: BorderRadius.circular(16.r),
+                            border: Border.all(color: Colors.grey.shade200),
+                          ),
+                          child: TextField(
+                            controller: controller,
+                            focusNode: focusNode,
+                            maxLines: null,
+                            minLines: 5,
+                            keyboardType: TextInputType.multiline,
+                            textInputAction: TextInputAction.newline,
+                            style: TextStyle(
+                              fontSize: 16.sp,
+                              color: Colors.grey[800],
+                              height: 1.5,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: 'Type your text here...\nPress Enter for new lines',
+                              hintStyle: TextStyle(
+                                color: Colors.grey[400],
+                                fontSize: 14.sp,
+                              ),
+                              contentPadding: EdgeInsets.all(16.w),
+                              border: InputBorder.none,
+                            ),
+                            onChanged: (text) {
+                              // Real-time update on canvas
+                              onChanged(text);
+                            },
+                          ),
+                        ),
+                      ),
+                      
+                      SizedBox(height: 16.h),
+                      
+                      // Character count
+                      Text(
+                        '${controller.text.length} characters',
+                        style: TextStyle(
+                          fontSize: 12.sp,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              
+              // Action buttons
+              Container(
+                padding: EdgeInsets.all(20.w),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(24.r),
+                    bottomRight: Radius.circular(24.r),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    // Clear button
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          controller.clear();
+                          onChanged('');
+                        },
+                        child: Container(
+                          padding: EdgeInsets.symmetric(vertical: 14.h),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(12.r),
+                            border: Border.all(color: Colors.red.shade200),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.clear_rounded, color: Colors.red.shade600, size: 18.sp),
+                              SizedBox(width: 8.w),
+                              Text(
+                                'Clear',
+                                style: TextStyle(
+                                  fontSize: 14.sp,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.red.shade600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    
+                    SizedBox(width: 12.w),
+                    
+                    // Done button
+                    Expanded(
+                      flex: 2,
+                      child: GestureDetector(
+                        onTap: () {
+                          onChanged(controller.text);
+                          Navigator.of(context).pop();
+                        },
+                        child: Container(
+                          padding: EdgeInsets.symmetric(vertical: 14.h),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [Colors.blue.shade400, Colors.blue.shade600],
+                            ),
+                            borderRadius: BorderRadius.circular(12.r),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.blue.withOpacity(0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.check_rounded, color: Colors.white, size: 18.sp),
+                              SizedBox(width: 8.w),
+                              Text(
+                                'Done',
+                                style: TextStyle(
+                                  fontSize: 14.sp,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  ).then((_) {
+    // Auto-focus the text field when dialog opens
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (focusNode.canRequestFocus) {
+        focusNode.requestFocus();
+      }
+    });
+  });
+}
   Widget _miniToggleIcon(String tooltip, IconData icon, bool isActive, VoidCallback onTap) {
     return Padding(
       padding: EdgeInsets.only(right: 10.w),
@@ -2437,119 +2721,275 @@ case CanvasItemType.shape:
       Colors.cyanAccent,
     ];
 
+    Color _selectedColorInPicker = isGradient ? Colors.blue : (recentColors.isNotEmpty ? recentColors.last : Colors.black);
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) => Container(
-        height: 280.h,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.only(topLeft: Radius.circular(32.r), topRight: Radius.circular(32.r)),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20, offset: const Offset(0, -8)),
-          ],
-        ),
-        child: Column(
-          children: [
-            Container(
-              width: 60.w,
-              height: 6.h,
-              margin: EdgeInsets.symmetric(vertical: 16.h),
-              decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(3.r)),
+      builder: (context) => StatefulBuilder(
+        builder: (BuildContext context, StateSetter setState) {
+          return Container(
+            height: 280.h,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.only(topLeft: Radius.circular(32.r), topRight: Radius.circular(32.r)),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20, offset: const Offset(0, -8)),
+              ],
             ),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24.w),
-              child: Row(
-                children: [
-                  Icon(Icons.palette_rounded, color: Colors.blue.shade400, size: 24.sp),
-                  SizedBox(width: 12.w),
-                  Text('Choose Color', style: TextStyle(fontSize: 20.sp, fontWeight: FontWeight.bold, color: Colors.grey[800])),
-                ],
-              ),
-            ),
-            SizedBox(height: 24.h),
-            if (recentColors.isNotEmpty) ...[
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 24.w),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text('RECENT', style: TextStyle(fontSize: 12.sp, fontWeight: FontWeight.bold, color: Colors.grey[600], letterSpacing: 1)),
+            child: Column(
+              children: [
+                Container(
+                  width: 60.w,
+                  height: 6.h,
+                  margin: EdgeInsets.symmetric(vertical: 16.h),
+                  decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(3.r)),
                 ),
-              ),
-              SizedBox(height: 12.h),
-              SizedBox(
-                height: 50.h,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
+                Padding(
                   padding: EdgeInsets.symmetric(horizontal: 24.w),
-                  itemCount: recentColors.length,
-                  itemBuilder: (context, index) {
-                    final color = recentColors[index];
-                    return Padding(
-                      padding: EdgeInsets.only(right: 12.w),
-                      child: GestureDetector(
-                        onTap: () {
-                          _selectColor(property, color, isGradient: isGradient);
-                          Navigator.pop(context);
-                        },
-                        child: Container(
-                          width: 50.h,
-                          height: 50.h,
-                          decoration: BoxDecoration(
-                            color: color,
-                            borderRadius: BorderRadius.circular(12.r),
-                            border: Border.all(color: Colors.grey.shade300, width: 2),
-                            boxShadow: [
-                              BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4, offset: const Offset(0, 2)),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              SizedBox(height: 20.h),
-            ],
-            Expanded(
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 24.w),
-                child: GridView.builder(
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 6,
-                    crossAxisSpacing: 16.w,
-                    mainAxisSpacing: 16.h,
-                  ),
-                  itemCount: predefinedColors.length,
-                  itemBuilder: (context, index) {
-                    final color = predefinedColors[index];
-                    return GestureDetector(
-                      onTap: () {
-                        _selectColor(property, color, isGradient: isGradient);
-                        Navigator.pop(context);
-                      },
-                      child: Container(
+                  child: Row(
+                    children: [
+                      Icon(Icons.palette_rounded, color: Colors.blue.shade400, size: 24.sp),
+                      SizedBox(width: 12.w),
+                      Text('Choose Color', style: TextStyle(fontSize: 20.sp, fontWeight: FontWeight.bold, color: Colors.grey[800])),
+                      SizedBox(width: 12.w),
+                      Container(
+                        width: 48.w,
+                        height: 48.h,
                         decoration: BoxDecoration(
-                          color: color,
-                          borderRadius: BorderRadius.circular(16.r),
+                          color: _selectedColorInPicker,
+                          shape: BoxShape.circle,
                           border: Border.all(color: Colors.grey.shade300, width: 2),
-                          boxShadow: [
-                            BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 4)),
-                          ],
                         ),
                       ),
-                    );
-                  },
+                      const Spacer(),
+  IconButton(
+  icon: Icon(Icons.add_circle, color: Colors.green, size: 24.sp),
+  onPressed: () async {
+    // Show advanced color picker in a new modal bottom sheet
+    final pickedColor = await showColorPickerBottomSheet(
+      context: context,
+      initialColor: _selectedColorInPicker,
+      onPreview: (color) {
+        if (selectedItem == null) return;
+        // Live update without committing to history
+        setState(() {
+          if (isGradient) {
+            final List<Color> currentGradient = _getDisplayGradientColors();
+            final Color first = currentGradient.first;
+            final Color last = currentGradient.last;
+            final Map<String, dynamic> newProperties = Map.from(selectedItem!.properties);
+            if (property == 'gradientColor1') {
+              newProperties['gradientColors'] = [HiveColor.fromColor(color), HiveColor.fromColor(last)];
+            } else if (property == 'gradientColor2') {
+              newProperties['gradientColors'] = [HiveColor.fromColor(first), HiveColor.fromColor(color)];
+            } else {
+              // Fallback: replace first color
+              newProperties['gradientColors'] = [HiveColor.fromColor(color), HiveColor.fromColor(last)];
+            }
+            selectedItem = selectedItem!.copyWith(properties: newProperties);
+          } else {
+            final Map<String, dynamic> newProperties = Map.from(selectedItem!.properties);
+            newProperties[property] = HiveColor.fromColor(color);
+            selectedItem = selectedItem!.copyWith(properties: newProperties);
+          }
+        });
+      },
+    );
+
+    if (pickedColor != null) {
+      // Update state and save
+      setState(() {
+        _selectedColorInPicker = pickedColor;
+        if (!recentColors.contains(pickedColor)) {
+          recentColors.add(pickedColor); // or however you manage recentColors
+        }
+      });
+      _selectColor(property, pickedColor, isGradient: isGradient);
+      Navigator.pop(context); // Close the original bottom sheet
+    }
+  },
+),
+                    ],
+                  ),
                 ),
-              ),
+                SizedBox(height: 24.h),
+                if (recentColors.isNotEmpty) ...[
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 24.w),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text('RECENT', style: TextStyle(fontSize: 12.sp, fontWeight: FontWeight.bold, color: Colors.grey[600], letterSpacing: 1)),
+                    ),
+                  ),
+                  SizedBox(height: 12.h),
+                  SizedBox(
+                    height: 50.h,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      padding: EdgeInsets.symmetric(horizontal: 24.w),
+                      itemCount: recentColors.length,
+                      itemBuilder: (context, index) {
+                        final color = recentColors[index];
+                        return Padding(
+                          padding: EdgeInsets.only(right: 12.w),
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _selectedColorInPicker = color;
+                              });
+                              _selectColor(property, color, isGradient: isGradient);
+                              Navigator.pop(context);
+                            },
+                            child: Container(
+                              width: 50.h,
+                              height: 50.h,
+                              decoration: BoxDecoration(
+                                color: color,
+                                borderRadius: BorderRadius.circular(12.r),
+                                border: Border.all(color: Colors.grey.shade300, width: 2),
+                                boxShadow: [
+                                  BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4, offset: const Offset(0, 2)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  SizedBox(height: 20.h),
+                ],
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 24.w),
+                    child: BlockPicker(
+                      pickerColor: _selectedColorInPicker,
+                      onColorChanged: (color) {
+                        setState(() {
+                          _selectedColorInPicker = color;
+                        });
+                      },
+                      availableColors: predefinedColors,
+                      layoutBuilder: (context, colors, child) {
+                        return GridView.builder(
+                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 6,
+                            crossAxisSpacing: 16.w,
+                            mainAxisSpacing: 16.h,
+                          ),
+                          itemCount: colors.length,
+                          itemBuilder: (context, index) {
+                            return child(colors[index]);
+                          },
+                        );
+                      },
+                      itemBuilder: (color, isCurrentColor, changeColor) {
+                        return GestureDetector(
+                          onTap: () {
+                            changeColor();
+                            _selectColor(property, color, isGradient: isGradient);
+                            Navigator.pop(context);
+                          },
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: color,
+                              borderRadius: BorderRadius.circular(16.r),
+                              border: Border.all(color: Colors.grey.shade300, width: 2),
+                              boxShadow: [
+                                BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 4)),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                SizedBox(height: 20.h),
+              ],
             ),
-            SizedBox(height: 20.h),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
+
+Future<Color?> showColorPickerBottomSheet({
+  required BuildContext context,
+  required Color initialColor,
+  ValueChanged<Color>? onPreview,
+}) async {
+  Color currentColor = initialColor;
+
+  return await showModalBottomSheet<Color>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (context) {
+      return FractionallySizedBox(
+        heightFactor: 0.8,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(32),
+              topRight: Radius.circular(32),
+            ),
+          ),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            child: Column(
+              children: [
+                // Drag handle
+                Container(
+                  width: 60,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+                SizedBox(height: 20),
+                Text(
+                  'Pick a Color',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 20),
+                // Advanced Color Picker
+                Expanded(
+                  child: ColorPicker(
+                    pickerColor: currentColor,
+                    onColorChanged: (Color color) {
+                      currentColor = color;
+                      if (onPreview != null) {
+                        onPreview(color);
+                      }
+                    },
+                    colorPickerWidth: 300,
+                    pickerAreaHeightPercent: 0.7,
+                    showLabel: true,
+                    displayThumbColor: true,
+                    paletteType: PaletteType.hsv,
+                  ),
+                ),
+                SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context, currentColor);
+                  },
+                  child: Text('Select'),
+                ),
+                SizedBox(height: 10),
+              ],
+            ),
+          ),
+        ),
+      );
+    },
+  );
+}
 
   Future<void> _pickImage({bool replace = false}) async {
     try {
