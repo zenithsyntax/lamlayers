@@ -96,7 +96,7 @@ class _ShapePainter extends CustomPainter {
         ..style = PaintingStyle.fill
         ..isAntiAlias = true;
       if (hasGradient) {
-        final double rad = gradientAngle * math.pi / 180.0;
+        final double rad = gradientAngle * math.pi / 185.0;
         final double cx = math.cos(rad);
         final double sy = math.sin(rad);
         final Alignment begin = Alignment(-cx, -sy);
@@ -319,6 +319,13 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   final ImagePicker _imagePicker = ImagePicker();
   final GlobalKey _canvasRepaintKey = GlobalKey();
 
+  // Nudge control timers for press-and-hold behavior
+  Timer? _nudgeRepeatTimer;
+  Timer? _nudgeInitialDelayTimer;
+  static const Duration _nudgeInitialDelay = Duration(milliseconds: 300);
+  static const Duration _nudgeRepeatInterval = Duration(milliseconds: 60);
+  static const double _nudgeStep = 4.0; // base pixels per nudge
+
   // Undo/Redo system
   List<CanvasAction> actionHistory = [];
   int currentActionIndex = -1;
@@ -461,6 +468,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     _bottomSheetController.dispose();
     _selectionController.dispose();
     _itemAddController.dispose();
+    _cancelNudgeTimers();
     _autoSaveTimer?.cancel();
     super.dispose();
   }
@@ -705,7 +713,7 @@ void _deselectItem() {
       return _buildTopEditToolbar();
     }
     return Container(
-      height: 170.h,
+      height: 185.h,
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -767,7 +775,7 @@ void _deselectItem() {
   Widget _buildTopEditToolbar() {
     // Compact editing UI shown at the top when an item is selected
     return Container(
-      height: 160.h,
+      height: 185.h,
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -877,7 +885,7 @@ Widget _buildEditModeSegmentedControl() {
     return GestureDetector(
       onTap: () => setState(() => editTopbarTabIndex = index),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
+        duration: const Duration(milliseconds: 185),
         padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
         decoration: BoxDecoration(
           color: isActive ? Colors.white : Colors.transparent,
@@ -902,9 +910,10 @@ Widget _buildEditModeSegmentedControl() {
   switch (editTopbarTabIndex) {
     case 0: // General controls
       return [
+        _miniNudgePad(),
         _miniSlider('Opacity', selectedItem!.opacity, 0.1, 1.0, (v) => setState(() => selectedItem!.opacity = v), Icons.opacity_rounded),
         _miniSlider('Scale', selectedItem!.scale, 0.3, 10.0, (v) => setState(() => selectedItem!.scale = v), Icons.zoom_out_map_rounded),
-        _miniSlider('Rotate', selectedItem!.rotation * 180 / 3.14159, -180, 180, (v) => setState(() => selectedItem!.rotation = v * 3.14159 / 180), Icons.rotate_right_rounded),
+        _miniSlider('Rotate', selectedItem!.rotation * 185 / 3.14159, -185, 185, (v) => setState(() => selectedItem!.rotation = v * 3.14159 / 185), Icons.rotate_right_rounded),
         _miniIconButton('Duplicate', Icons.copy_rounded, () => _duplicateItem(selectedItem!)),
         _miniIconButton('Delete', Icons.delete_rounded, () => _removeItem(selectedItem!)),
         _miniIconButton('Front', Icons.vertical_align_top_rounded, () => _bringToFront(selectedItem!)),
@@ -991,7 +1000,7 @@ List<Widget> _buildGradientQuickControls() {
         _getDisplayGradientColors().last,
         () => _showColorPicker('gradientColor2', isGradient: true),
       ),
-      _miniSlider('Angle', (props['gradientAngle'] as double?) ?? 0.0, -180.0, 180.0, 
+      _miniSlider('Angle', (props['gradientAngle'] as double?) ?? 0.0, -185.0, 185.0, 
         (v) => setState(() => props['gradientAngle'] = v), Icons.rotate_right_rounded),
     ],
   ];
@@ -1074,7 +1083,7 @@ List<Widget> _buildTypeSpecificQuickControls() {
 }
   Widget _miniIconButton(String tooltip, IconData icon, VoidCallback onTap) {
     return Padding(
-      padding: EdgeInsets.only(right: 10.w),
+      padding: EdgeInsets.only(right: 10.w, bottom: 35.h),
       child: Tooltip(
         message: tooltip,
         child: GestureDetector(
@@ -1090,38 +1099,166 @@ List<Widget> _buildTypeSpecificQuickControls() {
     );
   }
 
-  Widget _miniSlider(String label, double value, double min, double max, ValueChanged<double> onChanged, IconData icon) {
-    final clamped = value.clamp(min, max);
-    return Container(
-      width: 220.w,
-      margin: EdgeInsets.only(right: 12.w),
-      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
-      decoration: BoxDecoration(color: Colors.grey[50], borderRadius: BorderRadius.circular(14.r), border: Border.all(color: Colors.grey.shade200)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 16.sp, color: Colors.grey[600]),
-              SizedBox(width: 8.w),
-              Text(label, style: TextStyle(fontSize: 12.sp, color: Colors.grey[700], fontWeight: FontWeight.w600)),
-              const Spacer(),
-              Text(clamped.toStringAsFixed(1), style: TextStyle(fontSize: 12.sp, color: Colors.blue.shade700, fontWeight: FontWeight.w700)),
-            ],
-          ),
-          SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              activeTrackColor: Colors.blue.shade400,
-              inactiveTrackColor: Colors.blue.shade100,
-              thumbColor: Colors.blue.shade600,
-              overlayColor: Colors.blue.withOpacity(0.05),
-              trackHeight: 4.0,
-              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10.0),
+  // Nudge helpers
+  void _cancelNudgeTimers() {
+    _nudgeInitialDelayTimer?.cancel();
+    _nudgeRepeatTimer?.cancel();
+    _nudgeInitialDelayTimer = null;
+    _nudgeRepeatTimer = null;
+  }
+
+  void _nudgeSelected(Offset delta) {
+    if (selectedItem == null) return;
+    setState(() {
+      // Adjust nudge by current canvas zoom so visual movement feels consistent
+      final double zoomAdjusted = canvasZoom == 0 ? 1.0 : canvasZoom;
+      final Offset step = delta * (_nudgeStep / zoomAdjusted);
+      Offset newPosition = selectedItem!.position + step;
+      if (snapToGrid) {
+        const double gridSize = 20.0;
+        newPosition = Offset(
+          (newPosition.dx / gridSize).round() * gridSize,
+          (newPosition.dy / gridSize).round() * gridSize,
+        );
+      }
+      selectedItem!.position = newPosition;
+    });
+  }
+
+  void _startNudgeHold(Offset delta) {
+    _cancelNudgeTimers();
+    // Small delay before starting fast repeat, to allow single-tap nudges
+    _nudgeInitialDelayTimer = Timer(_nudgeInitialDelay, () {
+      _nudgeRepeatTimer = Timer.periodic(_nudgeRepeatInterval, (_) {
+        _nudgeSelected(delta);
+      });
+    });
+  }
+
+  void _endNudgeHold() {
+    _cancelNudgeTimers();
+  }
+
+  Widget _miniNudgePad() {
+    return Padding(
+      padding:  EdgeInsets.only(right: 10.0.h),
+      child: SizedBox(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(width: 35.w),
+                _nudgeButton(Icons.keyboard_arrow_up_rounded, const Offset(0, -1)),
+                SizedBox(width: 35.w),
+              ],
             ),
-            child: Slider(value: clamped, min: min, max: max, onChanged: onChanged),
-          ),
+            SizedBox(height: 6.h),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _nudgeButton(Icons.keyboard_arrow_left_rounded, const Offset(-1, 0)),
+                SizedBox(width: 9.w),
+                _nudgeCenterIndicator(),
+                SizedBox(width: 9.w),
+                _nudgeButton(Icons.keyboard_arrow_right_rounded, const Offset(1, 0)),
+              ],
+            ),
+            SizedBox(height: 6.h),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(width: 30.w),
+                _nudgeButton(Icons.keyboard_arrow_down_rounded, const Offset(0, 1)),
+                SizedBox(width: 30.w),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _nudgeCenterIndicator() {
+    return Container(
+      width: 32.w,
+      height: 32.h,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8.r),
+        border: Border.all(color: Colors.grey.shade300),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 4, offset: const Offset(0, 2)),
         ],
       ),
+      alignment: Alignment.center,
+      child: Icon(Icons.open_with_rounded, size: 14.sp, color: Colors.grey[500]),
+    );
+  }
+
+  Widget _nudgeButton(IconData icon, Offset deltaDir) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _nudgeSelected(deltaDir),
+      onTapDown: (_) => _startNudgeHold(deltaDir),
+      onTapUp: (_) => _endNudgeHold(),
+      onTapCancel: _endNudgeHold,
+      child: Container(
+        width: 32.w,
+        height: 32.h,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8.r),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Icon(icon, size: 18.sp, color: Colors.grey[700]),
+      ),
+    );
+  }
+
+  Widget _miniSlider(String label, double value, double min, double max, ValueChanged<double> onChanged, IconData icon) {
+    final clamped = value.clamp(min, max);
+    return Column(
+      children: [
+        Container(
+          width: 220.w,
+          margin: EdgeInsets.only(right: 12.w),
+          padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+          decoration: BoxDecoration(color: Colors.grey[50], borderRadius: BorderRadius.circular(14.r), border: Border.all(color: Colors.grey.shade200)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(icon, size: 16.sp, color: Colors.grey[600]),
+                  SizedBox(width: 8.w),
+                  Text(label, style: TextStyle(fontSize: 12.sp, color: Colors.grey[700], fontWeight: FontWeight.w600)),
+                  const Spacer(),
+                  Text(clamped.toStringAsFixed(1), style: TextStyle(fontSize: 12.sp, color: Colors.blue.shade700, fontWeight: FontWeight.w700)),
+                ],
+              ),
+              SliderTheme(
+                data: SliderTheme.of(context).copyWith(
+                  activeTrackColor: Colors.blue.shade400,
+                  inactiveTrackColor: Colors.blue.shade100,
+                  thumbColor: Colors.blue.shade600,
+                  overlayColor: Colors.blue.withOpacity(0.05),
+                  trackHeight: 4.0,
+                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10.0),
+                ),
+                child: Slider(value: clamped, min: min, max: max, onChanged: onChanged),
+              ),
+        
+        
+            ],
+          ),
+        ),
+
+        SizedBox(
+          height: 10.h,
+        )
+      ],
     );
   }
 
@@ -1538,7 +1675,14 @@ void _showTextEditDialog(String currentText, ValueChanged<String> onChanged) {
             SizedBox(height: 6.h),
             Text(
               family,
-              style: TextStyle(fontSize: 10.sp, fontWeight: FontWeight.w600, color: Colors.grey.shade700),
+              style: GoogleFonts.getFont(
+                family,
+                textStyle: TextStyle(
+                  fontSize: 10.sp,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade700,
+                ),
+              ),
               textAlign: TextAlign.center,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -1963,7 +2107,7 @@ void _handleResizeUpdate(CanvasItem item, DragUpdateDetails details, {int scaleS
       }
       if (textHasGradient) {
         final double angle = (props['gradientAngle'] as double?) ?? 0.0;
-        final double rad = angle * math.pi / 180.0;
+        final double rad = angle * math.pi / 185.0;
         final double cx = math.cos(rad);
         final double sy = math.sin(rad);
         final Alignment begin = Alignment(-cx, -sy);
@@ -2020,8 +2164,8 @@ void _handleResizeUpdate(CanvasItem item, DragUpdateDetails details, {int scaleS
             Transform.translate(
               offset: shadowOffset,
               child: Container(
-                width: (displayW ?? 160.0).w,
-                height: (displayH ?? 160.0).h,
+                width: (displayW ?? 185.0).w,
+                height: (displayH ?? 10.0).h,
                 decoration: BoxDecoration(
                   boxShadow: [
                     BoxShadow(
@@ -2147,7 +2291,7 @@ case CanvasItemType.shape:
     }
 
     if (hasGradient) {
-      final double rad = gradientAngle * math.pi / 180.0;
+      final double rad = gradientAngle * math.pi / 185.0;
       final double cx = math.cos(rad);
       final double sy = math.sin(rad);
       final Alignment begin = Alignment(-cx, -sy);
@@ -2162,8 +2306,8 @@ case CanvasItemType.shape:
     }
 
     return SizedBox(
-      width: (displayW ?? 160.0).w,
-      height: (displayH ?? 160.0).h,
+      width: (displayW ?? 185.0).w,
+      height: (displayH ?? 185.0).h,
       child: imageWidget,
     );
   }
@@ -2307,7 +2451,7 @@ case CanvasItemType.shape:
         SizedBox(height: 16.h),
         _buildSliderOption('Scale', selectedItem!.scale, 0.3, 10.0, (value) => setState(() => selectedItem!.scale = value), Icons.zoom_out_map_rounded),
         SizedBox(height: 16.h),
-        _buildSliderOption('Rotation', selectedItem!.rotation * 180 / 3.14159, -180, 180, (value) => setState(() => selectedItem!.rotation = value * 3.14159 / 180), Icons.rotate_right_rounded),
+        _buildSliderOption('Rotation', selectedItem!.rotation * 185 / 3.14159, -185, 185, (value) => setState(() => selectedItem!.rotation = value * 3.14159 / 185), Icons.rotate_right_rounded),
       ],
     );
   }
@@ -2412,7 +2556,7 @@ case CanvasItemType.shape:
                 Text('Angle', style: TextStyle(fontSize: 12.sp, color: Colors.grey[700], fontWeight: FontWeight.w600)),
                 SizedBox(width: 8.w),
                 SizedBox(
-                  width: 160.w,
+                  width: 185.w,
                   child: SliderTheme(
                     data: SliderTheme.of(context).copyWith(
                       trackHeight: 3.0,
@@ -2422,9 +2566,9 @@ case CanvasItemType.shape:
                       thumbColor: Colors.blue.shade600,
                     ),
                     child: Slider(
-                      value: ((props['gradientAngle'] as double?) ?? 0.0).clamp(-180.0, 180.0),
-                      min: -180.0,
-                      max: 180.0,
+                      value: ((props['gradientAngle'] as double?) ?? 0.0).clamp(-185.0, 185.0),
+                      min: -185.0,
+                      max: 185.0,
                       onChanged: (v) => setState(() => props['gradientAngle'] = v),
                     ),
                   ),
