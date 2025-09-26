@@ -1698,64 +1698,66 @@ void _showTextEditDialog(String currentText, ValueChanged<String> onChanged) {
   return Positioned(
     left: item.position.dx,
     top: item.position.dy,
-    child: GestureDetector(
-      onTap: () => _selectItem(item),
-      onPanStart: (_) {
-        if (selectedItem == item) {
-          _preDragState = item.copyWith();
-        }
-      },
-      onPanUpdate: (details) {
-        if (selectedItem == item) {
-          setState(() {
-            Offset newPosition = item.position + details.delta;
-            if (snapToGrid) {
-              const gridSize = 20.0;
-              newPosition = Offset(
-                (newPosition.dx / gridSize).round() * gridSize,
-                (newPosition.dy / gridSize).round() * gridSize,
-              );
+    child: Transform.rotate(
+      angle: item.rotation,
+      child: Transform.scale(
+        scale: item.scale,
+        child: GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onTap: () {
+            if (!item.isLocked) {
+              _selectItem(item);
             }
-            item.position = newPosition;
-          });
-        }
-      },
-      onPanEnd: (_) {
-        if (selectedItem == item && _preDragState != null) {
-          _addAction(CanvasAction(
-            type: 'modify',
-            item: item.copyWith(),
-            previousState: _preDragState,
-            timestamp: DateTime.now(),
-          ));
-          _preDragState = null;
-        }
-      },
-      child: Transform.rotate(
-        angle: item.rotation,
-        child: Transform.scale(
-          scale: item.scale, // Removed the selection scaling animation
+          },
+          onPanStart: (_) {
+            if (!item.isLocked && selectedItem == item) {
+              _preDragState = item.copyWith();
+            }
+          },
+          onPanUpdate: (details) {
+            if (!item.isLocked && selectedItem == item) {
+              setState(() {
+                Offset newPosition = item.position + details.delta;
+                if (snapToGrid) {
+                  const double gridSize = 20.0;
+                  newPosition = Offset(
+                    (newPosition.dx / gridSize).round() * gridSize,
+                    (newPosition.dy / gridSize).round() * gridSize,
+                  );
+                }
+                item.position = newPosition;
+              });
+            }
+          },
+          onPanEnd: (_) {
+            if (!item.isLocked && selectedItem == item && _preDragState != null) {
+              _addAction(CanvasAction(
+                type: 'modify',
+                item: item.copyWith(),
+                previousState: _preDragState,
+                timestamp: DateTime.now(),
+              ));
+              _preDragState = null;
+            }
+          },
           child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                
+            clipBehavior: Clip.none,
+            children: [
               Container(
-  decoration: BoxDecoration(
-    border: Border.all(
-      color: isSelected ? Colors.blue.shade400 : Colors.transparent, 
-      width: 2
-    ),
-  ),
-  child: Opacity(
-    opacity: item.opacity.clamp(0.0, 1.0),
-    child: _buildItemContent(item),
-  ),
-),
-               
-              ],
-            ),
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: isSelected ? Colors.blue.shade400 : Colors.transparent,
+                    width: 2,
+                  ),
+                ),
+                child: Opacity(
+                  opacity: item.opacity.clamp(0.0, 1.0),
+                  child: _buildItemContent(item),
+                ),
+              ),
+            ],
           ),
-        
+        ),
       ),
     ),
   );
