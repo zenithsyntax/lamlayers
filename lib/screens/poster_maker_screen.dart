@@ -877,7 +877,7 @@ void _deselectItem() {
       // General controls
       return [
         _miniSlider('Opacity', selectedItem!.opacity, 0.1, 1.0, (v) => setState(() => selectedItem!.opacity = v), Icons.opacity_rounded),
-        _miniSlider('Scale', selectedItem!.scale, 0.3, 3.0, (v) => setState(() => selectedItem!.scale = v), Icons.zoom_out_map_rounded),
+      _miniSlider('Scale', selectedItem!.scale, 0.3, 10.0, (v) => setState(() => selectedItem!.scale = v), Icons.zoom_out_map_rounded),
         _miniSlider('Rotate', selectedItem!.rotation * 180 / 3.14159, -180, 180, (v) => setState(() => selectedItem!.rotation = v * 3.14159 / 180), Icons.rotate_right_rounded),
         _miniIconButton('Duplicate', Icons.copy_rounded, () => _duplicateItem(selectedItem!)),
         _miniIconButton('Delete', Icons.delete_rounded, () => _removeItem(selectedItem!)),
@@ -1531,14 +1531,14 @@ void _deselectItem() {
     );
   }
 
-  void _handleResizeUpdate(CanvasItem item, DragUpdateDetails details, {int scaleSign = 1}) {
-    setState(() {
-      final double dragMagnitude = (details.delta.dx.abs() + details.delta.dy.abs()) / 2;
-      final double scaleDelta = (dragMagnitude / 100.0) * scaleSign;
-      final double newScale = (item.scale + scaleDelta).clamp(0.2, 5.0);
-      item.scale = newScale;
-    });
-  }
+void _handleResizeUpdate(CanvasItem item, DragUpdateDetails details, {int scaleSign = 1}) {
+  setState(() {
+    final double dragMagnitude = (details.delta.dx.abs() + details.delta.dy.abs()) / 2;
+    final double scaleDelta = (dragMagnitude / 100.0) * scaleSign;
+    final double newScale = (item.scale + scaleDelta).clamp(0.2, 10.0); // Changed from 5.0 to 10.0
+    item.scale = newScale;
+  });
+}
 
   Widget _buildRotationHandle(CanvasItem item) {
     return Positioned(
@@ -1755,66 +1755,65 @@ void _deselectItem() {
         ),
       );
 
-    case CanvasItemType.shape:
-      final props = item.properties;
-      final String shape = (props['shape'] as String?) ?? 'rectangle';
-      final Color fillColor = (props['fillColor'] is HiveColor)
-          ? (props['fillColor'] as HiveColor).toColor()
-          : Colors.blue;
-      final Color strokeColor = (props['strokeColor'] is HiveColor)
-          ? (props['strokeColor'] as HiveColor).toColor()
-          : Colors.black;
-      final double strokeWidth = (props['strokeWidth'] as double?) ?? 2.0;
-      final double cornerRadius = (props['cornerRadius'] as double?) ?? 0.0;
-      final bool hasGradient = (props['hasGradient'] as bool?) ?? false;
-      final List<Color> gradientColors = (props['gradientColors'] as List<dynamic>?)
-              ?.map((e) => (e is HiveColor ? e : (e is int ? HiveColor(e) : null))?.toColor())
-              .whereType<Color>()
-              .toList() ??
-          [];
-      final double gradientAngle = (props['gradientAngle'] as double?) ?? 0.0;
-      final bool hasShadow = (props['hasShadow'] as bool?) ?? false;
-      final HiveColor shadowColorHive = (props['shadowColor'] is HiveColor)
-          ? (props['shadowColor'] as HiveColor)
-          : (props['shadowColor'] is Color)
-              ? HiveColor.fromColor(props['shadowColor'] as Color)
-              : HiveColor.fromColor(Colors.black54);
-      final Offset shadowOffset = (props['shadowOffset'] as Offset?) ?? const Offset(4, 4);
-      final double shadowBlur = (props['shadowBlur'] as double?) ?? 8.0;
-      final double shadowOpacity = (props['shadowOpacity'] as double?) ?? 0.6;
-      final String? imagePath = props['imagePath'] as String?;
-      final HiveSize? hiveSize = props['size'] as HiveSize?;
+case CanvasItemType.shape:
+  final props = item.properties;
+  final String shape = (props['shape'] as String?) ?? 'rectangle';
+  final Color fillColor = (props['fillColor'] is HiveColor)
+      ? (props['fillColor'] as HiveColor).toColor()
+      : Colors.blue;
+  final Color strokeColor = (props['strokeColor'] is HiveColor)
+      ? (props['strokeColor'] as HiveColor).toColor()
+      : Colors.black;
+  final double strokeWidth = (props['strokeWidth'] as double?) ?? 2.0;
+  final double cornerRadius = (props['cornerRadius'] as double?) ?? 0.0;
+  final bool hasGradient = (props['hasGradient'] as bool?) ?? false;
+  final List<Color> gradientColors = (props['gradientColors'] as List<dynamic>?)
+          ?.map((e) => (e is HiveColor ? e : (e is int ? HiveColor(e) : null))?.toColor())
+          .whereType<Color>()
+          .toList() ??
+      [];
+  final double gradientAngle = (props['gradientAngle'] as double?) ?? 0.0;
+  final bool hasShadow = (props['hasShadow'] as bool?) ?? false;
+  final HiveColor shadowColorHive = (props['shadowColor'] is HiveColor)
+      ? (props['shadowColor'] as HiveColor)
+      : (props['shadowColor'] is Color)
+          ? HiveColor.fromColor(props['shadowColor'] as Color)
+          : HiveColor.fromColor(Colors.black54);
+  final Offset shadowOffset = (props['shadowOffset'] as Offset?) ?? const Offset(4, 4);
+  final double shadowBlur = (props['shadowBlur'] as double?) ?? 8.0;
+  final double shadowOpacity = (props['shadowOpacity'] as double?) ?? 0.6;
+  final ui.Image? fillImage = props['image'] as ui.Image?; // Get the ui.Image
+  final HiveSize? hiveSize = props['size'] as HiveSize?;
 
-      Size itemSize = hiveSize?.toSize() ?? Size(100.0.w, 100.0.h);
+  Size itemSize = hiveSize?.toSize() ?? Size(100.0.w, 100.0.h);
 
-      Widget shapeWidget = CustomPaint(
-        painter: _ShapePainter(
-          {
-            'shape': shape,
-            'fillColor': HiveColor.fromColor(fillColor),
-            'strokeColor': HiveColor.fromColor(strokeColor),
-            'strokeWidth': strokeWidth,
-            'cornerRadius': cornerRadius,
-            'hasGradient': hasGradient,
-            'gradientColors': gradientColors.map((color) => HiveColor.fromColor(color)).toList(),
-            'gradientAngle': gradientAngle,
-            'hasShadow': hasShadow,
-            'shadowColor': shadowColorHive,
-            'shadowOffset': shadowOffset,
-            'shadowBlur': shadowBlur,
-            'shadowOpacity': shadowOpacity,
-          }
-        ),
-        size: itemSize,
-      );
+  Widget shapeWidget = CustomPaint(
+    painter: _ShapePainter(
+      {
+        'shape': shape,
+        'fillColor': HiveColor.fromColor(fillColor),
+        'strokeColor': HiveColor.fromColor(strokeColor),
+        'strokeWidth': strokeWidth,
+        'cornerRadius': cornerRadius,
+        'hasGradient': hasGradient && fillImage == null, // Disable gradient if image is present
+        'gradientColors': gradientColors.map((color) => HiveColor.fromColor(color)).toList(),
+        'gradientAngle': gradientAngle,
+        'hasShadow': hasShadow,
+        'shadowColor': shadowColorHive,
+        'shadowOffset': shadowOffset,
+        'shadowBlur': shadowBlur,
+        'shadowOpacity': shadowOpacity,
+        'image': fillImage, // Pass the ui.Image to the painter
+      }
+    ),
+    size: itemSize,
+  );
 
-      // REMOVED: Transform.scale, Transform.rotate, and Opacity wrappers
-      // The scaling, rotation, and opacity are already handled in _buildCanvasItem
-      return SizedBox(
-        width: itemSize.width,
-        height: itemSize.height,
-        child: FittedBox(fit: BoxFit.contain, child: shapeWidget),
-      );
+  return SizedBox(
+    width: itemSize.width,
+    height: itemSize.height,
+    child: FittedBox(fit: BoxFit.contain, child: shapeWidget),
+  );
   }
 }
 
@@ -2004,7 +2003,7 @@ void _deselectItem() {
         SizedBox(height: 16.h),
         _buildSliderOption('Opacity', selectedItem!.opacity, 0.1, 1.0, (value) => setState(() => selectedItem!.opacity = value), Icons.opacity_rounded),
         SizedBox(height: 16.h),
-        _buildSliderOption('Scale', selectedItem!.scale, 0.3, 3.0, (value) => setState(() => selectedItem!.scale = value), Icons.zoom_out_map_rounded),
+        _buildSliderOption('Scale', selectedItem!.scale, 0.3, 10.0, (value) => setState(() => selectedItem!.scale = value), Icons.zoom_out_map_rounded),
         SizedBox(height: 16.h),
         _buildSliderOption('Rotation', selectedItem!.rotation * 180 / 3.14159, -180, 180, (value) => setState(() => selectedItem!.rotation = value * 3.14159 / 180), Icons.rotate_right_rounded),
       ],
@@ -2597,25 +2596,34 @@ void _deselectItem() {
     }
   }
 
-  Future<void> _pickShapeImage() async {
-    try {
-      final XFile? picked = await _imagePicker.pickImage(source: ImageSource.gallery);
-      if (picked == null || selectedItem == null || selectedItem!.type != CanvasItemType.shape) return;
-      final Uint8List bytes = await File(picked.path).readAsBytes();
-      final ui.Codec codec = await ui.instantiateImageCodec(bytes);
-      final ui.FrameInfo frame = await codec.getNextFrame();
-      final ui.Image image = frame.image;
-      final previous = selectedItem!.copyWith();
-      setState(() {
-        selectedItem!.properties['image'] = image;
-        selectedItem!.properties['imagePath'] = picked.path; // keep path if needed later
-      });
-      _addAction(CanvasAction(type: 'modify', item: selectedItem, previousState: previous, timestamp: DateTime.now()));
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to load image for shape')));
-    }
+ Future<void> _pickShapeImage() async {
+  try {
+    final XFile? picked = await _imagePicker.pickImage(source: ImageSource.gallery);
+    if (picked == null || selectedItem == null || selectedItem!.type != CanvasItemType.shape) return;
+    
+    final Uint8List bytes = await File(picked.path).readAsBytes();
+    final ui.Codec codec = await ui.instantiateImageCodec(bytes);
+    final ui.FrameInfo frame = await codec.getNextFrame();
+    final ui.Image image = frame.image;
+    
+    final previous = selectedItem!.copyWith();
+    setState(() {
+      // Store both the ui.Image object and the file path
+      selectedItem!.properties['image'] = image;
+      selectedItem!.properties['imagePath'] = picked.path;
+      // Disable gradient when using image fill
+      selectedItem!.properties['hasGradient'] = false;
+    });
+    
+    _addAction(CanvasAction(type: 'modify', item: selectedItem, previousState: previous, timestamp: DateTime.now()));
+  } catch (e) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Failed to load image for shape'))
+    );
   }
+}
+
 
   void _selectColor(String property, Color color, {bool isGradient = false}) {
     if (selectedItem == null) return;
