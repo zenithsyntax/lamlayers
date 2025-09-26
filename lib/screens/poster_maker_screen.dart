@@ -547,6 +547,12 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           }
           break;
       }
+
+      // Ensure selection stays consistent with current canvas items
+      if (selectedItem != null) {
+        final matchIdx = canvasItems.indexWhere((it) => it.id == selectedItem!.id);
+        selectedItem = matchIdx != -1 ? canvasItems[matchIdx] : null;
+      }
     });
     currentActionIndex--;
   }
@@ -569,6 +575,12 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             canvasItems[idx] = action.item!;
           }
           break;
+      }
+
+      // Ensure selection stays consistent with current canvas items
+      if (selectedItem != null) {
+        final matchIdx = canvasItems.indexWhere((it) => it.id == selectedItem!.id);
+        selectedItem = matchIdx != -1 ? canvasItems[matchIdx] : null;
       }
     });
   }
@@ -828,13 +840,15 @@ void _deselectItem() {
             ),
           ),
           Expanded(
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16.w),
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                children: _buildTopbarQuickControls(),
-              ),
-            ),
+            child: selectedItem == null
+                ? const SizedBox()
+                : Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16.w),
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      children: _buildTopbarQuickControls(),
+                    ),
+                  ),
           ),
           SizedBox(height: 10.h,)
         ],
@@ -1264,7 +1278,7 @@ List<Widget> _buildTypeSpecificQuickControls() {
 
   Widget _miniColorSwatch(String label, Color color, VoidCallback onTap) {
     return Container(
-      margin: EdgeInsets.only(right: 12.w),
+      margin: EdgeInsets.only(right: 12.w, bottom: 35.h),
       padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
       decoration: BoxDecoration(color: Colors.grey[50], borderRadius: BorderRadius.circular(14.r), border: Border.all(color: Colors.grey.shade200)),
       child: Row(
@@ -1585,7 +1599,7 @@ void _showTextEditDialog(String currentText, ValueChanged<String> onChanged) {
 }
   Widget _miniToggleIcon(String tooltip, IconData icon, bool isActive, VoidCallback onTap) {
     return Padding(
-      padding: EdgeInsets.only(right: 10.w),
+      padding: EdgeInsets.only(right: 10.w, bottom: 35.h),
       child: Tooltip(
         message: tooltip,
         child: GestureDetector(
