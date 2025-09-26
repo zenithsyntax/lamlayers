@@ -638,23 +638,22 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     }
   }
 
-  void _selectItem(CanvasItem item) {
-    setState(() {
-      selectedItem = item;
-      showBottomSheet = false;
-    });
-    // Editing will be shown in the top toolbar instead of bottom sheet
-    _selectionController.forward();
-  }
+void _selectItem(CanvasItem item) {
+  setState(() {
+    selectedItem = item;
+    showBottomSheet = false;
+  });
+  // Removed: _selectionController.forward();
+}
 
-  void _deselectItem() {
-    setState(() {
-      selectedItem = null;
-      showBottomSheet = false;
-    });
-    _bottomSheetController.reverse();
-    _selectionController.reverse();
-  }
+void _deselectItem() {
+  setState(() {
+    selectedItem = null;
+    showBottomSheet = false;
+  });
+  _bottomSheetController.reverse();
+  // Removed: _selectionController.reverse();
+}
 
   void _removeItem(CanvasItem item) {
     setState(() {
@@ -1407,72 +1406,72 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
 
   Widget _buildCanvasItem(CanvasItem item) {
-    final isSelected = selectedItem == item;
-    return Positioned(
-      left: item.position.dx,
-      top: item.position.dy,
-      child: GestureDetector(
-        onTap: () => _selectItem(item),
-        onPanStart: (_) {
-          if (selectedItem == item) {
-            _preDragState = item.copyWith();
-          }
-        },
-        onPanUpdate: (details) {
-          if (selectedItem == item) {
-            setState(() {
-              Offset newPosition = item.position + details.delta;
-              if (snapToGrid) {
-                const gridSize = 20.0;
-                newPosition = Offset(
-                  (newPosition.dx / gridSize).round() * gridSize,
-                  (newPosition.dy / gridSize).round() * gridSize,
-                );
-              }
-              item.position = newPosition;
-            });
-          }
-        },
-        onPanEnd: (_) {
-          if (selectedItem == item && _preDragState != null) {
-            _addAction(CanvasAction(
-              type: 'modify',
-              item: item.copyWith(),
-              previousState: _preDragState,
-              timestamp: DateTime.now(),
-            ));
-            _preDragState = null;
-          }
-        },
-        child: Transform.rotate(
-          angle: item.rotation,
-          child: Transform.scale(
-            scale: item.scale * (isSelected ? _selectionAnimation.value : 1.0),
-            child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  
-                  Container(
-                    decoration: isSelected
-                        ? BoxDecoration(
-                           
-                            border: Border.all(color: Colors.blue.shade400, width: 2),
-                          )
-                        : null,
-                    child: Opacity(
-                      opacity: item.opacity.clamp(0.0, 1.0),
-                      child: _buildItemContent(item),
-                    ),
-                  ),
-                 
-                ],
-              ),
+  final isSelected = selectedItem == item;
+  return Positioned(
+    left: item.position.dx,
+    top: item.position.dy,
+    child: GestureDetector(
+      onTap: () => _selectItem(item),
+      onPanStart: (_) {
+        if (selectedItem == item) {
+          _preDragState = item.copyWith();
+        }
+      },
+      onPanUpdate: (details) {
+        if (selectedItem == item) {
+          setState(() {
+            Offset newPosition = item.position + details.delta;
+            if (snapToGrid) {
+              const gridSize = 20.0;
+              newPosition = Offset(
+                (newPosition.dx / gridSize).round() * gridSize,
+                (newPosition.dy / gridSize).round() * gridSize,
+              );
+            }
+            item.position = newPosition;
+          });
+        }
+      },
+      onPanEnd: (_) {
+        if (selectedItem == item && _preDragState != null) {
+          _addAction(CanvasAction(
+            type: 'modify',
+            item: item.copyWith(),
+            previousState: _preDragState,
+            timestamp: DateTime.now(),
+          ));
+          _preDragState = null;
+        }
+      },
+      child: Transform.rotate(
+        angle: item.rotation,
+        child: Transform.scale(
+          scale: item.scale, // Removed the selection scaling animation
+          child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                
+              Container(
+  decoration: BoxDecoration(
+    border: Border.all(
+      color: isSelected ? Colors.blue.shade400 : Colors.transparent, 
+      width: 2
+    ),
+  ),
+  child: Opacity(
+    opacity: item.opacity.clamp(0.0, 1.0),
+    child: _buildItemContent(item),
+  ),
+),
+               
+              ],
             ),
-          
-        ),
+          ),
+        
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildBoundingBox(CanvasItem item) {
     return Positioned.fill(
@@ -1586,239 +1585,238 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   }
 
   Widget _buildItemContent(CanvasItem item) {
-    switch (item.type) {
-      case CanvasItemType.text:
-        final props = item.properties;
-        final String? fontFamily = props['fontFamily'] as String?;
-        final bool textHasGradient = props['hasGradient'] == true;
-        final bool textHasShadow = props['hasShadow'] == true;
-        final double textShadowOpacity = (props['shadowOpacity'] as double?) ?? 0.6;
-        final Color baseShadowColor = (props['shadowColor'] is HiveColor)
-            ? (props['shadowColor'] as HiveColor).toColor()
-            : (props['shadowColor'] is Color)
-                ? (props['shadowColor'] as Color)
-                : Colors.grey;
-        final Color effectiveShadowColor = baseShadowColor.withOpacity((baseShadowColor.opacity * textShadowOpacity).clamp(0.0, 1.0));
-        final TextStyle baseStyle = TextStyle(
-          fontSize: (props['fontSize'] ?? 24.0) as double,
-          // Force solid white text when using ShaderMask gradient so the alpha is solid
-          color: textHasGradient
-              ? Colors.white
-              : (props['color'] is HiveColor)
-                  ? (props['color'] as HiveColor).toColor()
-                  : (props['color'] is Color)
-                      ? (props['color'] as Color)
-                      : Colors.black,
-          fontWeight: (props['fontWeight'] is FontWeight)
-              ? (props['fontWeight'] as FontWeight)
-              : FontWeight.values.firstWhere(
-                    (e) => e.index == (props['fontWeight'] as int?),
-                    orElse: () => FontWeight.normal,
-                  ),
-          fontStyle: (props['fontStyle'] is FontStyle)
-              ? (props['fontStyle'] as FontStyle)
-              : FontStyle.values.firstWhere(
-                    (e) => e.index == (props['fontStyle'] as int?),
-                    orElse: () => FontStyle.normal,
-                  ),
-          decoration: _intToTextDecoration((props['decoration'] as int?) ?? 0),
-          decorationColor: (props['color'] is HiveColor)
-              ? (props['color'] as HiveColor).toColor()
-              : (props['color'] as Color?),
-          letterSpacing: (props['letterSpacing'] as double?) ?? 0.0,
-          shadows: textHasShadow
-              ? [
-                  Shadow(
-                    color: effectiveShadowColor,
-                    offset: (props['shadowOffset'] as Offset?) ?? const Offset(2, 2),
-                    blurRadius: (props['shadowBlur'] as double?) ?? 4.0,
-                  ),
-                ]
-              : null,
-        );
+  switch (item.type) {
+    case CanvasItemType.text:
+      final props = item.properties;
+      final String? fontFamily = props['fontFamily'] as String?;
+      final bool textHasGradient = props['hasGradient'] == true;
+      final bool textHasShadow = props['hasShadow'] == true;
+      final double textShadowOpacity = (props['shadowOpacity'] as double?) ?? 0.6;
+      final Color baseShadowColor = (props['shadowColor'] is HiveColor)
+          ? (props['shadowColor'] as HiveColor).toColor()
+          : (props['shadowColor'] is Color)
+              ? (props['shadowColor'] as Color)
+              : Colors.grey;
+      final Color effectiveShadowColor = baseShadowColor.withOpacity((baseShadowColor.opacity * textShadowOpacity).clamp(0.0, 1.0));
+      final TextStyle baseStyle = TextStyle(
+        fontSize: (props['fontSize'] ?? 24.0) as double,
+        // Force solid white text when using ShaderMask gradient so the alpha is solid
+        color: textHasGradient
+            ? Colors.white
+            : (props['color'] is HiveColor)
+                ? (props['color'] as HiveColor).toColor()
+                : (props['color'] is Color)
+                    ? (props['color'] as Color)
+                    : Colors.black,
+        fontWeight: (props['fontWeight'] is FontWeight)
+            ? (props['fontWeight'] as FontWeight)
+            : FontWeight.values.firstWhere(
+                  (e) => e.index == (props['fontWeight'] as int?),
+                  orElse: () => FontWeight.normal,
+                ),
+        fontStyle: (props['fontStyle'] is FontStyle)
+            ? (props['fontStyle'] as FontStyle)
+            : FontStyle.values.firstWhere(
+                  (e) => e.index == (props['fontStyle'] as int?),
+                  orElse: () => FontStyle.normal,
+                ),
+        decoration: _intToTextDecoration((props['decoration'] as int?) ?? 0),
+        decorationColor: (props['color'] is HiveColor)
+            ? (props['color'] as HiveColor).toColor()
+            : (props['color'] as Color?),
+        letterSpacing: (props['letterSpacing'] as double?) ?? 0.0,
+        shadows: textHasShadow
+            ? [
+                Shadow(
+                  color: effectiveShadowColor,
+                  offset: (props['shadowOffset'] as Offset?) ?? const Offset(2, 2),
+                  blurRadius: (props['shadowBlur'] as double?) ?? 4.0,
+                ),
+              ]
+            : null,
+      );
 
-        Widget textWidget;
-        if (fontFamily != null) {
-          try {
-            final TextStyle gfStyle = GoogleFonts.getFont(fontFamily, textStyle: baseStyle);
-            textWidget = Text(
-              (props['text'] ?? 'Text') as String,
-              style: gfStyle,
-              textAlign: (props['textAlign'] as TextAlign?) ?? TextAlign.center,
-            );
-          } catch (_) {
-            textWidget = Text(
-              (props['text'] ?? 'Text') as String,
-              style: baseStyle,
-              textAlign: (props['textAlign'] as TextAlign?) ?? TextAlign.center,
-            );
-          }
-        } else {
+      Widget textWidget;
+      if (fontFamily != null) {
+        try {
+          final TextStyle gfStyle = GoogleFonts.getFont(fontFamily, textStyle: baseStyle);
+          textWidget = Text(
+            (props['text'] ?? 'Text') as String,
+            style: gfStyle,
+            textAlign: (props['textAlign'] as TextAlign?) ?? TextAlign.center,
+          );
+        } catch (_) {
           textWidget = Text(
             (props['text'] ?? 'Text') as String,
             style: baseStyle,
             textAlign: (props['textAlign'] as TextAlign?) ?? TextAlign.center,
           );
         }
-        if (textHasGradient) {
-          final double angle = (props['gradientAngle'] as double?) ?? 0.0;
-          final double rad = angle * math.pi / 180.0;
-          final double cx = math.cos(rad);
-          final double sy = math.sin(rad);
-          final Alignment begin = Alignment(-cx, -sy);
-          final Alignment end = Alignment(cx, sy);
-          textWidget = ShaderMask(
-            shaderCallback: (bounds) => LinearGradient(
-              colors: (props['gradientColors'] as List<dynamic>?)?.map((e) => (e as HiveColor).toColor()).toList() ?? [HiveColor.fromColor(Colors.blue).toColor(), HiveColor.fromColor(Colors.purple).toColor()],
-              begin: begin,
-              end: end,
-            ).createShader(bounds),
-            child: textWidget,
-          );
-        }
-        return Container(padding: EdgeInsets.all(16.w), child: textWidget);
-      case CanvasItemType.image:
-        final String? filePath = item.properties['filePath'] as String?;
-        final double blur = (item.properties['blur'] as double?) ?? 0.0;
-        final bool hasGradient = (item.properties['hasGradient'] as bool?) ?? false;
-        final List<Color> grad = (item.properties['gradientColors'] as List<dynamic>?)?.map((e) => (e is HiveColor ? e : (e is int ? HiveColor(e) : null))?.toColor()).whereType<Color>().toList() ?? [];
-        final bool hasShadow = (item.properties['hasShadow'] as bool?) ?? false;
-        final Color shadowColor = (item.properties['shadowColor'] is HiveColor)
-            ? (item.properties['shadowColor'] as HiveColor).toColor()
-            : (item.properties['shadowColor'] is Color)
-                ? (item.properties['shadowColor'] as Color)
-                : Colors.black54;
-        final Offset shadowOffset = (item.properties['shadowOffset'] as Offset?) ?? const Offset(4, 4);
-        final double shadowBlur = (item.properties['shadowBlur'] as double?) ?? 8.0;
-        final double shadowOpacity = (item.properties['shadowOpacity'] as double?) ?? 0.6;
-        final double gradientAngle = (item.properties['gradientAngle'] as double?) ?? 0.0;
-        final Color tintColor = (item.properties['tint'] is HiveColor)
-            ? (item.properties['tint'] as HiveColor).toColor()
-            : (item.properties['tint'] is Color)
-                ? (item.properties['tint'] as Color)
-                : Colors.transparent;
+      } else {
+        textWidget = Text(
+          (props['text'] ?? 'Text') as String,
+          style: baseStyle,
+          textAlign: (props['textAlign'] as TextAlign?) ?? TextAlign.center,
+        );
+      }
+      if (textHasGradient) {
+        final double angle = (props['gradientAngle'] as double?) ?? 0.0;
+        final double rad = angle * math.pi / 180.0;
+        final double cx = math.cos(rad);
+        final double sy = math.sin(rad);
+        final Alignment begin = Alignment(-cx, -sy);
+        final Alignment end = Alignment(cx, sy);
+        textWidget = ShaderMask(
+          shaderCallback: (bounds) => LinearGradient(
+            colors: (props['gradientColors'] as List<dynamic>?)?.map((e) => (e as HiveColor).toColor()).toList() ?? [HiveColor.fromColor(Colors.blue).toColor(), HiveColor.fromColor(Colors.purple).toColor()],
+            begin: begin,
+            end: end,
+          ).createShader(bounds),
+          child: textWidget,
+        );
+      }
+      return Container(padding: EdgeInsets.all(16.w), child: textWidget);
 
-        // Define common image properties for use within ImageFilter and other places
+    case CanvasItemType.image:
+      final String? filePath = item.properties['filePath'] as String?;
+      final double blur = (item.properties['blur'] as double?) ?? 0.0;
+      final bool hasGradient = (item.properties['hasGradient'] as bool?) ?? false;
+      final List<Color> grad = (item.properties['gradientColors'] as List<dynamic>?)?.map((e) => (e is HiveColor ? e : (e is int ? HiveColor(e) : null))?.toColor()).whereType<Color>().toList() ?? [];
+      final bool hasShadow = (item.properties['hasShadow'] as bool?) ?? false;
+      final Color shadowColor = (item.properties['shadowColor'] is HiveColor)
+          ? (item.properties['shadowColor'] as HiveColor).toColor()
+          : (item.properties['shadowColor'] is Color)
+              ? (item.properties['shadowColor'] as Color)
+              : Colors.black54;
+      final Offset shadowOffset = (item.properties['shadowOffset'] as Offset?) ?? const Offset(4, 4);
+      final double shadowBlur = (item.properties['shadowBlur'] as double?) ?? 8.0;
+      final double shadowOpacity = (item.properties['shadowOpacity'] as double?) ?? 0.6;
+      final double gradientAngle = (item.properties['gradientAngle'] as double?) ?? 0.0;
+      final Color tintColor = (item.properties['tint'] is HiveColor)
+          ? (item.properties['tint'] as HiveColor).toColor()
+          : (item.properties['tint'] is Color)
+              ? (item.properties['tint'] as Color)
+              : Colors.transparent;
+
+      final double? displayW = (item.properties['displayWidth'] as double?);
+      final double? displayH = (item.properties['displayHeight'] as double?);
+
+      // Build the main image first
+      Widget mainImage = _buildActualImage(filePath, item, tintColor, grad, hasGradient, gradientAngle);
+
+      // Apply blur to the main image if needed
+      if (blur > 0.0) {
         final ui.ImageFilter filter = ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur);
+        mainImage = ImageFiltered(imageFilter: filter, child: mainImage);
+      }
 
-        // Apply shadow to the image. 
-        Widget imageWidget = Stack(
-          children: [
-            if (hasShadow)
-              Transform.translate(
-                offset: shadowOffset,
-                child: Opacity(
-                  opacity: shadowOpacity,
-                  child: ImageFiltered(
-                    imageFilter: ui.ImageFilter.blur(sigmaX: shadowBlur, sigmaY: shadowBlur),
-                    child: _buildActualImage(filePath, item, tintColor, grad, hasGradient, gradientAngle),
-                  ),
+      // Create shadow and main image stack
+      Widget imageWidget = Stack(
+        children: [
+          // Colored shadow behind the image
+          if (hasShadow)
+            Transform.translate(
+              offset: shadowOffset,
+              child: Container(
+                width: (displayW ?? 160.0).w,
+                height: (displayH ?? 160.0).h,
+                decoration: BoxDecoration(
+                  boxShadow: [
+                    BoxShadow(
+                      color: shadowColor.withOpacity(shadowOpacity.clamp(0.0, 1.0)),
+                      blurRadius: shadowBlur,
+                      spreadRadius: 0,
+                      offset: Offset.zero, // Already offset by Transform.translate
+                    ),
+                  ],
                 ),
               ),
-            _buildActualImage(filePath, item, tintColor, grad, hasGradient, gradientAngle),
-          ],
-        );
-
-        // Apply blur after shadow (if any)
-        if (blur > 0.0) {
-          imageWidget = ImageFiltered(imageFilter: filter, child: imageWidget);
-        }
-
-        // Scale and rotation applied after blur
-        return Transform.scale(
-          scale: item.scale,
-          child: Transform.rotate(
-            angle: item.rotation,
-            child: Opacity(
-              opacity: item.opacity,
-              child: imageWidget,
             ),
-          ),
-        );
-      case CanvasItemType.sticker:
-        final props = item.properties;
-        final int iconCodePoint = (props['iconCodePoint'] as int?) ?? Icons.star.codePoint;
-        final String? iconFontFamily = props['iconFontFamily'] as String?;
-        final Color color = (props['color'] is HiveColor) ? (props['color'] as HiveColor).toColor() : Colors.yellow;
-        final double size = (props['size'] as double?) ?? 60.0;
+          // Main image on top
+          mainImage,
+        ],
+      );
 
-        return FittedBox(
-          fit: BoxFit.contain,
-          child: Icon(
-            IconData(iconCodePoint, fontFamily: iconFontFamily),
-            color: color,
-            size: size,
-          ),
-        );
-      case CanvasItemType.shape:
-        final props = item.properties;
-        final String shape = (props['shape'] as String?) ?? 'rectangle';
-        final Color fillColor = (props['fillColor'] is HiveColor)
-            ? (props['fillColor'] as HiveColor).toColor()
-            : Colors.blue;
-        final Color strokeColor = (props['strokeColor'] is HiveColor)
-            ? (props['strokeColor'] as HiveColor).toColor()
-            : Colors.black;
-        final double strokeWidth = (props['strokeWidth'] as double?) ?? 2.0;
-        final double cornerRadius = (props['cornerRadius'] as double?) ?? 0.0;
-        final bool hasGradient = (props['hasGradient'] as bool?) ?? false;
-        final List<Color> gradientColors = (props['gradientColors'] as List<dynamic>?)
-                ?.map((e) => (e is HiveColor ? e : (e is int ? HiveColor(e) : null))?.toColor())
-                .whereType<Color>()
-                .toList() ??
-            [];
-        final double gradientAngle = (props['gradientAngle'] as double?) ?? 0.0;
-        final bool hasShadow = (props['hasShadow'] as bool?) ?? false;
-        final HiveColor shadowColorHive = (props['shadowColor'] is HiveColor)
-            ? (props['shadowColor'] as HiveColor)
-            : (props['shadowColor'] is Color)
-                ? HiveColor.fromColor(props['shadowColor'] as Color)
-                : HiveColor.fromColor(Colors.black54);
-        final Offset shadowOffset = (props['shadowOffset'] as Offset?) ?? const Offset(4, 4);
-        final double shadowBlur = (props['shadowBlur'] as double?) ?? 8.0;
-        final double shadowOpacity = (props['shadowOpacity'] as double?) ?? 0.6;
-        final String? imagePath = props['imagePath'] as String?;
-        final HiveSize? hiveSize = props['size'] as HiveSize?;
+      return imageWidget;
 
-        Size itemSize = hiveSize?.toSize() ?? Size(100.0.w, 100.0.h);
+    case CanvasItemType.sticker:
+      final props = item.properties;
+      final int iconCodePoint = (props['iconCodePoint'] as int?) ?? Icons.star.codePoint;
+      final String? iconFontFamily = props['iconFontFamily'] as String?;
+      final Color color = (props['color'] is HiveColor) ? (props['color'] as HiveColor).toColor() : Colors.yellow;
+      final double size = (props['size'] as double?) ?? 60.0;
 
-        Widget shapeWidget = CustomPaint(
-          painter: _ShapePainter(
-            {
-              'shape': shape,
-              'fillColor': HiveColor.fromColor(fillColor),
-              'strokeColor': HiveColor.fromColor(strokeColor),
-              'strokeWidth': strokeWidth,
-              'cornerRadius': cornerRadius,
-              'hasGradient': hasGradient,
-              'gradientColors': gradientColors.map((color) => HiveColor.fromColor(color)).toList(),
-              'gradientAngle': gradientAngle,
-              'hasShadow': hasShadow,
-              'shadowColor': shadowColorHive,
-              'shadowOffset': shadowOffset,
-              'shadowBlur': shadowBlur,
-              'shadowOpacity': shadowOpacity,
-            }
-          ),
-          size: itemSize,
-        );
+      return FittedBox(
+        fit: BoxFit.contain,
+        child: Icon(
+          IconData(iconCodePoint, fontFamily: iconFontFamily),
+          color: color,
+          size: size,
+        ),
+      );
 
-        return Transform.scale(
-          scale: item.scale,
-          child: Transform.rotate(
-            angle: item.rotation,
-            child: Opacity(
-              opacity: item.opacity,
-              child: SizedBox(
-                width: itemSize.width,
-                height: itemSize.height,
-                child: FittedBox(fit: BoxFit.contain, child: shapeWidget), // Ensure the shape scales correctly within its bounds
-              ),
-            ),
-          ),
-        );
-    }
+    case CanvasItemType.shape:
+      final props = item.properties;
+      final String shape = (props['shape'] as String?) ?? 'rectangle';
+      final Color fillColor = (props['fillColor'] is HiveColor)
+          ? (props['fillColor'] as HiveColor).toColor()
+          : Colors.blue;
+      final Color strokeColor = (props['strokeColor'] is HiveColor)
+          ? (props['strokeColor'] as HiveColor).toColor()
+          : Colors.black;
+      final double strokeWidth = (props['strokeWidth'] as double?) ?? 2.0;
+      final double cornerRadius = (props['cornerRadius'] as double?) ?? 0.0;
+      final bool hasGradient = (props['hasGradient'] as bool?) ?? false;
+      final List<Color> gradientColors = (props['gradientColors'] as List<dynamic>?)
+              ?.map((e) => (e is HiveColor ? e : (e is int ? HiveColor(e) : null))?.toColor())
+              .whereType<Color>()
+              .toList() ??
+          [];
+      final double gradientAngle = (props['gradientAngle'] as double?) ?? 0.0;
+      final bool hasShadow = (props['hasShadow'] as bool?) ?? false;
+      final HiveColor shadowColorHive = (props['shadowColor'] is HiveColor)
+          ? (props['shadowColor'] as HiveColor)
+          : (props['shadowColor'] is Color)
+              ? HiveColor.fromColor(props['shadowColor'] as Color)
+              : HiveColor.fromColor(Colors.black54);
+      final Offset shadowOffset = (props['shadowOffset'] as Offset?) ?? const Offset(4, 4);
+      final double shadowBlur = (props['shadowBlur'] as double?) ?? 8.0;
+      final double shadowOpacity = (props['shadowOpacity'] as double?) ?? 0.6;
+      final String? imagePath = props['imagePath'] as String?;
+      final HiveSize? hiveSize = props['size'] as HiveSize?;
+
+      Size itemSize = hiveSize?.toSize() ?? Size(100.0.w, 100.0.h);
+
+      Widget shapeWidget = CustomPaint(
+        painter: _ShapePainter(
+          {
+            'shape': shape,
+            'fillColor': HiveColor.fromColor(fillColor),
+            'strokeColor': HiveColor.fromColor(strokeColor),
+            'strokeWidth': strokeWidth,
+            'cornerRadius': cornerRadius,
+            'hasGradient': hasGradient,
+            'gradientColors': gradientColors.map((color) => HiveColor.fromColor(color)).toList(),
+            'gradientAngle': gradientAngle,
+            'hasShadow': hasShadow,
+            'shadowColor': shadowColorHive,
+            'shadowOffset': shadowOffset,
+            'shadowBlur': shadowBlur,
+            'shadowOpacity': shadowOpacity,
+          }
+        ),
+        size: itemSize,
+      );
+
+      // REMOVED: Transform.scale, Transform.rotate, and Opacity wrappers
+      // The scaling, rotation, and opacity are already handled in _buildCanvasItem
+      return SizedBox(
+        width: itemSize.width,
+        height: itemSize.height,
+        child: FittedBox(fit: BoxFit.contain, child: shapeWidget),
+      );
   }
+}
 
   Widget _buildActualImage(String? filePath, CanvasItem item, Color tintColor, List<Color> grad, bool hasGradient, double gradientAngle) {
     final String? imageUrl = item.properties['imageUrl'] as String?;
