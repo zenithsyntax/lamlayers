@@ -1717,7 +1717,19 @@ void _showTextEditDialog(String currentText, ValueChanged<String> onChanged) {
           onPanUpdate: (details) {
             if (!item.isLocked && selectedItem == item) {
               setState(() {
-                Offset newPosition = item.position + details.delta;
+                // Convert drag delta from the rotated/scaled child's local space
+                // into canvas space so dragging matches finger direction
+                final double angle = item.rotation;
+                final double cosA = math.cos(angle);
+                final double sinA = math.sin(angle);
+                final Offset localDelta = details.delta;
+                final Offset rotatedDelta = Offset(
+                  localDelta.dx * cosA - localDelta.dy * sinA,
+                  localDelta.dx * sinA + localDelta.dy * cosA,
+                );
+                // Compensate for the current scale so movement feels consistent
+                final Offset canvasDelta = rotatedDelta / (item.scale == 0 ? 1 : item.scale);
+                Offset newPosition = item.position + canvasDelta;
                 if (snapToGrid) {
                   const double gridSize = 20.0;
                   newPosition = Offset(
