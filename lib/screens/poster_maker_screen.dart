@@ -26,6 +26,9 @@ import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:lamlayers/screens/google_font_screen.dart';
 import 'dart:async'; // Import for Timer
 
+import 'package:image_editor_plus/image_editor_plus.dart';
+import 'package:http/http.dart' as http;
+
 
 
 
@@ -959,6 +962,7 @@ void _deselectItem() {
         ];
       case CanvasItemType.image:
         return [
+          _miniIconButton('Edit Image', Icons.edit_rounded, _editSelectedImage),
           _miniColorSwatch('Tint', selectedItem!.properties['tint'] as Color? ?? Colors.transparent, () => _showColorPicker('tint')),
           _miniSlider('Blur', (selectedItem!.properties['blur'] as double?) ?? 0.0, 0.0, 10.0, (v) => setState(() => selectedItem!.properties['blur'] = v), Icons.blur_on_rounded),
           _miniIconButton('Replace', Icons.photo_library_rounded, () => _pickImage(replace: true)),
@@ -2222,6 +2226,8 @@ case CanvasItemType.shape:
     final props = selectedItem!.properties;
     return Column(
       children: [
+          _buildOptionButton('Edit Image', Icons.edit_rounded, Colors.purple.shade400, _editSelectedImage),
+      SizedBox(height: 20.h),
         _buildColorOption('Tint Color', 'tint', props),
         SizedBox(height: 16.h),
         _buildSliderOption('Blur', (props['blur'] as double?) ?? 0.0, 0.0, 10.0, (value) => setState(() => props['blur'] = value), Icons.blur_on_rounded),
@@ -2853,7 +2859,142 @@ case CanvasItemType.shape:
     }
     return [Colors.lightBlue, Colors.blueAccent];
   }
+Future<void> _editSelectedImage() async {
+  if (selectedItem == null || selectedItem!.type != CanvasItemType.image) return;
+  
+  try {
+    final String? filePath = selectedItem!.properties['filePath'] as String?;
+    final String? imageUrl = selectedItem!.properties['imageUrl'] as String?;
+    
+    Uint8List? imageBytes;
+    
+    // Get image bytes based on source
+    if (filePath != null) {
+      imageBytes = await File(filePath).readAsBytes();
+    } else if (imageUrl != null) {
+      // For network images, download first
+      final response = await http.get(Uri.parse(imageUrl));
+      if (response.statusCode == 200) {
+        imageBytes = response.bodyBytes;
+      }
+    }
+    
+    if (imageBytes == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not load image for editing'))
+      );
+      return;
+    }
 
+    // Navigate to image editor with white background theme
+    final Uint8List? editedBytes = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => Theme(
+          data: ThemeData.light().copyWith(
+            // Set scaffold background to white
+            scaffoldBackgroundColor: Colors.white,
+            // Set app bar background to white
+            appBarTheme: const AppBarTheme(
+              backgroundColor: Colors.white,
+              foregroundColor: Colors.black,
+              elevation: 0,
+            ),
+            // Set bottom sheet background to white
+            bottomSheetTheme: const BottomSheetThemeData(
+              backgroundColor: Colors.white,
+            ),
+            // Set dialog background to white
+            dialogTheme: const DialogThemeData(
+              backgroundColor: Colors.white,
+            ),
+            // Set card background to white
+            cardTheme: const CardThemeData(
+              color: Colors.white,
+            ),
+            // Set color scheme with white surfaces
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: Colors.blue,
+              brightness: Brightness.light,
+              surface: Colors.white,
+              background: Colors.white,
+            ),
+          ),
+          child: ImageEditor(
+            image: imageBytes!,
+          ),
+        ),
+      ),
+    );
+
+    // If user edited and saved the image
+    if (editedBytes != null) {
+      // Save edited image to temporary file
+      final Directory tempDir = await getTemporaryDirectory();
+      final String editedFilePath = '${tempDir.path}/edited_image_${DateTime.now().millisecondsSinceEpoch}.png';
+      final File editedFile = File(editedFilePath);
+      await editedFile.writeAsBytes(editedBytes);
+      
+      // Get new image dimensions
+      final ui.Image decoded = await decodeImageFromList(editedBytes);
+      final double intrinsicW = decoded.width.toDouble();
+      final double intrinsicH = decoded.height.toDouble();
+      
+      // Calculate display size maintaining aspect ratio
+      const double maxEdge = 240.0;
+      double displayW = intrinsicW;
+      double displayH = intrinsicH;
+      if (intrinsicW > intrinsicH && intrinsicW > maxEdge) {
+        displayW = maxEdge;
+        displayH = maxEdge * (intrinsicH / intrinsicW);
+      } else if (intrinsicH >= intrinsicW && intrinsicH > maxEdge) {
+        displayH = maxEdge;
+        displayW = maxEdge * (intrinsicW / intrinsicH);
+      }
+
+      // Update the canvas item with edited image
+      final previous = selectedItem!.copyWith();
+      setState(() {
+        selectedItem!.properties['filePath'] = editedFilePath;
+        selectedItem!.properties['imageUrl'] = null; // Clear network URL since we now have local file
+        selectedItem!.properties['intrinsicWidth'] = intrinsicW;
+        selectedItem!.properties['intrinsicHeight'] = intrinsicH;
+        selectedItem!.properties['displayWidth'] = displayW;
+        selectedItem!.properties['displayHeight'] = displayH;
+      });
+      
+      _addAction(CanvasAction(
+        type: 'modify', 
+        item: selectedItem, 
+        previousState: previous, 
+        timestamp: DateTime.now()
+      ));
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white),
+              SizedBox(width: 12.w),
+              Text('Image edited successfully!', 
+                style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w500)
+              ),
+            ],
+          ),
+          backgroundColor: Colors.green.shade400,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+          margin: EdgeInsets.all(16.w),
+        ),
+      );
+    }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Failed to edit image'))
+    );
+  }
+}
     @override
     Widget build(BuildContext context) {
       return Scaffold(

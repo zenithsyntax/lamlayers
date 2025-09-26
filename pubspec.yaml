@@ -46,6 +46,7 @@ dependencies:
   flutter_colorpicker: ^1.1.0
   image: ^4.5.4
   screenshot: ^3.0.0
+  image_editor_plus: ^1.0.8
 
 dev_dependencies:
   flutter_test:
