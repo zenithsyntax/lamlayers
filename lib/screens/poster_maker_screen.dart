@@ -2722,43 +2722,47 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           ),
           SizedBox(width: 10.w),
           // Add as Layer
-          ElevatedButton.icon(
-            onPressed: _textBrushPoints.isEmpty
-                ? null
-                : () {
-                    final double canvasW = _currentProject?.canvasWidth ?? 1080;
-                    final double canvasH =
-                        _currentProject?.canvasHeight ?? 1920;
-                    // Always create a NEW Text Brush layer on save
-                    _addCanvasItem(
-                      CanvasItemType.shape,
-                      properties: {
-                        'textBrushLayer': true,
-                        'points': List<Offset>.from(_textBrushPoints),
-                        'text': _textBrushText,
-                        'color': HiveColor.fromColor(_textBrushColor),
-                        'fontSize': _textBrushFontSize,
-                        'spacing': _textBrushSpacing,
-                        'fontFamily': _textBrushFontFamily,
-                        'isBold': _textBrushBold,
-                        'angleDeg': _textBrushAngleDeg,
-                        'size': HiveSize(canvasW, canvasH),
+          ValueListenableBuilder<List<Offset>>(
+            valueListenable: _textBrushPointsNotifier,
+            builder: (context, points, _) {
+              final bool canSave = points.isNotEmpty;
+              return ElevatedButton.icon(
+                onPressed: !canSave
+                    ? null
+                    : () {
+                        final double canvasW =
+                            _currentProject?.canvasWidth ?? 1080;
+                        final double canvasH =
+                            _currentProject?.canvasHeight ?? 1920;
+                        _addCanvasItem(
+                          CanvasItemType.shape,
+                          properties: {
+                            'textBrushLayer': true,
+                            'points': List<Offset>.from(points),
+                            'text': _textBrushText,
+                            'color': HiveColor.fromColor(_textBrushColor),
+                            'fontSize': _textBrushFontSize,
+                            'spacing': _textBrushSpacing,
+                            'fontFamily': _textBrushFontFamily,
+                            'isBold': _textBrushBold,
+                            'angleDeg': _textBrushAngleDeg,
+                            'size': HiveSize(canvasW, canvasH),
+                          },
+                        );
+                        setState(() {
+                          _activeTextBrushLayerId = null;
+                          _isTextBrushMode = false;
+                          _saveProject();
+                          _textBrushPoints.clear();
+                          _textBrushPointsNotifier.value = List<Offset>.from(
+                            _textBrushPoints,
+                          );
+                        });
                       },
-                    );
-                    // Do not keep an active brush layer after saving
-                    setState(() {
-                      _activeTextBrushLayerId = null;
-                      _isTextBrushMode = false; // Exit drawing mode after save
-                      _saveProject();
-                      // Clear current stroke
-                      _textBrushPoints.clear();
-                      _textBrushPointsNotifier.value = List<Offset>.from(
-                        _textBrushPoints,
-                      );
-                    });
-                  },
-            icon: const Icon(Icons.check_rounded),
-            label: const Text('Save'),
+                icon: const Icon(Icons.check_rounded),
+                label: const Text('Save'),
+              );
+            },
           ),
           SizedBox(width: 10.w),
         ],
