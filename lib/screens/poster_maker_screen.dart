@@ -1029,7 +1029,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       return _buildTopEditToolbar();
     }
     return Container(
-      height:  185.h,
+      height: 185.h,
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -1043,7 +1043,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       child: Column(
         children: [
           Container(
-            padding: EdgeInsets.symmetric(horizontal: 24.w,),
+            padding: EdgeInsets.symmetric(horizontal: 24.w),
             child: Row(
               children: List.generate(tabTitles.length, (index) {
                 final isSelected = selectedTabIndex == index;
@@ -1051,11 +1051,10 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                   child: GestureDetector(
                     onTap: () => setState(() {
                       selectedTabIndex = index;
-                     
-                        // Leaving the tab disables drawing
-                        _isTextBrushMode = true;
-                        _activeTextBrushLayerId = null;
-                      
+
+                      // Leaving the tab disables drawing
+                      _isTextBrushMode = true;
+                      _activeTextBrushLayerId = null;
                     }),
                     child: Container(
                       margin: EdgeInsets.symmetric(horizontal: 6.w),
@@ -1094,9 +1093,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               padding: EdgeInsets.symmetric(horizontal: 24.w),
               child: Column(
                 children: [
-                    Expanded(child: _buildTabContent()),
+                  Expanded(child: _buildTabContent()),
                   if (selectedTabIndex == 3) ...[
-                   
                     SizedBox(height: 80.h, child: _buildTextBrushControls()),
                     SizedBox(height: 8.h),
                   ],
@@ -1140,7 +1138,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                     borderRadius: BorderRadius.circular(14.r),
                   ),
                   child: Icon(
-                    _getItemTypeIcon(selectedItem!.type),
+                    _getItemIcon(selectedItem!),
                     color: Colors.white,
                     size: 20.sp,
                   ),
@@ -1198,15 +1196,19 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
     // Add Shadow and Gradient tabs based on item type
     if (selectedItem != null) {
-      switch (selectedItem!.type) {
-        case CanvasItemType.text:
-        case CanvasItemType.image:
-        case CanvasItemType.shape:
-          tabs.addAll(['Shadow', 'Gradient']);
-          break;
-        case CanvasItemType.sticker:
-          // Stickers don't typically have shadow/gradient options
-          break;
+      final bool isTextBrushLayer =
+          selectedItem!.type == CanvasItemType.shape &&
+          selectedItem!.properties['textBrushLayer'] == true;
+      if (!isTextBrushLayer) {
+        switch (selectedItem!.type) {
+          case CanvasItemType.text:
+          case CanvasItemType.image:
+          case CanvasItemType.shape:
+            tabs.addAll(['Shadow', 'Gradient']);
+            break;
+          case CanvasItemType.sticker:
+            break;
+        }
       }
     }
 
@@ -1520,6 +1522,163 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         ];
 
       case CanvasItemType.shape:
+        if (selectedItem!.properties['textBrushLayer'] == true) {
+          final props = selectedItem!.properties;
+          return [
+            _miniTextEditButton('Text', _textBrushText, (v) {
+              setState(() {
+                _textBrushText = v;
+                props['text'] = v;
+              });
+              _textBrushPointsNotifier.value = List<Offset>.from(
+                _textBrushPoints,
+              );
+            }),
+            // Font family dropdown (liked fonts)
+            Container(
+              margin: EdgeInsets.only(right: 12.w, bottom: 35.h),
+              padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: BorderRadius.circular(14.r),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.font_download_rounded,
+                    size: 16.sp,
+                    color: Colors.grey[600],
+                  ),
+                  SizedBox(width: 8.w),
+                  DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      hint: const Text('Font'),
+                      value:
+                          _textBrushFontFamily != null &&
+                              likedFontFamilies.contains(_textBrushFontFamily)
+                          ? _textBrushFontFamily
+                          : null,
+                      items: [
+                        const DropdownMenuItem<String>(
+                          value: '',
+                          child: Text('System'),
+                        ),
+                        ...likedFontFamilies.map(
+                          (f) => DropdownMenuItem<String>(
+                            value: f,
+                            child: Text(
+                              f,
+                              style: GoogleFonts.getFont(
+                                f,
+                                textStyle: TextStyle(fontSize: 12.sp),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                      onChanged: (val) {
+                        setState(() {
+                          _textBrushFontFamily = (val == null || val.isEmpty)
+                              ? null
+                              : val;
+                          props['fontFamily'] = _textBrushFontFamily;
+                        });
+                        _textBrushPointsNotifier.value = List<Offset>.from(
+                          _textBrushPoints,
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            _miniColorSwatch('Color', (_textBrushColor), () async {
+              Color temp = _textBrushColor;
+              await showDialog<void>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Pick Brush Color'),
+                  content: SingleChildScrollView(
+                    child: BlockPicker(
+                      pickerColor: _textBrushColor,
+                      onColorChanged: (c) => temp = c,
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        setState(() {
+                          _textBrushColor = temp;
+                          props['color'] = HiveColor.fromColor(temp);
+                        });
+                        _textBrushPointsNotifier.value = List<Offset>.from(
+                          _textBrushPoints,
+                        );
+                        Navigator.pop(ctx);
+                      },
+                      child: const Text('OK'),
+                    ),
+                  ],
+                ),
+              );
+            }),
+            _miniSlider('Size', _textBrushFontSize, 8, 96, (v) {
+              setState(() {
+                _textBrushFontSize = v;
+                props['fontSize'] = v;
+              });
+              _textBrushPointsNotifier.value = List<Offset>.from(
+                _textBrushPoints,
+              );
+            }, Icons.format_size_rounded),
+            _miniSlider('Spacing', _textBrushSpacing, 4, 200, (v) {
+              setState(() {
+                _textBrushSpacing = v;
+                props['spacing'] = v;
+              });
+              _textBrushPointsNotifier.value = List<Offset>.from(
+                _textBrushPoints,
+              );
+            }, Icons.space_bar_rounded),
+            _miniSlider('Angle', _textBrushAngleDeg, -180, 180, (v) {
+              setState(() {
+                _textBrushAngleDeg = v;
+                props['angleDeg'] = v;
+              });
+              _textBrushPointsNotifier.value = List<Offset>.from(
+                _textBrushPoints,
+              );
+            }, Icons.rotate_right_rounded),
+            _miniToggleIcon(
+              'Bold',
+              Icons.format_bold_rounded,
+              _textBrushBold,
+              () {
+                setState(() {
+                  _textBrushBold = !_textBrushBold;
+                  props['isBold'] = _textBrushBold;
+                });
+                _textBrushPointsNotifier.value = List<Offset>.from(
+                  _textBrushPoints,
+                );
+              },
+            ),
+            _miniSlider(
+              'Opacity',
+              selectedItem!.opacity,
+              0.1,
+              1.0,
+              (v) => setState(() => selectedItem!.opacity = v),
+              Icons.opacity_rounded,
+            ),
+          ];
+        }
         return [
           _miniColorSwatch(
             'Fill',
@@ -3760,6 +3919,14 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     }
   }
 
+  IconData _getItemIcon(CanvasItem item) {
+    if (item.type == CanvasItemType.shape &&
+        item.properties['textBrushLayer'] == true) {
+      return Icons.brush_rounded;
+    }
+    return _getItemTypeIcon(item.type);
+  }
+
   Widget _buildBottomSheetContent() {
     if (selectedItem == null) return const SizedBox();
     return Padding(
@@ -5267,7 +5434,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           child: Row(
             children: [
               Icon(
-                _getItemTypeIcon(item.type),
+                _getItemIcon(item),
                 color: isSelected ? Colors.blue.shade400 : Colors.grey.shade600,
                 size: 24.sp,
               ),
