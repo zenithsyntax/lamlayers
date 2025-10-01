@@ -1029,7 +1029,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       return _buildTopEditToolbar();
     }
     return Container(
-      height: selectedTabIndex == 3 ? 220.h : 185.h,
+      height:  185.h,
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -1043,7 +1043,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       child: Column(
         children: [
           Container(
-            padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 20.h),
+            padding: EdgeInsets.symmetric(horizontal: 24.w,),
             child: Row(
               children: List.generate(tabTitles.length, (index) {
                 final isSelected = selectedTabIndex == index;
@@ -1051,19 +1051,11 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                   child: GestureDetector(
                     onTap: () => setState(() {
                       selectedTabIndex = index;
-                      if (index == 3) {
-                        // Enter text brush mode when the tab is selected
+                     
+                        // Leaving the tab disables drawing
                         _isTextBrushMode = true;
                         _activeTextBrushLayerId = null;
-                        _textBrushPoints.clear();
-                        _textBrushPointsNotifier.value = List<Offset>.from(
-                          _textBrushPoints,
-                        );
-                      } else {
-                        // Leaving the tab disables drawing
-                        _isTextBrushMode = false;
-                        _activeTextBrushLayerId = null;
-                      }
+                      
                     }),
                     child: Container(
                       margin: EdgeInsets.symmetric(horizontal: 6.w),
@@ -1102,9 +1094,10 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               padding: EdgeInsets.symmetric(horizontal: 24.w),
               child: Column(
                 children: [
+                    Expanded(child: _buildTabContent()),
                   if (selectedTabIndex == 3) ...[
-                    SizedBox(height: 8.h),
-                    SizedBox(height: 60.h, child: _buildTextBrushControls()),
+                   
+                    SizedBox(height: 80.h, child: _buildTextBrushControls()),
                     SizedBox(height: 8.h),
                   ],
                 ],
@@ -2294,7 +2287,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         return sampleShapes.length;
       case 3:
         // Controls are rendered below; top row shows a single entry to toggle
-        return 1;
+        return 0;
       default:
         return 0;
     }
