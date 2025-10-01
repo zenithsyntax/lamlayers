@@ -839,11 +839,15 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     });
   }
 
-  void _addCanvasItem(CanvasItemType type, {Map<String, dynamic>? properties}) {
+  void _addCanvasItem(
+    CanvasItemType type, {
+    Map<String, dynamic>? properties,
+    Offset? position,
+  }) {
     final newItem = CanvasItem(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       type: type,
-      position: Offset(100.w, 100.h),
+      position: position ?? Offset(100.w, 100.h),
       properties: properties ?? _getDefaultProperties(type),
       layerIndex: canvasItems.length,
       lastModified: DateTime.now(),
@@ -2730,15 +2734,37 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                 onPressed: !canSave
                     ? null
                     : () {
-                        final double canvasW =
-                            _currentProject?.canvasWidth ?? 1080;
-                        final double canvasH =
-                            _currentProject?.canvasHeight ?? 1920;
+                        // Compute tight bounding box of points
+                        double minX = points.first.dx;
+                        double minY = points.first.dy;
+                        double maxX = points.first.dx;
+                        double maxY = points.first.dy;
+                        for (final p in points) {
+                          if (p.dx < minX) minX = p.dx;
+                          if (p.dy < minY) minY = p.dy;
+                          if (p.dx > maxX) maxX = p.dx;
+                          if (p.dy > maxY) maxY = p.dy;
+                        }
+                        final double width = (maxX - minX).abs().clamp(
+                          1.0,
+                          double.infinity,
+                        );
+                        final double height = (maxY - minY).abs().clamp(
+                          1.0,
+                          double.infinity,
+                        );
+
+                        // Normalize points relative to top-left
+                        final List<Offset> normalized = points
+                            .map((p) => Offset(p.dx - minX, p.dy - minY))
+                            .toList();
+
                         _addCanvasItem(
                           CanvasItemType.shape,
+                          position: Offset(minX, minY),
                           properties: {
                             'textBrushLayer': true,
-                            'points': List<Offset>.from(points),
+                            'points': normalized,
                             'text': _textBrushText,
                             'color': HiveColor.fromColor(_textBrushColor),
                             'fontSize': _textBrushFontSize,
@@ -2746,7 +2772,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                             'fontFamily': _textBrushFontFamily,
                             'isBold': _textBrushBold,
                             'angleDeg': _textBrushAngleDeg,
-                            'size': HiveSize(canvasW, canvasH),
+                            'size': HiveSize(width, height),
                           },
                         );
                         setState(() {
