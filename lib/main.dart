@@ -4,6 +4,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:lamlayers/screens/hive_model.dart';
 import 'package:lamlayers/screens/home_screen.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:lamlayers/screens/text_brush_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -56,11 +57,12 @@ class MyApp extends StatelessWidget {
           useMaterial3: true,
           scaffoldBackgroundColor: Colors.grey[100],
         ),
+        routes: <String, WidgetBuilder>{
+          '/text-brush': (_) => const TextBrushPage(),
+        },
         home: child,
       ),
       child: const HomeScreen(),
     );
   }
 }
-
-
