@@ -26,8 +26,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:lamlayers/screens/google_font_screen.dart';
-import 'dart:async'; // Import for Timer
-
+import 'dart:async';
 import 'package:image_editor_plus/image_editor_plus.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_background_remover/image_background_remover.dart';
@@ -377,6 +376,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   String? _textBrushFontFamily;
   bool _textBrushBold = false;
   double _textBrushAngleDeg = 0;
+  // Currently edited Text Brush layer id (if any)
+  String? _activeTextBrushLayerId;
 
   // Nudge control timers for press-and-hold behavior
   Timer? _nudgeRepeatTimer;
@@ -916,12 +917,52 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     }
   }
 
+  String _computeTextBrushLayerName(CanvasItem item) {
+    // Determine N by counting existing text brush layers by layer order
+    final List<CanvasItem> brushes =
+        canvasItems
+            .where(
+              (it) =>
+                  it.type == CanvasItemType.shape &&
+                  it.properties['textBrushLayer'] == true,
+            )
+            .toList()
+          ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    final int index = brushes.indexWhere((it) => it.id == item.id);
+    final int n = (index == -1 ? brushes.length - 1 : index) + 1;
+    return 'Text Brush $n';
+  }
+
   void _selectItem(CanvasItem item) {
     setState(() {
       selectedItem = item;
       showBottomSheet = false;
     });
     // Removed: _selectionController.forward();
+    // If selecting a Text Brush layer, load its properties into controls
+    if (item.type == CanvasItemType.shape &&
+        item.properties['textBrushLayer'] == true) {
+      final props = item.properties;
+      _activeTextBrushLayerId = item.id;
+      _textBrushPoints
+        ..clear()
+        ..addAll((props['points'] as List<dynamic>).map((e) => e as Offset));
+      _textBrushText = (props['text'] as String?) ?? 'LOVE';
+      _textBrushColor = (props['color'] is HiveColor)
+          ? (props['color'] as HiveColor).toColor()
+          : ((props['color'] as Color?) ?? Colors.purple);
+      _textBrushFontSize = (props['fontSize'] as double?) ?? 24.0;
+      _textBrushSpacing = (props['spacing'] as double?) ?? 40.0;
+      _textBrushFontFamily = props['fontFamily'] as String?;
+      _textBrushBold = (props['isBold'] as bool?) ?? false;
+      _textBrushAngleDeg = (props['angleDeg'] as double?) ?? 0.0;
+      _textBrushPointsNotifier.value = List<Offset>.from(_textBrushPoints);
+      // Selecting a saved Text Brush layer should NOT enter drawing mode.
+      // Keep brush mode off so users can move/scale/style without drawing.
+      setState(() {
+        _isTextBrushMode = false;
+      });
+    }
   }
 
   void _deselectItem() {
@@ -1008,7 +1049,22 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                 final isSelected = selectedTabIndex == index;
                 return Expanded(
                   child: GestureDetector(
-                    onTap: () => setState(() => selectedTabIndex = index),
+                    onTap: () => setState(() {
+                      selectedTabIndex = index;
+                      if (index == 3) {
+                        // Enter text brush mode when the tab is selected
+                        _isTextBrushMode = true;
+                        _activeTextBrushLayerId = null;
+                        _textBrushPoints.clear();
+                        _textBrushPointsNotifier.value = List<Offset>.from(
+                          _textBrushPoints,
+                        );
+                      } else {
+                        // Leaving the tab disables drawing
+                        _isTextBrushMode = false;
+                        _activeTextBrushLayerId = null;
+                      }
+                    }),
                     child: Container(
                       margin: EdgeInsets.symmetric(horizontal: 6.w),
                       padding: EdgeInsets.symmetric(vertical: 14.h),
@@ -1046,7 +1102,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               padding: EdgeInsets.symmetric(horizontal: 24.w),
               child: Column(
                 children: [
-                  Expanded(child: _buildTabContent()),
                   if (selectedTabIndex == 3) ...[
                     SizedBox(height: 8.h),
                     SizedBox(height: 60.h, child: _buildTextBrushControls()),
@@ -2519,11 +2574,10 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             onPressed: _textBrushPoints.isEmpty
                 ? null
                 : () {
-                    final String layerId = DateTime.now().millisecondsSinceEpoch
-                        .toString();
                     final double canvasW = _currentProject?.canvasWidth ?? 1080;
                     final double canvasH =
                         _currentProject?.canvasHeight ?? 1920;
+                    // Always create a NEW Text Brush layer on save
                     _addCanvasItem(
                       CanvasItemType.shape,
                       properties: {
@@ -2539,26 +2593,22 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                         'size': HiveSize(canvasW, canvasH),
                       },
                     );
-                    _saveProject();
-                    // Clear current stroke for next layer
-                    _textBrushPoints.clear();
-                    _textBrushPointsNotifier.value = List<Offset>.from(
-                      _textBrushPoints,
-                    );
+                    // Do not keep an active brush layer after saving
+                    setState(() {
+                      _activeTextBrushLayerId = null;
+                      _isTextBrushMode = false; // Exit drawing mode after save
+                      _saveProject();
+                      // Clear current stroke
+                      _textBrushPoints.clear();
+                      _textBrushPointsNotifier.value = List<Offset>.from(
+                        _textBrushPoints,
+                      );
+                    });
                   },
-            icon: const Icon(Icons.layers_outlined),
-            label: const Text('Add Layer'),
+            icon: const Icon(Icons.check_rounded),
+            label: const Text('Save'),
           ),
           SizedBox(width: 10.w),
-          OutlinedButton.icon(
-            onPressed: () {
-              setState(() {
-                _isTextBrushMode = !_isTextBrushMode;
-              });
-            },
-            icon: Icon(_isTextBrushMode ? Icons.brush : Icons.brush_outlined),
-            label: Text(_isTextBrushMode ? 'Disable' : 'Enable'),
-          ),
         ],
       ),
     );
@@ -2638,27 +2688,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           color: Colors.green.shade600,
         );
       case 3:
-        return Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              _isTextBrushMode ? Icons.brush : Icons.brush_outlined,
-              size: 28.sp,
-              color: _isTextBrushMode
-                  ? Colors.blue.shade700
-                  : Colors.blue.shade700,
-            ),
-            SizedBox(height: 6.h),
-            Text(
-              _isTextBrushMode ? 'Drawing' : 'Enable',
-              style: TextStyle(
-                fontSize: 10.sp,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey.shade700,
-              ),
-            ),
-          ],
-        );
+        return const SizedBox();
       default:
         return const SizedBox();
     }
@@ -2873,11 +2903,13 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               }
             },
             onPanStart: (_) {
+              if (_isTextBrushMode) return;
               if (!item.isLocked && selectedItem == item) {
                 _preDragState = item.copyWith();
               }
             },
             onPanUpdate: (details) {
+              if (_isTextBrushMode) return;
               if (!item.isLocked && selectedItem == item) {
                 setState(() {
                   // Convert drag delta from the rotated/scaled child's local space
@@ -2906,6 +2938,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               }
             },
             onPanEnd: (_) {
+              if (_isTextBrushMode) return;
               if (!item.isLocked &&
                   selectedItem == item &&
                   _preDragState != null) {
@@ -3009,10 +3042,15 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   ) {
     return GestureDetector(
       onPanStart: (_) {
+        if (_isTextBrushMode) return;
         _preTransformState = item.copyWith();
       },
-      onPanUpdate: onPanUpdate,
+      onPanUpdate: (details) {
+        if (_isTextBrushMode) return;
+        onPanUpdate(details);
+      },
       onPanEnd: (_) {
+        if (_isTextBrushMode) return;
         if (_preTransformState != null) {
           _addAction(
             CanvasAction(
@@ -3069,14 +3107,17 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       child: Center(
         child: GestureDetector(
           onPanStart: (_) {
+            if (_isTextBrushMode) return;
             _preTransformState = item.copyWith();
           },
           onPanUpdate: (details) {
+            if (_isTextBrushMode) return;
             setState(() {
               item.rotation += details.delta.dx * 0.01;
             });
           },
           onPanEnd: (_) {
+            if (_isTextBrushMode) return;
             if (_preTransformState != null) {
               _addAction(
                 CanvasAction(
@@ -5243,7 +5284,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${item.type.name.toUpperCase()} Layer',
+                      item.properties['textBrushLayer'] == true
+                          ? _computeTextBrushLayerName(item)
+                          : '${item.type.name.toUpperCase()} Layer',
                       style: TextStyle(
                         fontSize: 14.sp,
                         fontWeight: FontWeight.w600,
