@@ -28,6 +28,8 @@ import 'package:lamlayers/screens/google_font_screen.dart';
 import 'dart:async'; // Import for Timer
 
 import 'package:image_editor_plus/image_editor_plus.dart';
+import 'package:lamlayers/utils/image_stroke_processor.dart';
+import 'package:lamlayers/utils/image_stroke_processor_v2.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_background_remover/image_background_remover.dart';
 
@@ -1432,6 +1434,11 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             'Remove BG',
             Icons.auto_fix_high_rounded,
             _removeBackground,
+          ),
+          _miniIconButton(
+            'Add Stroke',
+            Icons.border_outer_rounded,
+            _showStrokeSettingsDialog,
           ),
           _miniIconButton(
             'Replace',
@@ -3662,6 +3669,13 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           Colors.orange.shade400,
           _removeBackground,
         ),
+        SizedBox(height: 16.h),
+        _buildOptionButton(
+          'Add Stroke',
+          Icons.border_outer_rounded,
+          Colors.purple.shade400,
+          _showStrokeSettingsDialog,
+        ),
         SizedBox(height: 20.h),
         _buildColorOption('Tint Color', 'tint', props),
         SizedBox(height: 16.h),
@@ -5189,6 +5203,264 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         child: ColorFiltered(
           colorFilter: ColorFilter.mode(shadowColor, BlendMode.srcATop),
           child: Transform.scale(scale: 1.0 + shadowSize / 100.0, child: image),
+        ),
+      ),
+    );
+  }
+
+  /// Applies stroke effect to the selected image using distance transform (like Photoshop)
+  Future<void> _applyStrokeToSelectedImage({
+    int strokeWidth = 10,
+    Color strokeColor = Colors.black,
+    int threshold = 0,
+  }) async {
+    if (selectedItem == null || selectedItem!.type != CanvasItemType.image) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select an image first')),
+      );
+      return;
+    }
+
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        content: Row(
+          children: [
+            const CircularProgressIndicator(),
+            SizedBox(width: 16.w),
+            Text(
+              'Applying stroke effect...',
+              style: TextStyle(fontSize: 16.sp),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      // Store previous state for undo
+      final CanvasItem previous = CanvasItem(
+        id: selectedItem!.id,
+        type: selectedItem!.type,
+        properties: Map<String, dynamic>.from(selectedItem!.properties),
+        createdAt: selectedItem!.createdAt,
+        lastModified: selectedItem!.lastModified,
+      );
+
+      // Get image bytes
+      Uint8List? imageBytes;
+
+      // Check if it's a local file or network image
+      if (selectedItem!.properties['filePath'] != null) {
+        final File imageFile = File(selectedItem!.properties['filePath']);
+        imageBytes = await imageFile.readAsBytes();
+      } else if (selectedItem!.properties['imageUrl'] != null) {
+        final response = await http.get(
+          Uri.parse(selectedItem!.properties['imageUrl']),
+        );
+        if (response.statusCode == 200) {
+          imageBytes = response.bodyBytes;
+        }
+      }
+
+      if (imageBytes == null) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Failed to load image')));
+        return;
+      }
+
+      // Apply stroke effect using distance transform processor
+      final ui.Image strokedImage =
+          await ImageStrokeProcessor.addStrokeToImageFromBytes(
+            imageBytes,
+            strokeWidth: strokeWidth,
+            strokeColor: ui.Color(strokeColor.value),
+            threshold: threshold,
+          );
+
+      // Convert back to bytes
+      final Uint8List strokedBytes = await ImageStrokeProcessor.imageToBytes(
+        strokedImage,
+      );
+
+      // Save processed image to temporary file
+      final Directory tempDir = await getTemporaryDirectory();
+      final String strokedFilePath =
+          '${tempDir.path}/stroked_${DateTime.now().millisecondsSinceEpoch}.png';
+      final File strokedFile = File(strokedFilePath);
+      await strokedFile.writeAsBytes(strokedBytes);
+
+      // Update canvas item properties
+      final double intrinsicW = strokedImage.width.toDouble();
+      final double intrinsicH = strokedImage.height.toDouble();
+
+      // Maintain aspect ratio for display
+      final double aspectRatio = intrinsicH / intrinsicW;
+      final double currentDisplayWidth =
+          selectedItem!.properties['displayWidth'] ?? 240.0;
+      final double newDisplayHeight = currentDisplayWidth * aspectRatio;
+
+      setState(() {
+        selectedItem!.properties['filePath'] = strokedFilePath;
+        selectedItem!.properties['imageUrl'] = null; // Clear network URL
+        selectedItem!.properties['intrinsicWidth'] = intrinsicW;
+        selectedItem!.properties['intrinsicHeight'] = intrinsicH;
+        selectedItem!.properties['displayWidth'] = currentDisplayWidth;
+        selectedItem!.properties['displayHeight'] = newDisplayHeight;
+      });
+
+      _addAction(
+        CanvasAction(
+          type: 'modify',
+          item: selectedItem,
+          previousState: previous,
+          timestamp: DateTime.now(),
+        ),
+      );
+
+      Navigator.pop(context); // Close loading dialog
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white),
+              SizedBox(width: 12.w),
+              Text(
+                'Stroke effect applied successfully!',
+                style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.green.shade400,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12.r),
+          ),
+          margin: EdgeInsets.all(16.w),
+        ),
+      );
+    } catch (e) {
+      Navigator.pop(context); // Close loading dialog
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to apply stroke: $e')));
+    }
+  }
+
+  /// Shows dialog to customize stroke settings
+  void _showStrokeSettingsDialog() {
+    if (selectedItem == null || selectedItem!.type != CanvasItemType.image) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select an image first')),
+      );
+      return;
+    }
+
+    int strokeWidth = 10;
+    Color strokeColor = Colors.black;
+    int threshold = 0;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Stroke Settings'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Stroke width slider
+              Text('Stroke Width: $strokeWidth'),
+              Slider(
+                value: strokeWidth.toDouble(),
+                min: 1,
+                max: 50,
+                divisions: 49,
+                onChanged: (value) {
+                  setDialogState(() {
+                    strokeWidth = value.round();
+                  });
+                },
+              ),
+              SizedBox(height: 16.h),
+
+              // Threshold slider
+              Text('Threshold: $threshold'),
+              Slider(
+                value: threshold.toDouble(),
+                min: 0,
+                max: 255,
+                divisions: 255,
+                onChanged: (value) {
+                  setDialogState(() {
+                    threshold = value.round();
+                  });
+                },
+              ),
+              SizedBox(height: 16.h),
+
+              // Stroke color picker
+              const Text('Stroke Color:'),
+              SizedBox(height: 8.h),
+              GestureDetector(
+                onTap: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Pick Stroke Color'),
+                      content: SingleChildScrollView(
+                        child: ColorPicker(
+                          pickerColor: strokeColor,
+                          onColorChanged: (color) {
+                            setDialogState(() {
+                              strokeColor = color;
+                            });
+                          },
+                        ),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Done'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+                child: Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: strokeColor,
+                    border: Border.all(color: Colors.grey),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _applyStrokeToSelectedImage(
+                  strokeWidth: strokeWidth,
+                  strokeColor: strokeColor,
+                  threshold: threshold,
+                );
+              },
+              child: const Text('Apply Stroke'),
+            ),
+          ],
         ),
       ),
     );
