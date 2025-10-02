@@ -1,4 +1,4 @@
-//push test 1
+//push test
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -14,7 +14,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/canvas_models.dart';
 import '../widgets/canvas_grid_painter.dart';
-import '../widgets/inline_text_brush_painter.dart';
 import '../widgets/action_bar.dart';
 import '../models/font_favorites.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -27,7 +26,8 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:lamlayers/screens/google_font_screen.dart';
-import 'dart:async';
+import 'dart:async'; // Import for Timer
+
 import 'package:image_editor_plus/image_editor_plus.dart';
 import 'package:lamlayers/utils/image_stroke_processor.dart';
 import 'package:lamlayers/utils/image_stroke_processor_v2.dart';
@@ -367,21 +367,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   final ImagePicker _imagePicker = ImagePicker();
   final GlobalKey _canvasRepaintKey = GlobalKey();
 
-  // Text Brush (inline draw) state
-  bool _isTextBrushMode = false;
-  final List<Offset> _textBrushPoints = <Offset>[];
-  final ValueNotifier<List<Offset>> _textBrushPointsNotifier =
-      ValueNotifier<List<Offset>>(<Offset>[]);
-  String _textBrushText = 'LOVE';
-  Color _textBrushColor = Colors.purple;
-  double _textBrushFontSize = 24;
-  double _textBrushSpacing = 40;
-  String? _textBrushFontFamily;
-  bool _textBrushBold = false;
-  double _textBrushAngleDeg = 0;
-  // Currently edited Text Brush layer id (if any)
-  String? _activeTextBrushLayerId;
-
   // Nudge control timers for press-and-hold behavior
   Timer? _nudgeRepeatTimer;
   Timer? _nudgeInitialDelayTimer;
@@ -405,7 +390,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   CanvasItem? _preDragState;
   CanvasItem? _preTransformState;
 
-  final List<String> tabTitles = ['Text', 'Images', 'Shapes', 'Text Brush'];
+  final List<String> tabTitles = ['Text', 'Images', 'Shapes'];
 
   // Text items now driven by liked Google Fonts with a leading plus button
   List<String> get likedFontFamilies => FontFavorites.instance.likedFamilies;
@@ -655,13 +640,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       layerIndex: item.layerIndex,
       isVisible: item.isVisible,
       isLocked: item.isLocked,
-      properties: hiveProperties.map((key, value) {
-        if (key == 'points' && value is List) {
-          // Ensure offsets are serializable
-          return MapEntry(key, value.map((e) => e as Offset).toList());
-        }
-        return MapEntry(key, value);
-      }),
+      properties: hiveProperties,
       createdAt: item.createdAt,
       lastModified: item.lastModified,
       groupId: item.groupId,
@@ -842,15 +821,11 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     });
   }
 
-  void _addCanvasItem(
-    CanvasItemType type, {
-    Map<String, dynamic>? properties,
-    Offset? position,
-  }) {
+  void _addCanvasItem(CanvasItemType type, {Map<String, dynamic>? properties}) {
     final newItem = CanvasItem(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       type: type,
-      position: position ?? Offset(100.w, 100.h),
+      position: Offset(100.w, 100.h),
       properties: properties ?? _getDefaultProperties(type),
       layerIndex: canvasItems.length,
       lastModified: DateTime.now(),
@@ -924,52 +899,12 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     }
   }
 
-  String _computeTextBrushLayerName(CanvasItem item) {
-    // Determine N by counting existing text brush layers by layer order
-    final List<CanvasItem> brushes =
-        canvasItems
-            .where(
-              (it) =>
-                  it.type == CanvasItemType.shape &&
-                  it.properties['textBrushLayer'] == true,
-            )
-            .toList()
-          ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
-    final int index = brushes.indexWhere((it) => it.id == item.id);
-    final int n = (index == -1 ? brushes.length - 1 : index) + 1;
-    return 'Text Brush $n';
-  }
-
   void _selectItem(CanvasItem item) {
     setState(() {
       selectedItem = item;
       showBottomSheet = false;
     });
     // Removed: _selectionController.forward();
-    // If selecting a Text Brush layer, load its properties into controls
-    if (item.type == CanvasItemType.shape &&
-        item.properties['textBrushLayer'] == true) {
-      final props = item.properties;
-      _activeTextBrushLayerId = item.id;
-      _textBrushPoints
-        ..clear()
-        ..addAll((props['points'] as List<dynamic>).map((e) => e as Offset));
-      _textBrushText = (props['text'] as String?) ?? 'LOVE';
-      _textBrushColor = (props['color'] is HiveColor)
-          ? (props['color'] as HiveColor).toColor()
-          : ((props['color'] as Color?) ?? Colors.purple);
-      _textBrushFontSize = (props['fontSize'] as double?) ?? 24.0;
-      _textBrushSpacing = (props['spacing'] as double?) ?? 40.0;
-      _textBrushFontFamily = props['fontFamily'] as String?;
-      _textBrushBold = (props['isBold'] as bool?) ?? false;
-      _textBrushAngleDeg = (props['angleDeg'] as double?) ?? 0.0;
-      _textBrushPointsNotifier.value = List<Offset>.from(_textBrushPoints);
-      // Selecting a saved Text Brush layer should NOT enter drawing mode.
-      // Keep brush mode off so users can move/scale/style without drawing.
-      setState(() {
-        _isTextBrushMode = false;
-      });
-    }
   }
 
   void _deselectItem() {
@@ -1050,19 +985,13 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       child: Column(
         children: [
           Container(
-            padding: EdgeInsets.symmetric(horizontal: 24.w),
+            padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 20.h),
             child: Row(
               children: List.generate(tabTitles.length, (index) {
                 final isSelected = selectedTabIndex == index;
                 return Expanded(
                   child: GestureDetector(
-                    onTap: () => setState(() {
-                      selectedTabIndex = index;
-
-                      // Leaving the tab disables drawing
-                      _isTextBrushMode = true;
-                      _activeTextBrushLayerId = null;
-                    }),
+                    onTap: () => setState(() => selectedTabIndex = index),
                     child: Container(
                       margin: EdgeInsets.symmetric(horizontal: 6.w),
                       padding: EdgeInsets.symmetric(vertical: 14.h),
@@ -1098,15 +1027,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           Expanded(
             child: Container(
               padding: EdgeInsets.symmetric(horizontal: 24.w),
-              child: Column(
-                children: [
-                  Expanded(child: _buildTabContent()),
-                  if (selectedTabIndex == 3) ...[
-                    SizedBox(height: 80.h, child: _buildTextBrushControls()),
-                    SizedBox(height: 8.h),
-                  ],
-                ],
-              ),
+              child: _buildTabContent(),
             ),
           ),
           SizedBox(height: 10.h),
@@ -1145,7 +1066,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                     borderRadius: BorderRadius.circular(14.r),
                   ),
                   child: Icon(
-                    _getItemIcon(selectedItem!),
+                    _getItemTypeIcon(selectedItem!.type),
                     color: Colors.white,
                     size: 20.sp,
                   ),
@@ -1203,19 +1124,15 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
     // Add Shadow and Gradient tabs based on item type
     if (selectedItem != null) {
-      final bool isTextBrushLayer =
-          selectedItem!.type == CanvasItemType.shape &&
-          selectedItem!.properties['textBrushLayer'] == true;
-      if (!isTextBrushLayer) {
-        switch (selectedItem!.type) {
-          case CanvasItemType.text:
-          case CanvasItemType.image:
-          case CanvasItemType.shape:
-            tabs.addAll(['Shadow', 'Gradient']);
-            break;
-          case CanvasItemType.sticker:
-            break;
-        }
+      switch (selectedItem!.type) {
+        case CanvasItemType.text:
+        case CanvasItemType.image:
+        case CanvasItemType.shape:
+          tabs.addAll(['Shadow', 'Gradient']);
+          break;
+        case CanvasItemType.sticker:
+          // Stickers don't typically have shadow/gradient options
+          break;
       }
     }
 
@@ -1547,163 +1464,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         ];
 
       case CanvasItemType.shape:
-        if (selectedItem!.properties['textBrushLayer'] == true) {
-          final props = selectedItem!.properties;
-          return [
-            _miniTextEditButton('Text', _textBrushText, (v) {
-              setState(() {
-                _textBrushText = v;
-                props['text'] = v;
-              });
-              _textBrushPointsNotifier.value = List<Offset>.from(
-                _textBrushPoints,
-              );
-            }),
-            // Font family dropdown (liked fonts)
-            Container(
-              margin: EdgeInsets.only(right: 12.w, bottom: 35.h),
-              padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
-              decoration: BoxDecoration(
-                color: Colors.grey[50],
-                borderRadius: BorderRadius.circular(14.r),
-                border: Border.all(color: Colors.grey.shade200),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.font_download_rounded,
-                    size: 16.sp,
-                    color: Colors.grey[600],
-                  ),
-                  SizedBox(width: 8.w),
-                  DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      hint: const Text('Font'),
-                      value:
-                          _textBrushFontFamily != null &&
-                              likedFontFamilies.contains(_textBrushFontFamily)
-                          ? _textBrushFontFamily
-                          : null,
-                      items: [
-                        const DropdownMenuItem<String>(
-                          value: '',
-                          child: Text('System'),
-                        ),
-                        ...likedFontFamilies.map(
-                          (f) => DropdownMenuItem<String>(
-                            value: f,
-                            child: Text(
-                              f,
-                              style: GoogleFonts.getFont(
-                                f,
-                                textStyle: TextStyle(fontSize: 12.sp),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                      onChanged: (val) {
-                        setState(() {
-                          _textBrushFontFamily = (val == null || val.isEmpty)
-                              ? null
-                              : val;
-                          props['fontFamily'] = _textBrushFontFamily;
-                        });
-                        _textBrushPointsNotifier.value = List<Offset>.from(
-                          _textBrushPoints,
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            _miniColorSwatch('Color', (_textBrushColor), () async {
-              Color temp = _textBrushColor;
-              await showDialog<void>(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  title: const Text('Pick Brush Color'),
-                  content: SingleChildScrollView(
-                    child: BlockPicker(
-                      pickerColor: _textBrushColor,
-                      onColorChanged: (c) => temp = c,
-                    ),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      child: const Text('Cancel'),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        setState(() {
-                          _textBrushColor = temp;
-                          props['color'] = HiveColor.fromColor(temp);
-                        });
-                        _textBrushPointsNotifier.value = List<Offset>.from(
-                          _textBrushPoints,
-                        );
-                        Navigator.pop(ctx);
-                      },
-                      child: const Text('OK'),
-                    ),
-                  ],
-                ),
-              );
-            }),
-            _miniSlider('Size', _textBrushFontSize, 8, 96, (v) {
-              setState(() {
-                _textBrushFontSize = v;
-                props['fontSize'] = v;
-              });
-              _textBrushPointsNotifier.value = List<Offset>.from(
-                _textBrushPoints,
-              );
-            }, Icons.format_size_rounded),
-            _miniSlider('Spacing', _textBrushSpacing, 4, 200, (v) {
-              setState(() {
-                _textBrushSpacing = v;
-                props['spacing'] = v;
-              });
-              _textBrushPointsNotifier.value = List<Offset>.from(
-                _textBrushPoints,
-              );
-            }, Icons.space_bar_rounded),
-            _miniSlider('Angle', _textBrushAngleDeg, -180, 180, (v) {
-              setState(() {
-                _textBrushAngleDeg = v;
-                props['angleDeg'] = v;
-              });
-              _textBrushPointsNotifier.value = List<Offset>.from(
-                _textBrushPoints,
-              );
-            }, Icons.rotate_right_rounded),
-            _miniToggleIcon(
-              'Bold',
-              Icons.format_bold_rounded,
-              _textBrushBold,
-              () {
-                setState(() {
-                  _textBrushBold = !_textBrushBold;
-                  props['isBold'] = _textBrushBold;
-                });
-                _textBrushPointsNotifier.value = List<Offset>.from(
-                  _textBrushPoints,
-                );
-              },
-            ),
-            _miniSlider(
-              'Opacity',
-              selectedItem!.opacity,
-              0.1,
-              1.0,
-              (v) => setState(() => selectedItem!.opacity = v),
-              Icons.opacity_rounded,
-            ),
-          ];
-        }
         return [
           _miniColorSwatch(
             'Fill',
@@ -2825,358 +2585,16 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   int _getTabItemCount() {
     switch (selectedTabIndex) {
       case 0:
-        // 1 leading item: Add Font + liked fonts as items
+        // 1 for the leading plus button + liked fonts as items
         return 1 + likedFontFamilies.length;
       case 1:
         return 2; // Two options: Upload and Pixabay
+
       case 2:
         return sampleShapes.length;
-      case 3:
-        // Controls are rendered below; top row shows a single entry to toggle
-        return 0;
       default:
         return 0;
     }
-  }
-
-  Widget _buildTextBrushControls() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: EdgeInsets.symmetric(horizontal: 8.w),
-      child: Row(
-        children: [
-          ConstrainedBox(
-            constraints: BoxConstraints.tightFor(width: 220.w, height: 44.h),
-            child: TextField(
-              maxLines: 1,
-              decoration: InputDecoration(
-                hintText: 'Text / Emoji',
-                isDense: true,
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 10.w,
-                  vertical: 10.h,
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10.r),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10.r),
-                  borderSide: BorderSide(
-                    color: Colors.blue.shade400,
-                    width: 1.5,
-                  ),
-                ),
-                fillColor: Colors.grey[50],
-                filled: true,
-              ),
-              onChanged: (val) {
-                _textBrushText = val.isNotEmpty ? val : 'LOVE';
-                _textBrushPointsNotifier.value = List<Offset>.from(
-                  _textBrushPoints,
-                );
-              },
-            ),
-          ),
-          SizedBox(width: 10.w),
-          // Font family from liked fonts (dropdown)
-          Container(
-            height: 44.h,
-            padding: EdgeInsets.symmetric(horizontal: 10.w),
-            decoration: BoxDecoration(
-              color: Colors.grey[50],
-              borderRadius: BorderRadius.circular(10.r),
-              border: Border.all(color: Colors.grey.shade300),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                hint: const Text('Font'),
-                value:
-                    _textBrushFontFamily != null &&
-                        likedFontFamilies.contains(_textBrushFontFamily)
-                    ? _textBrushFontFamily
-                    : null,
-                items: [
-                  const DropdownMenuItem<String>(
-                    value: '',
-                    child: Text('System'),
-                  ),
-                  ...likedFontFamilies.map(
-                    (f) => DropdownMenuItem<String>(
-                      value: f,
-                      child: Text(
-                        f,
-                        style: GoogleFonts.getFont(
-                          f,
-                          textStyle: TextStyle(fontSize: 12.sp),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-                onChanged: (val) {
-                  setState(() {
-                    _textBrushFontFamily = (val == null || val.isEmpty)
-                        ? null
-                        : val;
-                  });
-                  _textBrushPointsNotifier.value = List<Offset>.from(
-                    _textBrushPoints,
-                  );
-                },
-              ),
-            ),
-          ),
-          SizedBox(width: 10.w),
-          ElevatedButton.icon(
-            onPressed: () {
-              Color temp = _textBrushColor;
-              showDialog<void>(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  title: const Text('Pick Brush Color'),
-                  content: SingleChildScrollView(
-                    child: BlockPicker(
-                      pickerColor: _textBrushColor,
-                      onColorChanged: (c) => temp = c,
-                    ),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      child: const Text('Cancel'),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        setState(() => _textBrushColor = temp);
-                        _textBrushPointsNotifier.value = List<Offset>.from(
-                          _textBrushPoints,
-                        );
-                        Navigator.pop(ctx);
-                      },
-                      child: const Text('OK'),
-                    ),
-                  ],
-                ),
-              );
-            },
-            icon: const Icon(Icons.color_lens),
-            label: const Text('Color'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _textBrushColor.withOpacity(0.15),
-              foregroundColor: _textBrushColor,
-            ),
-          ),
-          SizedBox(width: 10.w),
-          ConstrainedBox(
-            constraints: BoxConstraints.tightFor(width: 200.w, height: 44.h),
-            child: Row(
-              children: [
-                const Text('Size'),
-                Expanded(
-                  child: Slider(
-                    value: _textBrushFontSize,
-                    min: 8,
-                    max: 96,
-                    divisions: 88,
-                    label: _textBrushFontSize.round().toString(),
-                    onChanged: (v) {
-                      setState(() => _textBrushFontSize = v);
-                      _textBrushPointsNotifier.value = List<Offset>.from(
-                        _textBrushPoints,
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(width: 10.w),
-          ConstrainedBox(
-            constraints: BoxConstraints.tightFor(width: 220.w, height: 44.h),
-            child: Row(
-              children: [
-                const Text('Spacing'),
-                Expanded(
-                  child: Slider(
-                    value: _textBrushSpacing,
-                    min: 4,
-                    max: 200,
-                    divisions: 98,
-                    label: _textBrushSpacing.round().toString(),
-                    onChanged: (v) {
-                      setState(() => _textBrushSpacing = v);
-                      _textBrushPointsNotifier.value = List<Offset>.from(
-                        _textBrushPoints,
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(width: 10.w),
-          // Angle controls (finer control)
-          ConstrainedBox(
-            constraints: BoxConstraints.tightFor(width: 260.w, height: 44.h),
-            child: Row(
-              children: [
-                const Text('Angle'),
-                IconButton(
-                  tooltip: '-10°',
-                  icon: const Icon(Icons.remove),
-                  onPressed: () {
-                    setState(() {
-                      _textBrushAngleDeg = (_textBrushAngleDeg - 10).clamp(
-                        -180,
-                        180,
-                      );
-                    });
-                    _textBrushPointsNotifier.value = List<Offset>.from(
-                      _textBrushPoints,
-                    );
-                  },
-                ),
-                Expanded(
-                  child: Slider(
-                    value: _textBrushAngleDeg,
-                    min: -180,
-                    max: 180,
-                    divisions: 360,
-                    label: '${_textBrushAngleDeg.round()}°',
-                    onChanged: (v) {
-                      setState(() => _textBrushAngleDeg = v);
-                      _textBrushPointsNotifier.value = List<Offset>.from(
-                        _textBrushPoints,
-                      );
-                    },
-                  ),
-                ),
-                IconButton(
-                  tooltip: '+10°',
-                  icon: const Icon(Icons.add),
-                  onPressed: () {
-                    setState(() {
-                      _textBrushAngleDeg = (_textBrushAngleDeg + 10).clamp(
-                        -180,
-                        180,
-                      );
-                    });
-                    _textBrushPointsNotifier.value = List<Offset>.from(
-                      _textBrushPoints,
-                    );
-                  },
-                ),
-                Text(
-                  '${_textBrushAngleDeg.round()}°',
-                  style: TextStyle(fontSize: 12.sp),
-                ),
-                SizedBox(width: 6.w),
-                OutlinedButton(
-                  onPressed: () {
-                    setState(() => _textBrushAngleDeg = 0);
-                    _textBrushPointsNotifier.value = List<Offset>.from(
-                      _textBrushPoints,
-                    );
-                  },
-                  child: const Text('Reset'),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(width: 10.w),
-          // Bold toggle
-          FilterChip(
-            label: const Text('Bold'),
-            selected: _textBrushBold,
-            onSelected: (val) {
-              setState(() => _textBrushBold = val);
-              _textBrushPointsNotifier.value = List<Offset>.from(
-                _textBrushPoints,
-              );
-            },
-          ),
-          SizedBox(width: 10.w),
-          OutlinedButton.icon(
-            onPressed: () {
-              _textBrushPoints.clear();
-              _textBrushPointsNotifier.value = List<Offset>.from(
-                _textBrushPoints,
-              );
-            },
-            icon: const Icon(Icons.delete_outline),
-            label: const Text('Clear'),
-          ),
-          SizedBox(width: 10.w),
-          // Add as Layer
-          ValueListenableBuilder<List<Offset>>(
-            valueListenable: _textBrushPointsNotifier,
-            builder: (context, points, _) {
-              final bool canSave = points.isNotEmpty;
-              return ElevatedButton.icon(
-                onPressed: !canSave
-                    ? null
-                    : () {
-                        // Compute tight bounding box of points
-                        double minX = points.first.dx;
-                        double minY = points.first.dy;
-                        double maxX = points.first.dx;
-                        double maxY = points.first.dy;
-                        for (final p in points) {
-                          if (p.dx < minX) minX = p.dx;
-                          if (p.dy < minY) minY = p.dy;
-                          if (p.dx > maxX) maxX = p.dx;
-                          if (p.dy > maxY) maxY = p.dy;
-                        }
-                        final double width = (maxX - minX).abs().clamp(
-                          1.0,
-                          double.infinity,
-                        );
-                        final double height = (maxY - minY).abs().clamp(
-                          1.0,
-                          double.infinity,
-                        );
-
-                        // Normalize points relative to top-left
-                        final List<Offset> normalized = points
-                            .map((p) => Offset(p.dx - minX, p.dy - minY))
-                            .toList();
-
-                        _addCanvasItem(
-                          CanvasItemType.shape,
-                          position: Offset(minX, minY),
-                          properties: {
-                            'textBrushLayer': true,
-                            'points': normalized,
-                            'text': _textBrushText,
-                            'color': HiveColor.fromColor(_textBrushColor),
-                            'fontSize': _textBrushFontSize,
-                            'spacing': _textBrushSpacing,
-                            'fontFamily': _textBrushFontFamily,
-                            'isBold': _textBrushBold,
-                            'angleDeg': _textBrushAngleDeg,
-                            'size': HiveSize(width, height),
-                          },
-                        );
-                        setState(() {
-                          _activeTextBrushLayerId = null;
-                          _isTextBrushMode = false;
-                          _saveProject();
-                          _textBrushPoints.clear();
-                          _textBrushPointsNotifier.value = List<Offset>.from(
-                            _textBrushPoints,
-                          );
-                        });
-                      },
-                icon: const Icon(Icons.check_rounded),
-                label: const Text('Save'),
-              );
-            },
-          ),
-          SizedBox(width: 10.w),
-        ],
-      ),
-    );
   }
 
   Widget _getTabItemWidget(int index) {
@@ -3252,8 +2670,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           size: 32.sp,
           color: Colors.green.shade600,
         );
-      case 3:
-        return const SizedBox();
       default:
         return const SizedBox();
     }
@@ -3339,11 +2755,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           },
         );
         break;
-      case 3:
-        setState(() {
-          _isTextBrushMode = !_isTextBrushMode;
-        });
-        break;
     }
   }
 
@@ -3352,8 +2763,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       child: InteractiveViewer(
         minScale: 0.5,
         maxScale: 3.0,
-        panEnabled: !_isTextBrushMode,
-        scaleEnabled: !_isTextBrushMode,
         onInteractionUpdate: (details) {
           setState(() {
             canvasZoom = details.scale;
@@ -3400,48 +2809,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                         .map((it) => _buildCanvasItem(it))
                         .toList();
                   })(),
-                  if (_isTextBrushMode)
-                    Positioned.fill(
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onPanStart: (details) {
-                          _textBrushPoints.add(details.localPosition);
-                          _textBrushPointsNotifier.value = List<Offset>.from(
-                            _textBrushPoints,
-                          );
-                        },
-                        onPanUpdate: (details) {
-                          _textBrushPoints.add(details.localPosition);
-                          _textBrushPointsNotifier.value = List<Offset>.from(
-                            _textBrushPoints,
-                          );
-                        },
-                        onPanEnd: (_) {
-                          _textBrushPointsNotifier.value = List<Offset>.from(
-                            _textBrushPoints,
-                          );
-                        },
-                        child: ValueListenableBuilder<List<Offset>>(
-                          valueListenable: _textBrushPointsNotifier,
-                          builder: (context, pts, _) {
-                            return CustomPaint(
-                              painter: InlineSmoothTextBrushPainter(
-                                points: pts,
-                                text: _textBrushText,
-                                color: _textBrushColor,
-                                fontSize: _textBrushFontSize,
-                                spacing: _textBrushSpacing,
-                                fontFamily: _textBrushFontFamily,
-                                isBold: _textBrushBold,
-                                angleOffsetRad:
-                                    _textBrushAngleDeg * (math.pi / 180.0),
-                              ),
-                              size: Size.infinite,
-                            );
-                          },
-                        ),
-                      ),
-                    ),
                 ],
               ),
             ),
@@ -3468,13 +2835,11 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               }
             },
             onPanStart: (_) {
-              if (_isTextBrushMode) return;
               if (!item.isLocked && selectedItem == item) {
                 _preDragState = item.copyWith();
               }
             },
             onPanUpdate: (details) {
-              if (_isTextBrushMode) return;
               if (!item.isLocked && selectedItem == item) {
                 setState(() {
                   // Convert drag delta from the rotated/scaled child's local space
@@ -3503,7 +2868,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               }
             },
             onPanEnd: (_) {
-              if (_isTextBrushMode) return;
               if (!item.isLocked &&
                   selectedItem == item &&
                   _preDragState != null) {
@@ -3542,10 +2906,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       ),
     );
   }
-
-  // Inline painter used by Text Brush mode lives below.
-
-  // (moved to lib/widgets/inline_text_brush_painter.dart)
 
   Widget _buildBoundingBox(CanvasItem item) {
     return Positioned.fill(
@@ -3607,15 +2967,10 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   ) {
     return GestureDetector(
       onPanStart: (_) {
-        if (_isTextBrushMode) return;
         _preTransformState = item.copyWith();
       },
-      onPanUpdate: (details) {
-        if (_isTextBrushMode) return;
-        onPanUpdate(details);
-      },
+      onPanUpdate: onPanUpdate,
       onPanEnd: (_) {
-        if (_isTextBrushMode) return;
         if (_preTransformState != null) {
           _addAction(
             CanvasAction(
@@ -3672,17 +3027,14 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       child: Center(
         child: GestureDetector(
           onPanStart: (_) {
-            if (_isTextBrushMode) return;
             _preTransformState = item.copyWith();
           },
           onPanUpdate: (details) {
-            if (_isTextBrushMode) return;
             setState(() {
               item.rotation += details.delta.dx * 0.01;
             });
           },
           onPanEnd: (_) {
-            if (_isTextBrushMode) return;
             if (_preTransformState != null) {
               _addAction(
                 CanvasAction(
@@ -3723,112 +3075,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   Widget _buildItemContent(CanvasItem item) {
     switch (item.type) {
-      case CanvasItemType.shape:
-        // Render Text Brush layer if flagged
-        if (item.properties['textBrushLayer'] == true) {
-          final List<Offset> pts = (item.properties['points'] as List<dynamic>)
-              .map((e) => e as Offset)
-              .toList();
-          final String text = (item.properties['text'] as String?) ?? 'LOVE';
-          final Color color = (item.properties['color'] is HiveColor)
-              ? (item.properties['color'] as HiveColor).toColor()
-              : ((item.properties['color'] as Color?) ?? Colors.purple);
-          final double fontSize =
-              (item.properties['fontSize'] as double?) ?? 24.0;
-          final double spacing =
-              (item.properties['spacing'] as double?) ?? 40.0;
-          final String? fontFamily = item.properties['fontFamily'] as String?;
-          final bool isBold = (item.properties['isBold'] as bool?) ?? false;
-          final double angleDeg =
-              (item.properties['angleDeg'] as double?) ?? 0.0;
-          final Size size = (item.properties['size'] is HiveSize)
-              ? (item.properties['size'] as HiveSize).toSize()
-              : Size(
-                  (_currentProject?.canvasWidth ?? 1080).w,
-                  (_currentProject?.canvasHeight ?? 1920).h,
-                );
-
-          return SizedBox(
-            width: size.width,
-            height: size.height,
-            child: CustomPaint(
-              painter: InlineSmoothTextBrushPainter(
-                points: pts,
-                text: text,
-                color: color,
-                fontSize: fontSize,
-                spacing: spacing,
-                fontFamily: fontFamily,
-                isBold: isBold,
-                angleOffsetRad: angleDeg * math.pi / 180.0,
-              ),
-            ),
-          );
-        }
-        // If not a text brush layer, continue to normal shape rendering below
-        final props = item.properties;
-        final String shape = (props['shape'] as String?) ?? 'rectangle';
-        final Color fillColor = (props['fillColor'] is HiveColor)
-            ? (props['fillColor'] as HiveColor).toColor()
-            : Colors.blue;
-        final Color strokeColor = (props['strokeColor'] is HiveColor)
-            ? (props['strokeColor'] as HiveColor).toColor()
-            : Colors.black;
-        final double strokeWidth = (props['strokeWidth'] as double?) ?? 2.0;
-        final double cornerRadius = (props['cornerRadius'] as double?) ?? 0.0;
-        final bool hasGradient = (props['hasGradient'] as bool?) ?? false;
-        final List<Color> gradientColors =
-            (props['gradientColors'] as List<dynamic>?)
-                ?.map(
-                  (e) => (e is HiveColor ? e : (e is int ? HiveColor(e) : null))
-                      ?.toColor(),
-                )
-                .whereType<Color>()
-                .toList() ??
-            [];
-        final double gradientAngle = (props['gradientAngle'] as double?) ?? 0.0;
-        final bool hasShadow = (props['hasShadow'] as bool?) ?? false;
-        final HiveColor shadowColorHive = (props['shadowColor'] is HiveColor)
-            ? (props['shadowColor'] as HiveColor)
-            : (props['shadowColor'] is Color)
-            ? HiveColor.fromColor(props['shadowColor'] as Color)
-            : HiveColor.fromColor(Colors.black54);
-        final Offset shadowOffset =
-            (props['shadowOffset'] as Offset?) ?? const Offset(4, 4);
-        final double shadowBlur = (props['shadowBlur'] as double?) ?? 8.0;
-        final double shadowOpacity = (props['shadowOpacity'] as double?) ?? 0.6;
-        final ui.Image? fillImage = props['image'] as ui.Image?;
-        final HiveSize? hiveSize = props['size'] as HiveSize?;
-
-        Size itemSize = hiveSize?.toSize() ?? Size(100.0.w, 100.0.h);
-
-        Widget shapeWidget = CustomPaint(
-          painter: _ShapePainter({
-            'shape': shape,
-            'fillColor': HiveColor.fromColor(fillColor),
-            'strokeColor': HiveColor.fromColor(strokeColor),
-            'strokeWidth': strokeWidth,
-            'cornerRadius': cornerRadius,
-            'hasGradient': hasGradient && fillImage == null,
-            'gradientColors': gradientColors
-                .map((color) => HiveColor.fromColor(color))
-                .toList(),
-            'gradientAngle': gradientAngle,
-            'hasShadow': hasShadow,
-            'shadowColor': shadowColorHive,
-            'shadowOffset': shadowOffset,
-            'shadowBlur': shadowBlur,
-            'shadowOpacity': shadowOpacity,
-            'image': fillImage,
-          }),
-          size: itemSize,
-        );
-
-        return SizedBox(
-          width: itemSize.width,
-          height: itemSize.height,
-          child: FittedBox(fit: BoxFit.contain, child: shapeWidget),
-        );
       case CanvasItemType.text:
         final props = item.properties;
         final String? fontFamily = props['fontFamily'] as String?;
@@ -4323,14 +3569,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       case CanvasItemType.shape:
         return Icons.category_rounded;
     }
-  }
-
-  IconData _getItemIcon(CanvasItem item) {
-    if (item.type == CanvasItemType.shape &&
-        item.properties['textBrushLayer'] == true) {
-      return Icons.brush_rounded;
-    }
-    return _getItemTypeIcon(item.type);
   }
 
   Widget _buildBottomSheetContent() {
@@ -5958,7 +5196,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           child: Row(
             children: [
               Icon(
-                _getItemIcon(item),
+                _getItemTypeIcon(item.type),
                 color: isSelected ? Colors.blue.shade400 : Colors.grey.shade600,
                 size: 24.sp,
               ),
@@ -5968,9 +5206,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      item.properties['textBrushLayer'] == true
-                          ? _computeTextBrushLayerName(item)
-                          : '${item.type.name.toUpperCase()} Layer',
+                      '${item.type.name.toUpperCase()} Layer',
                       style: TextStyle(
                         fontSize: 14.sp,
                         fontWeight: FontWeight.w600,
