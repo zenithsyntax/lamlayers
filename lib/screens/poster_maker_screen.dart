@@ -1316,6 +1316,14 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           }),
           Icons.swap_vert_rounded,
         ),
+        _miniSlider(
+          'Size',
+          (props['shadowSize'] as double?) ?? 0.0,
+          0.0,
+          100.0,
+          (v) => setState(() => props['shadowSize'] = v),
+          Icons.zoom_out_map_rounded,
+        ),
       ],
     ];
   }
@@ -2824,6 +2832,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             (item.properties['shadowBlur'] as double?) ?? 8.0;
         final double shadowOpacity =
             (item.properties['shadowOpacity'] as double?) ?? 0.6;
+        final double shadowSize =
+            (item.properties['shadowSize'] as double?) ?? 0.0;
         final double gradientAngle =
             (item.properties['gradientAngle'] as double?) ?? 0.0;
         final Color tintColor = (item.properties['tint'] is HiveColor)
@@ -2857,26 +2867,17 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         // Create shadow and main image stack
         Widget imageWidget = Stack(
           children: [
-            // Colored shadow behind the image
+            // Image-shaped shadow behind the image
             if (hasShadow)
               Transform.translate(
                 offset: shadowOffset,
-                child: Container(
-                  width: (displayW ?? 185.0).w,
-                  height: (displayH ?? 10.0).h,
-                  decoration: BoxDecoration(
-                    boxShadow: [
-                      BoxShadow(
-                        color: shadowColor.withOpacity(
-                          shadowOpacity.clamp(0.0, 1.0),
-                        ),
-                        blurRadius: shadowBlur,
-                        spreadRadius: 0,
-                        offset: Offset
-                            .zero, // Already offset by Transform.translate
-                      ),
-                    ],
-                  ),
+                child: _buildImageShadow(
+                  mainImage,
+                  shadowColor.withOpacity(shadowOpacity.clamp(0.0, 1.0)),
+                  shadowBlur,
+                  (displayW ?? 185.0).w,
+                  (displayH ?? 10.0).h,
+                  shadowSize,
                 ),
               ),
             // Main image on top
@@ -3520,6 +3521,15 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             },
             Icons.swap_vert_rounded,
           ),
+          SizedBox(height: 16.h),
+          _buildSliderOption(
+            'Shadow Size',
+            (props['shadowSize'] as double?) ?? 0.0,
+            0.0,
+            100.0,
+            (value) => setState(() => props['shadowSize'] = value),
+            Icons.zoom_out_map_rounded,
+          ),
         ],
       ],
     );
@@ -3737,6 +3747,15 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             }),
             Icons.swap_vert_rounded,
           ),
+          SizedBox(height: 16.h),
+          _buildSliderOption(
+            'Shadow Size',
+            (props['shadowSize'] as double?) ?? 0.0,
+            0.0,
+            100.0,
+            (v) => setState(() => props['shadowSize'] = v),
+            Icons.zoom_out_map_rounded,
+          ),
         ],
       ],
     );
@@ -3863,6 +3882,15 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               props['shadowOffset'] = Offset(cur.dx, v);
             }),
             Icons.swap_vert_rounded,
+          ),
+          SizedBox(height: 16.h),
+          _buildSliderOption(
+            'Shadow Size',
+            (props['shadowSize'] as double?) ?? 0.0,
+            0.0,
+            100.0,
+            (v) => setState(() => props['shadowSize'] = v),
+            Icons.zoom_out_map_rounded,
           ),
         ],
       ],
@@ -5136,6 +5164,34 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         SnackBar(content: Text('Failed to remove background: $e')),
       );
     }
+  }
+
+  Widget _buildImageShadow(
+    Widget image,
+    Color shadowColor,
+    double blurRadius,
+    double width,
+    double height,
+    double shadowSize,
+  ) {
+    // Calculate the scaled dimensions for shadow size
+    final double shadowWidth = width * (1.0 + shadowSize / 100.0);
+    final double shadowHeight = height * (1.0 + shadowSize / 100.0);
+
+    return SizedBox(
+      width: shadowWidth,
+      height: shadowHeight,
+      child: ImageFiltered(
+        imageFilter: ui.ImageFilter.blur(
+          sigmaX: blurRadius,
+          sigmaY: blurRadius,
+        ),
+        child: ColorFiltered(
+          colorFilter: ColorFilter.mode(shadowColor, BlendMode.srcATop),
+          child: Transform.scale(scale: 1.0 + shadowSize / 100.0, child: image),
+        ),
+      ),
+    );
   }
 
   @override
