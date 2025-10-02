@@ -1,3 +1,4 @@
+//push test
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -28,6 +29,8 @@ import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:lamlayers/screens/google_font_screen.dart';
 import 'dart:async';
 import 'package:image_editor_plus/image_editor_plus.dart';
+import 'package:lamlayers/utils/image_stroke_processor.dart';
+import 'package:lamlayers/utils/image_stroke_processor_v2.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_background_remover/image_background_remover.dart';
 
@@ -1399,6 +1402,14 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           }),
           Icons.swap_vert_rounded,
         ),
+        _miniSlider(
+          'Size',
+          (props['shadowSize'] as double?) ?? 0.0,
+          0.0,
+          100.0,
+          (v) => setState(() => props['shadowSize'] = v),
+          Icons.zoom_out_map_rounded,
+        ),
       ],
     ];
   }
@@ -1491,6 +1502,11 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                   : FontStyle.italic;
             }),
           ),
+          _miniFontButton(
+            'Font',
+            selectedItem!.properties['fontFamily'] as String? ?? 'Roboto',
+            () => _showFontSelectionDialog(),
+          ),
           _miniColorSwatch(
             'Color',
             (selectedItem!.properties['color'] is HiveColor)
@@ -1507,6 +1523,11 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             'Remove BG',
             Icons.auto_fix_high_rounded,
             _removeBackground,
+          ),
+          _miniIconButton(
+            'Add Stroke',
+            Icons.border_outer_rounded,
+            _showStrokeSettingsDialog,
           ),
           _miniIconButton(
             'Replace',
@@ -2358,6 +2379,368 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         }
       });
     });
+  }
+
+  void _showFontSelectionDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: EdgeInsets.all(20.w),
+          child: Container(
+            width: double.infinity,
+            height: MediaQuery.of(context).size.height * 0.8,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24.r),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.15),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                // Header
+                Container(
+                  padding: EdgeInsets.all(20.w),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.blue.shade400, Colors.blue.shade600],
+                    ),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(24.r),
+                      topRight: Radius.circular(24.r),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.font_download_rounded,
+                        color: Colors.white,
+                        size: 24.sp,
+                      ),
+                      SizedBox(width: 12.w),
+                      Text(
+                        'Select Font',
+                        style: TextStyle(
+                          fontSize: 18.sp,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const Spacer(),
+                      GestureDetector(
+                        onTap: () => Navigator.of(context).pop(),
+                        child: Container(
+                          padding: EdgeInsets.all(8.w),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8.r),
+                          ),
+                          child: Icon(
+                            Icons.close_rounded,
+                            color: Colors.white,
+                            size: 20.sp,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Content
+                Expanded(
+                  child: Column(
+                    children: [
+                      // Favorite Fonts Section
+                      Container(
+                        padding: EdgeInsets.all(20.w),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.favorite_rounded,
+                                  color: Colors.red.shade400,
+                                  size: 20.sp,
+                                ),
+                                SizedBox(width: 8.w),
+                                Text(
+                                  'Favorite Fonts',
+                                  style: TextStyle(
+                                    fontSize: 16.sp,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.grey[800],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 16.h),
+                            Container(
+                              height: 200.h,
+                              child:
+                                  FontFavorites.instance.likedFamilies.isEmpty
+                                  ? Center(
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            Icons.font_download_outlined,
+                                            size: 48.sp,
+                                            color: Colors.grey[400],
+                                          ),
+                                          SizedBox(height: 12.h),
+                                          Text(
+                                            'No favorite fonts yet',
+                                            style: TextStyle(
+                                              fontSize: 14.sp,
+                                              color: Colors.grey[600],
+                                            ),
+                                          ),
+                                          SizedBox(height: 8.h),
+                                          Text(
+                                            'Browse fonts to add favorites',
+                                            style: TextStyle(
+                                              fontSize: 12.sp,
+                                              color: Colors.grey[500],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    )
+                                  : ListView.builder(
+                                      itemCount: FontFavorites
+                                          .instance
+                                          .likedFamilies
+                                          .length,
+                                      itemBuilder: (context, index) {
+                                        final fontFamily = FontFavorites
+                                            .instance
+                                            .likedFamilies[index];
+                                        return _buildFontListItem(
+                                          fontFamily,
+                                          true,
+                                        );
+                                      },
+                                    ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Divider
+                      Divider(color: Colors.grey[300], height: 1),
+
+                      // Browse Fonts Button
+                      Container(
+                        padding: EdgeInsets.all(20.w),
+                        child: GestureDetector(
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => GoogleFontsPage(
+                                  onFontSelected: (fontFamily) {
+                                    setState(() {
+                                      selectedItem!.properties['fontFamily'] =
+                                          fontFamily;
+                                    });
+                                  },
+                                ),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            width: double.infinity,
+                            padding: EdgeInsets.symmetric(vertical: 16.h),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  Colors.green.shade400,
+                                  Colors.green.shade600,
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(12.r),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.green.withOpacity(0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.search_rounded,
+                                  color: Colors.white,
+                                  size: 20.sp,
+                                ),
+                                SizedBox(width: 8.w),
+                                Text(
+                                  'Browse All Fonts',
+                                  style: TextStyle(
+                                    fontSize: 16.sp,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildFontListItem(String fontFamily, bool isFavorite) {
+    final isSelected = selectedItem?.properties['fontFamily'] == fontFamily;
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          selectedItem!.properties['fontFamily'] = fontFamily;
+        });
+        Navigator.of(context).pop();
+      },
+      child: Container(
+        margin: EdgeInsets.only(bottom: 8.h),
+        padding: EdgeInsets.all(16.w),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.blue.shade50 : Colors.grey[50],
+          borderRadius: BorderRadius.circular(12.r),
+          border: Border.all(
+            color: isSelected ? Colors.blue.shade300 : Colors.grey.shade200,
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    fontFamily,
+                    style: TextStyle(
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w600,
+                      color: isSelected
+                          ? Colors.blue.shade700
+                          : Colors.grey[800],
+                      fontFamily: fontFamily,
+                    ),
+                  ),
+                  SizedBox(height: 4.h),
+                  Text(
+                    'The quick brown fox jumps',
+                    style: TextStyle(
+                      fontSize: 12.sp,
+                      color: Colors.grey[600],
+                      fontFamily: fontFamily,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (isSelected)
+              Icon(
+                Icons.check_circle_rounded,
+                color: Colors.blue.shade600,
+                size: 24.sp,
+              ),
+            if (isFavorite)
+              Padding(
+                padding: EdgeInsets.only(left: 8.w),
+                child: Icon(
+                  Icons.favorite_rounded,
+                  color: Colors.red.shade400,
+                  size: 20.sp,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _miniFontButton(String label, String fontFamily, VoidCallback onTap) {
+    return Container(
+      margin: EdgeInsets.only(right: 12.w, bottom: 35.h),
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(14.r),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.font_download_rounded,
+            size: 16.sp,
+            color: Colors.grey[600],
+          ),
+          SizedBox(width: 8.w),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10.sp,
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Text(
+                fontFamily.length > 10
+                    ? '${fontFamily.substring(0, 10)}...'
+                    : fontFamily,
+                style: TextStyle(
+                  fontSize: 12.sp,
+                  color: Colors.grey[800],
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(width: 8.w),
+          GestureDetector(
+            onTap: onTap,
+            child: Container(
+              padding: EdgeInsets.all(6.w),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8.r),
+              ),
+              child: Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 16.sp,
+                color: Colors.blue.shade600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _miniToggleIcon(
@@ -3578,6 +3961,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             (item.properties['shadowBlur'] as double?) ?? 8.0;
         final double shadowOpacity =
             (item.properties['shadowOpacity'] as double?) ?? 0.6;
+        final double shadowSize =
+            (item.properties['shadowSize'] as double?) ?? 0.0;
         final double gradientAngle =
             (item.properties['gradientAngle'] as double?) ?? 0.0;
         final Color tintColor = (item.properties['tint'] is HiveColor)
@@ -3611,26 +3996,17 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         // Create shadow and main image stack
         Widget imageWidget = Stack(
           children: [
-            // Colored shadow behind the image
+            // Image-shaped shadow behind the image
             if (hasShadow)
               Transform.translate(
                 offset: shadowOffset,
-                child: Container(
-                  width: (displayW ?? 185.0).w,
-                  height: (displayH ?? 10.0).h,
-                  decoration: BoxDecoration(
-                    boxShadow: [
-                      BoxShadow(
-                        color: shadowColor.withOpacity(
-                          shadowOpacity.clamp(0.0, 1.0),
-                        ),
-                        blurRadius: shadowBlur,
-                        spreadRadius: 0,
-                        offset: Offset
-                            .zero, // Already offset by Transform.translate
-                      ),
-                    ],
-                  ),
+                child: _buildImageShadow(
+                  mainImage,
+                  shadowColor.withOpacity(shadowOpacity.clamp(0.0, 1.0)),
+                  shadowBlur,
+                  (displayW ?? 185.0).w,
+                  (displayH ?? 10.0).h,
+                  shadowSize,
                 ),
               ),
             // Main image on top
@@ -4100,6 +4476,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           Icons.space_bar_rounded,
         ),
         SizedBox(height: 20.h),
+        _buildFontSelectionSection(props),
+        SizedBox(height: 20.h),
         _buildColorSection(props),
         SizedBox(height: 20.h),
         _buildTextStyleOptions(props),
@@ -4282,6 +4660,15 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             },
             Icons.swap_vert_rounded,
           ),
+          SizedBox(height: 16.h),
+          _buildSliderOption(
+            'Shadow Size',
+            (props['shadowSize'] as double?) ?? 0.0,
+            0.0,
+            100.0,
+            (value) => setState(() => props['shadowSize'] = value),
+            Icons.zoom_out_map_rounded,
+          ),
         ],
       ],
     );
@@ -4327,6 +4714,88 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                   ? TextDecoration.none
                   : TextDecoration.underline;
             }),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFontSelectionSection(Map<String, dynamic> props) {
+    final currentFont = props['fontFamily'] as String? ?? 'Roboto';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Icons.font_download_rounded,
+              size: 20.sp,
+              color: Colors.grey[600],
+            ),
+            SizedBox(width: 8.w),
+            Text(
+              'Font Family',
+              style: TextStyle(
+                fontSize: 16.sp,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[800],
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: 12.h),
+        GestureDetector(
+          onTap: _showFontSelectionDialog,
+          child: Container(
+            width: double.infinity,
+            padding: EdgeInsets.all(16.w),
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: BorderRadius.circular(12.r),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        currentFont,
+                        style: TextStyle(
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[800],
+                          fontFamily: currentFont,
+                        ),
+                      ),
+                      SizedBox(height: 4.h),
+                      Text(
+                        'The quick brown fox jumps',
+                        style: TextStyle(
+                          fontSize: 12.sp,
+                          color: Colors.grey[600],
+                          fontFamily: currentFont,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: EdgeInsets.all(8.w),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8.r),
+                  ),
+                  child: Icon(
+                    Icons.keyboard_arrow_right_rounded,
+                    color: Colors.blue.shade600,
+                    size: 20.sp,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],
@@ -4414,6 +4883,13 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           Colors.orange.shade400,
           _removeBackground,
         ),
+        SizedBox(height: 16.h),
+        _buildOptionButton(
+          'Add Stroke',
+          Icons.border_outer_rounded,
+          Colors.purple.shade400,
+          _showStrokeSettingsDialog,
+        ),
         SizedBox(height: 20.h),
         _buildColorOption('Tint Color', 'tint', props),
         SizedBox(height: 16.h),
@@ -4498,6 +4974,15 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               props['shadowOffset'] = Offset(cur.dx, v);
             }),
             Icons.swap_vert_rounded,
+          ),
+          SizedBox(height: 16.h),
+          _buildSliderOption(
+            'Shadow Size',
+            (props['shadowSize'] as double?) ?? 0.0,
+            0.0,
+            100.0,
+            (v) => setState(() => props['shadowSize'] = v),
+            Icons.zoom_out_map_rounded,
           ),
         ],
       ],
@@ -4625,6 +5110,15 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               props['shadowOffset'] = Offset(cur.dx, v);
             }),
             Icons.swap_vert_rounded,
+          ),
+          SizedBox(height: 16.h),
+          _buildSliderOption(
+            'Shadow Size',
+            (props['shadowSize'] as double?) ?? 0.0,
+            0.0,
+            100.0,
+            (v) => setState(() => props['shadowSize'] = v),
+            Icons.zoom_out_map_rounded,
           ),
         ],
       ],
@@ -5900,6 +6394,292 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         SnackBar(content: Text('Failed to remove background: $e')),
       );
     }
+  }
+
+  Widget _buildImageShadow(
+    Widget image,
+    Color shadowColor,
+    double blurRadius,
+    double width,
+    double height,
+    double shadowSize,
+  ) {
+    // Calculate the scaled dimensions for shadow size
+    final double shadowWidth = width * (1.0 + shadowSize / 100.0);
+    final double shadowHeight = height * (1.0 + shadowSize / 100.0);
+
+    return SizedBox(
+      width: shadowWidth,
+      height: shadowHeight,
+      child: ImageFiltered(
+        imageFilter: ui.ImageFilter.blur(
+          sigmaX: blurRadius,
+          sigmaY: blurRadius,
+        ),
+        child: ColorFiltered(
+          colorFilter: ColorFilter.mode(shadowColor, BlendMode.srcATop),
+          child: Transform.scale(scale: 1.0 + shadowSize / 100.0, child: image),
+        ),
+      ),
+    );
+  }
+
+  /// Applies stroke effect to the selected image using distance transform (like Photoshop)
+  Future<void> _applyStrokeToSelectedImage({
+    int strokeWidth = 10,
+    Color strokeColor = Colors.black,
+    int threshold = 0,
+  }) async {
+    if (selectedItem == null || selectedItem!.type != CanvasItemType.image) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select an image first')),
+      );
+      return;
+    }
+
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        content: Row(
+          children: [
+            const CircularProgressIndicator(),
+            SizedBox(width: 16.w),
+            Text(
+              'Applying stroke effect...',
+              style: TextStyle(fontSize: 16.sp),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      // Store previous state for undo
+      final CanvasItem previous = CanvasItem(
+        id: selectedItem!.id,
+        type: selectedItem!.type,
+        properties: Map<String, dynamic>.from(selectedItem!.properties),
+        createdAt: selectedItem!.createdAt,
+        lastModified: selectedItem!.lastModified,
+      );
+
+      // Get image bytes
+      Uint8List? imageBytes;
+
+      // Check if it's a local file or network image
+      if (selectedItem!.properties['filePath'] != null) {
+        final File imageFile = File(selectedItem!.properties['filePath']);
+        imageBytes = await imageFile.readAsBytes();
+      } else if (selectedItem!.properties['imageUrl'] != null) {
+        final response = await http.get(
+          Uri.parse(selectedItem!.properties['imageUrl']),
+        );
+        if (response.statusCode == 200) {
+          imageBytes = response.bodyBytes;
+        }
+      }
+
+      if (imageBytes == null) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Failed to load image')));
+        return;
+      }
+
+      // Apply stroke effect using distance transform processor
+      final ui.Image strokedImage =
+          await ImageStrokeProcessor.addStrokeToImageFromBytes(
+            imageBytes,
+            strokeWidth: strokeWidth,
+            strokeColor: ui.Color(strokeColor.value),
+            threshold: threshold,
+          );
+
+      // Convert back to bytes
+      final Uint8List strokedBytes = await ImageStrokeProcessor.imageToBytes(
+        strokedImage,
+      );
+
+      // Save processed image to temporary file
+      final Directory tempDir = await getTemporaryDirectory();
+      final String strokedFilePath =
+          '${tempDir.path}/stroked_${DateTime.now().millisecondsSinceEpoch}.png';
+      final File strokedFile = File(strokedFilePath);
+      await strokedFile.writeAsBytes(strokedBytes);
+
+      // Update canvas item properties
+      final double intrinsicW = strokedImage.width.toDouble();
+      final double intrinsicH = strokedImage.height.toDouble();
+
+      // Maintain aspect ratio for display
+      final double aspectRatio = intrinsicH / intrinsicW;
+      final double currentDisplayWidth =
+          selectedItem!.properties['displayWidth'] ?? 240.0;
+      final double newDisplayHeight = currentDisplayWidth * aspectRatio;
+
+      setState(() {
+        selectedItem!.properties['filePath'] = strokedFilePath;
+        selectedItem!.properties['imageUrl'] = null; // Clear network URL
+        selectedItem!.properties['intrinsicWidth'] = intrinsicW;
+        selectedItem!.properties['intrinsicHeight'] = intrinsicH;
+        selectedItem!.properties['displayWidth'] = currentDisplayWidth;
+        selectedItem!.properties['displayHeight'] = newDisplayHeight;
+      });
+
+      _addAction(
+        CanvasAction(
+          type: 'modify',
+          item: selectedItem,
+          previousState: previous,
+          timestamp: DateTime.now(),
+        ),
+      );
+
+      Navigator.pop(context); // Close loading dialog
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white),
+              SizedBox(width: 12.w),
+              Text(
+                'Stroke effect applied successfully!',
+                style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.green.shade400,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12.r),
+          ),
+          margin: EdgeInsets.all(16.w),
+        ),
+      );
+    } catch (e) {
+      Navigator.pop(context); // Close loading dialog
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to apply stroke: $e')));
+    }
+  }
+
+  /// Shows dialog to customize stroke settings
+  void _showStrokeSettingsDialog() {
+    if (selectedItem == null || selectedItem!.type != CanvasItemType.image) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select an image first')),
+      );
+      return;
+    }
+
+    int strokeWidth = 10;
+    Color strokeColor = Colors.black;
+    int threshold = 0;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Stroke Settings'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Stroke width slider
+              Text('Stroke Width: $strokeWidth'),
+              Slider(
+                value: strokeWidth.toDouble(),
+                min: 1,
+                max: 50,
+                divisions: 49,
+                onChanged: (value) {
+                  setDialogState(() {
+                    strokeWidth = value.round();
+                  });
+                },
+              ),
+              SizedBox(height: 16.h),
+
+              // Threshold slider
+              Text('Threshold: $threshold'),
+              Slider(
+                value: threshold.toDouble(),
+                min: 0,
+                max: 255,
+                divisions: 255,
+                onChanged: (value) {
+                  setDialogState(() {
+                    threshold = value.round();
+                  });
+                },
+              ),
+              SizedBox(height: 16.h),
+
+              // Stroke color picker
+              const Text('Stroke Color:'),
+              SizedBox(height: 8.h),
+              GestureDetector(
+                onTap: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Pick Stroke Color'),
+                      content: SingleChildScrollView(
+                        child: ColorPicker(
+                          pickerColor: strokeColor,
+                          onColorChanged: (color) {
+                            setDialogState(() {
+                              strokeColor = color;
+                            });
+                          },
+                        ),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Done'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+                child: Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: strokeColor,
+                    border: Border.all(color: Colors.grey),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _applyStrokeToSelectedImage(
+                  strokeWidth: strokeWidth,
+                  strokeColor: strokeColor,
+                  threshold: threshold,
+                );
+              },
+              child: const Text('Apply Stroke'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
