@@ -1418,6 +1418,11 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                   : FontStyle.italic;
             }),
           ),
+          _miniFontButton(
+            'Font',
+            selectedItem!.properties['fontFamily'] as String? ?? 'Roboto',
+            () => _showFontSelectionDialog(),
+          ),
           _miniColorSwatch(
             'Color',
             (selectedItem!.properties['color'] is HiveColor)
@@ -2133,6 +2138,368 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         }
       });
     });
+  }
+
+  void _showFontSelectionDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: EdgeInsets.all(20.w),
+          child: Container(
+            width: double.infinity,
+            height: MediaQuery.of(context).size.height * 0.8,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24.r),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.15),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                // Header
+                Container(
+                  padding: EdgeInsets.all(20.w),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.blue.shade400, Colors.blue.shade600],
+                    ),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(24.r),
+                      topRight: Radius.circular(24.r),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.font_download_rounded,
+                        color: Colors.white,
+                        size: 24.sp,
+                      ),
+                      SizedBox(width: 12.w),
+                      Text(
+                        'Select Font',
+                        style: TextStyle(
+                          fontSize: 18.sp,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const Spacer(),
+                      GestureDetector(
+                        onTap: () => Navigator.of(context).pop(),
+                        child: Container(
+                          padding: EdgeInsets.all(8.w),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8.r),
+                          ),
+                          child: Icon(
+                            Icons.close_rounded,
+                            color: Colors.white,
+                            size: 20.sp,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Content
+                Expanded(
+                  child: Column(
+                    children: [
+                      // Favorite Fonts Section
+                      Container(
+                        padding: EdgeInsets.all(20.w),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.favorite_rounded,
+                                  color: Colors.red.shade400,
+                                  size: 20.sp,
+                                ),
+                                SizedBox(width: 8.w),
+                                Text(
+                                  'Favorite Fonts',
+                                  style: TextStyle(
+                                    fontSize: 16.sp,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.grey[800],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 16.h),
+                            Container(
+                              height: 200.h,
+                              child:
+                                  FontFavorites.instance.likedFamilies.isEmpty
+                                  ? Center(
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            Icons.font_download_outlined,
+                                            size: 48.sp,
+                                            color: Colors.grey[400],
+                                          ),
+                                          SizedBox(height: 12.h),
+                                          Text(
+                                            'No favorite fonts yet',
+                                            style: TextStyle(
+                                              fontSize: 14.sp,
+                                              color: Colors.grey[600],
+                                            ),
+                                          ),
+                                          SizedBox(height: 8.h),
+                                          Text(
+                                            'Browse fonts to add favorites',
+                                            style: TextStyle(
+                                              fontSize: 12.sp,
+                                              color: Colors.grey[500],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    )
+                                  : ListView.builder(
+                                      itemCount: FontFavorites
+                                          .instance
+                                          .likedFamilies
+                                          .length,
+                                      itemBuilder: (context, index) {
+                                        final fontFamily = FontFavorites
+                                            .instance
+                                            .likedFamilies[index];
+                                        return _buildFontListItem(
+                                          fontFamily,
+                                          true,
+                                        );
+                                      },
+                                    ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Divider
+                      Divider(color: Colors.grey[300], height: 1),
+
+                      // Browse Fonts Button
+                      Container(
+                        padding: EdgeInsets.all(20.w),
+                        child: GestureDetector(
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => GoogleFontsPage(
+                                  onFontSelected: (fontFamily) {
+                                    setState(() {
+                                      selectedItem!.properties['fontFamily'] =
+                                          fontFamily;
+                                    });
+                                  },
+                                ),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            width: double.infinity,
+                            padding: EdgeInsets.symmetric(vertical: 16.h),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  Colors.green.shade400,
+                                  Colors.green.shade600,
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(12.r),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.green.withOpacity(0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.search_rounded,
+                                  color: Colors.white,
+                                  size: 20.sp,
+                                ),
+                                SizedBox(width: 8.w),
+                                Text(
+                                  'Browse All Fonts',
+                                  style: TextStyle(
+                                    fontSize: 16.sp,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildFontListItem(String fontFamily, bool isFavorite) {
+    final isSelected = selectedItem?.properties['fontFamily'] == fontFamily;
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          selectedItem!.properties['fontFamily'] = fontFamily;
+        });
+        Navigator.of(context).pop();
+      },
+      child: Container(
+        margin: EdgeInsets.only(bottom: 8.h),
+        padding: EdgeInsets.all(16.w),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.blue.shade50 : Colors.grey[50],
+          borderRadius: BorderRadius.circular(12.r),
+          border: Border.all(
+            color: isSelected ? Colors.blue.shade300 : Colors.grey.shade200,
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    fontFamily,
+                    style: TextStyle(
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w600,
+                      color: isSelected
+                          ? Colors.blue.shade700
+                          : Colors.grey[800],
+                      fontFamily: fontFamily,
+                    ),
+                  ),
+                  SizedBox(height: 4.h),
+                  Text(
+                    'The quick brown fox jumps',
+                    style: TextStyle(
+                      fontSize: 12.sp,
+                      color: Colors.grey[600],
+                      fontFamily: fontFamily,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (isSelected)
+              Icon(
+                Icons.check_circle_rounded,
+                color: Colors.blue.shade600,
+                size: 24.sp,
+              ),
+            if (isFavorite)
+              Padding(
+                padding: EdgeInsets.only(left: 8.w),
+                child: Icon(
+                  Icons.favorite_rounded,
+                  color: Colors.red.shade400,
+                  size: 20.sp,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _miniFontButton(String label, String fontFamily, VoidCallback onTap) {
+    return Container(
+      margin: EdgeInsets.only(right: 12.w, bottom: 35.h),
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(14.r),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.font_download_rounded,
+            size: 16.sp,
+            color: Colors.grey[600],
+          ),
+          SizedBox(width: 8.w),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10.sp,
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Text(
+                fontFamily.length > 10
+                    ? '${fontFamily.substring(0, 10)}...'
+                    : fontFamily,
+                style: TextStyle(
+                  fontSize: 12.sp,
+                  color: Colors.grey[800],
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(width: 8.w),
+          GestureDetector(
+            onTap: onTap,
+            child: Container(
+              padding: EdgeInsets.all(6.w),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8.r),
+              ),
+              child: Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 16.sp,
+                color: Colors.blue.shade600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _miniToggleIcon(
@@ -3346,6 +3713,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           Icons.space_bar_rounded,
         ),
         SizedBox(height: 20.h),
+        _buildFontSelectionSection(props),
+        SizedBox(height: 20.h),
         _buildColorSection(props),
         SizedBox(height: 20.h),
         _buildTextStyleOptions(props),
@@ -3582,6 +3951,88 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                   ? TextDecoration.none
                   : TextDecoration.underline;
             }),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFontSelectionSection(Map<String, dynamic> props) {
+    final currentFont = props['fontFamily'] as String? ?? 'Roboto';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Icons.font_download_rounded,
+              size: 20.sp,
+              color: Colors.grey[600],
+            ),
+            SizedBox(width: 8.w),
+            Text(
+              'Font Family',
+              style: TextStyle(
+                fontSize: 16.sp,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[800],
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: 12.h),
+        GestureDetector(
+          onTap: _showFontSelectionDialog,
+          child: Container(
+            width: double.infinity,
+            padding: EdgeInsets.all(16.w),
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: BorderRadius.circular(12.r),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        currentFont,
+                        style: TextStyle(
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[800],
+                          fontFamily: currentFont,
+                        ),
+                      ),
+                      SizedBox(height: 4.h),
+                      Text(
+                        'The quick brown fox jumps',
+                        style: TextStyle(
+                          fontSize: 12.sp,
+                          color: Colors.grey[600],
+                          fontFamily: currentFont,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: EdgeInsets.all(8.w),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8.r),
+                  ),
+                  child: Icon(
+                    Icons.keyboard_arrow_right_rounded,
+                    color: Colors.blue.shade600,
+                    size: 20.sp,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],
