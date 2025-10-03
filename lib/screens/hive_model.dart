@@ -1,8 +1,6 @@
 // models/hive_models.dart
 import 'package:hive/hive.dart';
 import 'package:flutter/material.dart';
-import 'dart:typed_data';
-import 'dart:ui' as ui;
 
 part 'hive_model.g.dart'; // Generated file
 
@@ -95,7 +93,8 @@ class PosterProject extends HiveObject {
       isFavorite: isFavorite ?? this.isFavorite,
       canvasWidth: canvasWidth ?? this.canvasWidth,
       canvasHeight: canvasHeight ?? this.canvasHeight,
-      canvasBackgroundColor: canvasBackgroundColor ?? this.canvasBackgroundColor,
+      canvasBackgroundColor:
+          canvasBackgroundColor ?? this.canvasBackgroundColor,
       backgroundImagePath: backgroundImagePath ?? this.backgroundImagePath,
     );
   }
@@ -265,7 +264,7 @@ class HiveColor {
   const HiveColor(this.value);
 
   Color toColor() => Color(value);
-  
+
   static HiveColor fromColor(Color color) => HiveColor(color.value);
 }
 
@@ -280,7 +279,7 @@ class HiveSize {
   HiveSize(this.width, this.height);
 
   Size toSize() => Size(width, height);
-  
+
   static HiveSize fromSize(Size size) => HiveSize(size.width, size.height);
 }
 
@@ -305,28 +304,31 @@ class ColorAdapter extends TypeAdapter<Color> {
 enum HiveCanvasItemType {
   @HiveField(0)
   text,
-  
+
   @HiveField(1)
   image,
-  
+
   @HiveField(2)
   sticker,
-  
+
   @HiveField(3)
   shape,
+
+  @HiveField(4)
+  drawing,
 }
 
 @HiveType(typeId: 7)
 enum ExportFormat {
   @HiveField(0)
   png,
-  
+
   @HiveField(1)
   jpg,
-  
+
   @HiveField(2)
   pdf,
-  
+
   @HiveField(3)
   svg,
 }
@@ -335,13 +337,13 @@ enum ExportFormat {
 enum ExportQuality {
   @HiveField(0)
   low,
-  
+
   @HiveField(1)
   medium,
-  
+
   @HiveField(2)
   high,
-  
+
   @HiveField(3)
   ultra,
 }
@@ -381,28 +383,28 @@ class HiveCanvasAction {
 enum ActionType {
   @HiveField(0)
   add,
-  
+
   @HiveField(1)
   remove,
-  
+
   @HiveField(2)
   modify,
-  
+
   @HiveField(3)
   move,
-  
+
   @HiveField(4)
   scale,
-  
+
   @HiveField(5)
   rotate,
-  
+
   @HiveField(6)
   duplicate,
-  
+
   @HiveField(7)
   group,
-  
+
   @HiveField(8)
   ungroup,
 }

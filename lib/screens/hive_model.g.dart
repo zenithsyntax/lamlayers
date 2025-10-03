@@ -248,9 +248,7 @@ class HiveColorAdapter extends TypeAdapter<HiveColor> {
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return HiveColor(
-      fields[0] as int,
-    );
+    return HiveColor(fields[0] as int);
   }
 
   @override
@@ -282,10 +280,7 @@ class HiveSizeAdapter extends TypeAdapter<HiveSize> {
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return HiveSize(
-      fields[0] as double,
-      fields[1] as double,
-    );
+    return HiveSize(fields[0] as double, fields[1] as double);
   }
 
   @override
@@ -772,6 +767,8 @@ class HiveCanvasItemTypeAdapter extends TypeAdapter<HiveCanvasItemType> {
         return HiveCanvasItemType.sticker;
       case 3:
         return HiveCanvasItemType.shape;
+      case 4:
+        return HiveCanvasItemType.drawing;
       default:
         return HiveCanvasItemType.text;
     }
@@ -791,6 +788,9 @@ class HiveCanvasItemTypeAdapter extends TypeAdapter<HiveCanvasItemType> {
         break;
       case HiveCanvasItemType.shape:
         writer.writeByte(3);
+        break;
+      case HiveCanvasItemType.drawing:
+        writer.writeByte(4);
         break;
     }
   }

@@ -1636,29 +1636,10 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     );
 
     if (_currentProject != null) {
-      canvasItems = _currentProject!.canvasItems
-          .map(
-            (hiveItem) => CanvasItem(
-              id: hiveItem.id,
-              type: CanvasItemType.values.firstWhere(
-                (e) =>
-                    e.toString().split('.').last ==
-                    hiveItem.type.toString().split('.').last,
-              ),
-              position: hiveItem.position,
-              scale: hiveItem.scale,
-              rotation: hiveItem.rotation,
-              opacity: hiveItem.opacity,
-              layerIndex: hiveItem.layerIndex,
-              isVisible: hiveItem.isVisible,
-              isLocked: hiveItem.isLocked,
-              properties: hiveItem.properties,
-              createdAt: hiveItem.createdAt,
-              lastModified: hiveItem.lastModified,
-              groupId: hiveItem.groupId,
-            ),
-          )
-          .toList();
+      // Always use the canonical converter to properly rehydrate drawings
+      // (including text-path strokes) instead of shallow-mapping properties.
+      // This ensures brushes/text-path data are restored after app restart.
+      _loadProjectData();
     } else {
       canvasItems = [];
     }
@@ -1766,6 +1747,60 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       item.properties,
     );
 
+    // Normalize drawing strokes to Hive-friendly values
+    if (item.type == CanvasItemType.drawing) {
+      final List<Map<String, dynamic>>? strokes =
+          (hiveProperties['strokes'] as List<dynamic>?)
+              ?.map((e) => e as Map<String, dynamic>)
+              .toList();
+      if (strokes != null) {
+        final List<Map<String, dynamic>> normalized = [];
+        for (final stroke in strokes) {
+          final dynamic colorRaw = stroke['color'];
+          // Ensure color is stored as HiveColor
+          final HiveColor hiveColor = colorRaw is HiveColor
+              ? colorRaw
+              : (colorRaw is Color
+                    ? HiveColor.fromColor(colorRaw)
+                    : (colorRaw is int
+                          ? HiveColor(colorRaw)
+                          : HiveColor.fromColor(Colors.black)));
+
+          final dynamic toolRaw = stroke['tool'];
+          final String toolName = toolRaw is Enum
+              ? toolRaw.name
+              : (toolRaw is String ? toolRaw : DrawingTool.brush.name);
+
+          final List<Offset> points =
+              (stroke['points'] as List<dynamic>?)
+                  ?.map((p) => p as Offset)
+                  .toList() ??
+              <Offset>[];
+
+          normalized.add({
+            'tool': toolName,
+            'color': hiveColor,
+            'strokeWidth': (stroke['strokeWidth'] as num?)?.toDouble() ?? 2.0,
+            'opacity': (stroke['opacity'] as num?)?.toDouble() ?? 1.0,
+            'isDotted': (stroke['isDotted'] as bool?) ?? false,
+            'points': points,
+            // Text-path specific
+            'text': (stroke['text'] as String?) ?? '',
+            'fontSize': (stroke['fontSize'] as num?)?.toDouble() ?? 24.0,
+            'letterSpacing':
+                (stroke['letterSpacing'] as num?)?.toDouble() ?? 0.0,
+            'fontFamily': (stroke['fontFamily'] as String?) ?? 'Roboto',
+            // Preserve optional style info if present
+            if (stroke.containsKey('fontWeight'))
+              'fontWeight': stroke['fontWeight'],
+            if (stroke.containsKey('fontStyle'))
+              'fontStyle': stroke['fontStyle'],
+          });
+        }
+        hiveProperties['strokes'] = normalized;
+      }
+    }
+
     // Handle ui.Image serialization for shapes
     if (item.type == CanvasItemType.shape &&
         hiveProperties.containsKey('image')) {
@@ -1836,6 +1871,64 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       Map<String, dynamic> properties = Map<String, dynamic>.from(
         hiveItem.properties,
       );
+
+      // Rehydrate drawing strokes (convert 'tool' string back to enum, ensure colors)
+      if (hiveItem.type == HiveCanvasItemType.drawing &&
+          properties.containsKey('strokes')) {
+        final List<dynamic>? rawStrokes =
+            properties['strokes'] as List<dynamic>?;
+        final List<Map<String, dynamic>>? strokes = rawStrokes?.map((e) {
+          // Some persisted entries may be Map<dynamic, dynamic> – normalize to Map<String, dynamic>
+          final Map raw = e as Map;
+          return raw.map((key, value) => MapEntry(key.toString(), value));
+        }).toList();
+        if (strokes != null) {
+          final List<Map<String, dynamic>> rehydrated = [];
+          for (final stroke in strokes) {
+            final dynamic colorRaw = stroke['color'];
+            final HiveColor hiveColor = colorRaw is HiveColor
+                ? colorRaw
+                : (colorRaw is Color
+                      ? HiveColor.fromColor(colorRaw)
+                      : (colorRaw is int
+                            ? HiveColor(colorRaw)
+                            : HiveColor.fromColor(Colors.black)));
+
+            final dynamic toolRaw = stroke['tool'];
+            final DrawingTool tool = toolRaw is String
+                ? DrawingTool.values.firstWhere(
+                    (t) => t.name == toolRaw,
+                    orElse: () => DrawingTool.brush,
+                  )
+                : (toolRaw is DrawingTool ? toolRaw : DrawingTool.brush);
+
+            final List<Offset> points =
+                (stroke['points'] as List<dynamic>?)
+                    ?.map((p) => p as Offset)
+                    .toList() ??
+                <Offset>[];
+
+            rehydrated.add({
+              'tool': tool,
+              'color': hiveColor,
+              'strokeWidth': (stroke['strokeWidth'] as num?)?.toDouble() ?? 2.0,
+              'opacity': (stroke['opacity'] as num?)?.toDouble() ?? 1.0,
+              'isDotted': (stroke['isDotted'] as bool?) ?? false,
+              'points': points,
+              'text': (stroke['text'] as String?) ?? '',
+              'fontSize': (stroke['fontSize'] as num?)?.toDouble() ?? 24.0,
+              'letterSpacing':
+                  (stroke['letterSpacing'] as num?)?.toDouble() ?? 0.0,
+              'fontFamily': (stroke['fontFamily'] as String?) ?? 'Roboto',
+              if (stroke.containsKey('fontWeight'))
+                'fontWeight': stroke['fontWeight'],
+              if (stroke.containsKey('fontStyle'))
+                'fontStyle': stroke['fontStyle'],
+            });
+          }
+          properties['strokes'] = rehydrated;
+        }
+      }
 
       // Load image for shapes if imagePath exists
       if (hiveItem.type == HiveCanvasItemType.shape &&
@@ -2743,13 +2836,20 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                 ?.map((e) => e as Map<String, dynamic>)
                 .toList();
         final bool hasTextPath =
-            strokes?.any((s) => s['tool'] == DrawingTool.textPath) == true;
+            strokes?.any(
+              (s) => (s['tool'] is String
+                  ? s['tool'] == DrawingTool.textPath.name
+                  : s['tool'] == DrawingTool.textPath),
+            ) ==
+            true;
 
         // Helper getters for initial values from first text-path stroke
         double _initialFontSize() {
           if (strokes == null) return 24.0;
           final first = strokes.firstWhere(
-            (s) => s['tool'] == DrawingTool.textPath,
+            (s) => (s['tool'] is String
+                ? s['tool'] == DrawingTool.textPath.name
+                : s['tool'] == DrawingTool.textPath),
             orElse: () => {},
           );
           if (first.isEmpty) return 24.0;
@@ -2760,7 +2860,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         double _initialLetterSpacing() {
           if (strokes == null) return 0.0;
           final first = strokes.firstWhere(
-            (s) => s['tool'] == DrawingTool.textPath,
+            (s) => (s['tool'] is String
+                ? s['tool'] == DrawingTool.textPath.name
+                : s['tool'] == DrawingTool.textPath),
             orElse: () => {},
           );
           if (first.isEmpty) return 0.0;
@@ -2770,7 +2872,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         String _initialText() {
           if (strokes == null) return '';
           final first = strokes.firstWhere(
-            (s) => s['tool'] == DrawingTool.textPath,
+            (s) => (s['tool'] is String
+                ? s['tool'] == DrawingTool.textPath.name
+                : s['tool'] == DrawingTool.textPath),
             orElse: () => {},
           );
           if (first.isEmpty) return '';
@@ -4978,7 +5082,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     final strokes = drawingLayers
         .map(
           (l) => {
-            'tool': l.tool,
+            'tool': l.tool.name,
             'points': l.points.map((p) => p - bounds.topLeft).toList(),
             'color': HiveColor.fromColor(l.color),
             'strokeWidth': l.strokeWidth,
@@ -5021,6 +5125,12 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       drawingLayers.clear();
       showDrawingControls = true;
     });
+
+    // Record undo action and persist immediately
+    _addAction(
+      CanvasAction(type: 'add', item: drawingItem, timestamp: DateTime.now()),
+    );
+    _saveProject();
   }
 
   Rect _calculateDrawingBounds(List<Offset> points) {
@@ -5975,6 +6085,18 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               painter: _MultiStrokeDrawingPainter(
                 strokes: (props['strokes'] as List<dynamic>)
                     .map((e) => e as Map<String, dynamic>)
+                    .map((s) {
+                      // Normalize: if tool is stored as String, map it back to enum for painter
+                      final dynamic toolRaw = s['tool'];
+                      if (toolRaw is String) {
+                        try {
+                          s['tool'] = DrawingTool.values.firstWhere(
+                            (t) => t.name == toolRaw,
+                          );
+                        } catch (_) {}
+                      }
+                      return s;
+                    })
                     .toList(),
               ),
             ),
