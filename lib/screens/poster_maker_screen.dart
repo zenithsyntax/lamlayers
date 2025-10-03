@@ -4066,6 +4066,12 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                 selectedDrawingTool == DrawingTool.dottedArrow,
             opacity: drawingOpacity,
             createdAt: DateTime.now(),
+            text: selectedDrawingTool == DrawingTool.textPath
+                ? _currentPathText
+                : null,
+            fontSize: selectedDrawingTool == DrawingTool.textPath
+                ? drawingStrokeWidth
+                : null,
           ),
         );
         currentDrawingPoints.clear();
