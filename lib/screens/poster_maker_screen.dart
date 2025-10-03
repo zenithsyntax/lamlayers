@@ -1237,11 +1237,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     return [
       {'tool': DrawingTool.brush, 'icon': Icons.brush, 'name': 'Brush'},
       {'tool': DrawingTool.pencil, 'icon': Icons.edit, 'name': 'Pencil'},
-      {
-        'tool': DrawingTool.eraser,
-        'icon': Icons.auto_fix_off,
-        'name': 'Eraser',
-      },
       {'tool': DrawingTool.line, 'icon': Icons.horizontal_rule, 'name': 'Line'},
       {'tool': DrawingTool.arrow, 'icon': Icons.arrow_forward, 'name': 'Arrow'},
       {
@@ -2459,19 +2454,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             }),
             Icons.format_size_rounded,
           ),
-          _miniIconButton('Eraser Mode', Icons.auto_fix_off, () {
-            // No global toggle needed; erasing occurs by drawing over the selected drawing.
-            // This button can hint the user about how to erase.
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  'Drag over the selected drawing to erase parts.',
-                  style: TextStyle(fontSize: 12.sp),
-                ),
-                duration: Duration(seconds: 2),
-              ),
-            );
-          }),
         ];
     }
   }
