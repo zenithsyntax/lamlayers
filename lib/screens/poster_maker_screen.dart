@@ -1550,8 +1550,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   List<Map<String, dynamic>> _getDrawingTools() {
     return [
+      {'tool': DrawingTool.textPath, 'icon': Icons.title, 'name': 'Text Path'},
       {'tool': DrawingTool.brush, 'icon': Icons.brush, 'name': 'Brush'},
-      {'tool': DrawingTool.pencil, 'icon': Icons.edit, 'name': 'Pencil'},
       {'tool': DrawingTool.line, 'icon': Icons.horizontal_rule, 'name': 'Line'},
       {'tool': DrawingTool.arrow, 'icon': Icons.arrow_forward, 'name': 'Arrow'},
       {
@@ -1559,12 +1559,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         'icon': Icons.more_horiz,
         'name': 'Dotted Line',
       },
-      {
-        'tool': DrawingTool.dottedArrow,
-        'icon': Icons.arrow_forward_ios,
-        'name': 'Dotted Arrow',
-      },
-      {'tool': DrawingTool.textPath, 'icon': Icons.title, 'name': 'Text Path'},
     ];
   }
 
