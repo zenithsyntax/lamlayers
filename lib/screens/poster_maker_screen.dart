@@ -211,20 +211,23 @@ class DrawingPainter extends CustomPainter {
     canvas.drawPath(path, paint);
   }
 
+  void _drawTriangle(Canvas canvas, Paint paint, Offset start, Offset end) {
+    final Rect rect = Rect.fromPoints(start, end);
+    final Offset top = Offset(rect.center.dx, rect.top);
+    final Offset left = Offset(rect.left, rect.bottom);
+    final Offset right = Offset(rect.right, rect.bottom);
+    final Path path = Path()
+      ..moveTo(top.dx, top.dy)
+      ..lineTo(left.dx, left.dy)
+      ..lineTo(right.dx, right.dy)
+      ..close();
+    canvas.drawPath(path, paint);
+  }
+
   Offset _normalize(Offset vector) {
     final length = vector.distance;
     if (length == 0) return Offset.zero;
     return Offset(vector.dx / length, vector.dy / length);
-  }
-
-  void _drawTriangle(Canvas canvas, Paint paint, Offset start, Offset end) {
-    final path = Path()
-      ..moveTo(start.dx, start.dy) // Top left
-      ..lineTo(end.dx, end.dy) // Bottom right
-      ..lineTo(start.dx, end.dy) // Bottom left
-      ..close();
-
-    canvas.drawPath(path, paint);
   }
 
   @override
@@ -422,14 +425,15 @@ class _DrawingItemPainter extends CustomPainter {
   }
 
   void _drawTriangle(Canvas canvas, Paint paint, Offset start, Offset end) {
-    final center = Offset((start.dx + end.dx) / 2, (start.dy + end.dy) / 2);
-
-    final path = Path()
-      ..moveTo(center.dx, start.dy) // Top point
-      ..lineTo(start.dx, end.dy) // Bottom left
-      ..lineTo(end.dx, end.dy) // Bottom right
+    final Rect rect = Rect.fromPoints(start, end);
+    final Offset top = Offset(rect.center.dx, rect.top);
+    final Offset left = Offset(rect.left, rect.bottom);
+    final Offset right = Offset(rect.right, rect.bottom);
+    final Path path = Path()
+      ..moveTo(top.dx, top.dy)
+      ..lineTo(left.dx, left.dy)
+      ..lineTo(right.dx, right.dy)
       ..close();
-
     canvas.drawPath(path, paint);
   }
 
@@ -440,6 +444,158 @@ class _DrawingItemPainter extends CustomPainter {
         color != oldDelegate.color ||
         strokeWidth != oldDelegate.strokeWidth ||
         isDotted != oldDelegate.isDotted;
+  }
+}
+
+class _MultiStrokeDrawingPainter extends CustomPainter {
+  final List<Map<String, dynamic>> strokes;
+
+  _MultiStrokeDrawingPainter({required this.strokes});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (final stroke in strokes) {
+      final DrawingTool tool =
+          stroke['tool'] as DrawingTool? ?? DrawingTool.brush;
+      final List<Offset> points =
+          (stroke['points'] as List<dynamic>?)
+              ?.map((p) => p as Offset)
+              .toList() ??
+          [];
+      final dynamic colorRaw = stroke['color'];
+      final Color color = colorRaw is HiveColor
+          ? colorRaw.toColor()
+          : (colorRaw is Color ? colorRaw : Colors.black);
+      final double strokeWidth = (stroke['strokeWidth'] as double?) ?? 2.0;
+      final bool isDotted = (stroke['isDotted'] as bool?) ?? false;
+      final double opacity = (stroke['opacity'] as double?) ?? 1.0;
+
+      if (points.isEmpty) continue;
+
+      final paint = Paint()
+        ..color = color.withOpacity(opacity.clamp(0.0, 1.0))
+        ..strokeWidth = strokeWidth
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round;
+
+      if (isDotted) {
+        _drawDottedPath(canvas, paint, points);
+      } else {
+        _drawPath(canvas, paint, points, tool);
+      }
+    }
+  }
+
+  void _drawPath(
+    Canvas canvas,
+    Paint paint,
+    List<Offset> points,
+    DrawingTool tool,
+  ) {
+    if (points.isEmpty) return;
+
+    switch (tool) {
+      case DrawingTool.brush:
+      case DrawingTool.pencil:
+        if (points.length == 1) {
+          canvas.drawPoints(ui.PointMode.points, points, paint);
+        } else {
+          canvas.drawPoints(ui.PointMode.polygon, points, paint);
+        }
+        break;
+      case DrawingTool.line:
+      case DrawingTool.dottedLine:
+        if (points.length >= 2) {
+          canvas.drawLine(points.first, points.last, paint);
+        }
+        break;
+      case DrawingTool.arrow:
+      case DrawingTool.dottedArrow:
+        if (points.length >= 2) {
+          canvas.drawLine(points.first, points.last, paint);
+          _drawArrowhead(canvas, paint, points.first, points.last);
+        }
+        break;
+      case DrawingTool.rectangle:
+        if (points.length >= 2) {
+          final rect = Rect.fromPoints(points.first, points.last);
+          canvas.drawRect(rect, paint);
+        }
+        break;
+      case DrawingTool.circle:
+        if (points.length >= 2) {
+          final center = Offset(
+            (points.first.dx + points.last.dx) / 2,
+            (points.first.dy + points.last.dy) / 2,
+          );
+          final radius = (points.first - points.last).distance / 2;
+          canvas.drawCircle(center, radius, paint);
+        }
+        break;
+      case DrawingTool.triangle:
+        if (points.length >= 2) {
+          _drawTriangle(canvas, paint, points.first, points.last);
+        }
+        break;
+    }
+  }
+
+  void _drawDottedPath(Canvas canvas, Paint paint, List<Offset> points) {
+    if (points.length < 2) return;
+    const double dashLength = 6.0;
+    const double gapLength = 6.0;
+    for (int i = 0; i < points.length - 1; i++) {
+      final start = points[i];
+      final end = points[i + 1];
+      final totalLength = (end - start).distance;
+      final direction = (end - start) / totalLength;
+      double drawn = 0.0;
+      while (drawn < totalLength) {
+        final currentStart = start + direction * drawn;
+        final currentEnd =
+            start + direction * (drawn + dashLength).clamp(0.0, totalLength);
+        canvas.drawLine(currentStart, currentEnd, paint);
+        drawn += dashLength + gapLength;
+      }
+    }
+  }
+
+  void _drawArrowhead(Canvas canvas, Paint paint, Offset start, Offset end) {
+    const double arrowHeadLength = 12.0;
+    const double arrowHeadAngle = 25 * math.pi / 180;
+
+    final angle = math.atan2(end.dy - start.dy, end.dx - start.dx);
+    final path = Path()
+      ..moveTo(end.dx, end.dy)
+      ..lineTo(
+        end.dx - arrowHeadLength * math.cos(angle - arrowHeadAngle),
+        end.dy - arrowHeadLength * math.sin(angle - arrowHeadAngle),
+      )
+      ..moveTo(end.dx, end.dy)
+      ..lineTo(
+        end.dx - arrowHeadLength * math.cos(angle + arrowHeadAngle),
+        end.dy - arrowHeadLength * math.sin(angle + arrowHeadAngle),
+      );
+    canvas.drawPath(path, paint);
+  }
+
+  void _drawTriangle(Canvas canvas, Paint paint, Offset start, Offset end) {
+    final Rect rect = Rect.fromPoints(start, end);
+    final Offset top = Offset(rect.center.dx, rect.top);
+    final Offset left = Offset(rect.left, rect.bottom);
+    final Offset right = Offset(rect.right, rect.bottom);
+    final Path path = Path()
+      ..moveTo(top.dx, top.dy)
+      ..lineTo(left.dx, left.dy)
+      ..lineTo(right.dx, right.dy)
+      ..close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _MultiStrokeDrawingPainter oldDelegate) {
+    return oldDelegate.strokes != strokes;
   }
 }
 
@@ -1052,21 +1208,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     return [
       {'tool': DrawingTool.brush, 'icon': Icons.brush, 'name': 'Brush'},
       {'tool': DrawingTool.pencil, 'icon': Icons.edit, 'name': 'Pencil'},
-      {
-        'tool': DrawingTool.rectangle,
-        'icon': Icons.crop_square_rounded,
-        'name': 'Rectangle',
-      },
-      {
-        'tool': DrawingTool.circle,
-        'icon': Icons.circle_outlined,
-        'name': 'Circle',
-      },
-      {
-        'tool': DrawingTool.triangle,
-        'icon': Icons.change_history_rounded,
-        'name': 'Triangle',
-      },
       {'tool': DrawingTool.line, 'icon': Icons.horizontal_rule, 'name': 'Line'},
       {'tool': DrawingTool.arrow, 'icon': Icons.arrow_forward, 'name': 'Arrow'},
       {
@@ -3604,10 +3745,26 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   void _onDrawingEnd(DragEndDetails details) {
     if (!isDrawing || drawingMode != DrawingMode.enabled) return;
 
-    // Don't save immediately - wait for "Stop & Save" button
+    // Commit the current stroke to layers so it persists
     setState(() {
       isDrawing = false;
-      // Keep currentDrawingPoints for preview until saved
+      if (currentDrawingPoints.isNotEmpty) {
+        drawingLayers.add(
+          DrawingLayer(
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            tool: selectedDrawingTool,
+            points: List<Offset>.from(currentDrawingPoints),
+            color: drawingColor,
+            strokeWidth: drawingStrokeWidth,
+            isDotted:
+                selectedDrawingTool == DrawingTool.dottedLine ||
+                selectedDrawingTool == DrawingTool.dottedArrow,
+            opacity: drawingOpacity,
+            createdAt: DateTime.now(),
+          ),
+        );
+        currentDrawingPoints.clear();
+      }
     });
   }
 
@@ -3913,47 +4070,72 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   }
 
   void _saveCurrentDrawing() {
+    // If there's an in-progress stroke, commit it first
     if (currentDrawingPoints.isNotEmpty) {
-      // Calculate bounding box for the drawing
-      final bounds = _calculateDrawingBounds(currentDrawingPoints);
-
-      // Create a canvas item for the drawing
-      final drawingItem = CanvasItem(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        type: CanvasItemType.drawing,
-        position: bounds.topLeft,
-        scale: 1.0,
-        rotation: 0.0,
-        opacity: drawingOpacity,
-        layerIndex: canvasItems.length,
-        isVisible: true,
-        isLocked: false,
-        properties: {
-          'tool': selectedDrawingTool,
-          'points': currentDrawingPoints
-              .map((p) => p - bounds.topLeft)
-              .toList(), // Relative to item position
-          'color': HiveColor.fromColor(drawingColor),
-          'strokeWidth': drawingStrokeWidth,
-          'isDotted':
+      drawingLayers.add(
+        DrawingLayer(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          tool: selectedDrawingTool,
+          points: List<Offset>.from(currentDrawingPoints),
+          color: drawingColor,
+          strokeWidth: drawingStrokeWidth,
+          isDotted:
               selectedDrawingTool == DrawingTool.dottedLine ||
               selectedDrawingTool == DrawingTool.dottedArrow,
-          'width': bounds.width,
-          'height': bounds.height,
-        },
-        createdAt: DateTime.now(),
-        lastModified: DateTime.now(),
+          opacity: drawingOpacity,
+          createdAt: DateTime.now(),
+        ),
       );
-
-      setState(() {
-        canvasItems.add(drawingItem);
-        _selectItem(drawingItem);
-        currentDrawingPoints.clear();
-        drawingLayers
-            .clear(); // Clear the drawing layers to prevent duplication
-        showDrawingControls = true;
-      });
+      currentDrawingPoints.clear();
     }
+
+    if (drawingLayers.isEmpty) return;
+
+    // Calculate bounding box over all strokes
+    final List<Offset> allPoints = drawingLayers
+        .expand((l) => l.points)
+        .toList();
+    final bounds = _calculateDrawingBounds(allPoints);
+
+    // Serialize strokes relative to top-left bounds
+    final strokes = drawingLayers
+        .map(
+          (l) => {
+            'tool': l.tool,
+            'points': l.points.map((p) => p - bounds.topLeft).toList(),
+            'color': HiveColor.fromColor(l.color),
+            'strokeWidth': l.strokeWidth,
+            'isDotted': l.isDotted,
+            'opacity': l.opacity,
+          },
+        )
+        .toList();
+
+    final drawingItem = CanvasItem(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      type: CanvasItemType.drawing,
+      position: bounds.topLeft,
+      scale: 1.0,
+      rotation: 0.0,
+      opacity: 1.0,
+      layerIndex: canvasItems.length,
+      isVisible: true,
+      isLocked: false,
+      properties: {
+        'strokes': strokes,
+        'width': bounds.width,
+        'height': bounds.height,
+      },
+      createdAt: DateTime.now(),
+      lastModified: DateTime.now(),
+    );
+
+    setState(() {
+      canvasItems.add(drawingItem);
+      _selectItem(drawingItem);
+      drawingLayers.clear();
+      showDrawingControls = true;
+    });
   }
 
   Rect _calculateDrawingBounds(List<Offset> points) {
@@ -4080,11 +4262,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                             showGrid: snapToGrid,
                             gridSize: 20.0,
                           ),
-                          child: RepaintBoundary(
-                            child:
-                                drawingMode == DrawingMode.enabled &&
-                                    currentDrawingPoints.isNotEmpty
-                                ? CustomPaint(
+                          child: (drawingMode == DrawingMode.enabled)
+                              ? RepaintBoundary(
+                                  child: CustomPaint(
                                     painter: DrawingPainter(
                                       layers: drawingLayers,
                                       currentPoints: currentDrawingPoints,
@@ -4093,9 +4273,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                                       currentStrokeWidth: drawingStrokeWidth,
                                       currentOpacity: drawingOpacity,
                                     ),
-                                  )
-                                : const SizedBox.shrink(),
-                          ),
+                                  ),
+                                )
+                              : const SizedBox.shrink(),
                         ),
                       ),
                     ),
@@ -4867,34 +5047,50 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         );
       case CanvasItemType.drawing:
         final props = item.properties;
-        final DrawingTool tool =
-            props['tool'] as DrawingTool? ?? DrawingTool.brush;
-        final List<Offset> points =
-            (props['points'] as List<dynamic>?)
-                ?.map((p) => p as Offset)
-                .toList() ??
-            [];
-        final Color color = (props['color'] is HiveColor)
-            ? (props['color'] as HiveColor).toColor()
-            : Colors.black;
-        final double strokeWidth = (props['strokeWidth'] as double?) ?? 2.0;
-        final bool isDotted = (props['isDotted'] as bool?) ?? false;
         final double width = (props['width'] as double?) ?? 100.0;
         final double height = (props['height'] as double?) ?? 100.0;
+        final List<Map<String, dynamic>>? strokes =
+            (props['strokes'] as List<dynamic>?)
+                ?.map((e) => e as Map<String, dynamic>)
+                .toList();
 
-        return SizedBox(
-          width: width,
-          height: height,
-          child: CustomPaint(
-            painter: _DrawingItemPainter(
-              tool: tool,
-              points: points,
-              color: color,
-              strokeWidth: strokeWidth,
-              isDotted: isDotted,
+        if (strokes != null && strokes.isNotEmpty) {
+          return SizedBox(
+            width: width,
+            height: height,
+            child: CustomPaint(
+              painter: _MultiStrokeDrawingPainter(strokes: strokes),
             ),
-          ),
-        );
+          );
+        } else {
+          // Backward compatibility for single-stroke drawings
+          final DrawingTool tool =
+              props['tool'] as DrawingTool? ?? DrawingTool.brush;
+          final List<Offset> points =
+              (props['points'] as List<dynamic>?)
+                  ?.map((p) => p as Offset)
+                  .toList() ??
+              [];
+          final Color color = (props['color'] is HiveColor)
+              ? (props['color'] as HiveColor).toColor()
+              : Colors.black;
+          final double strokeWidth = (props['strokeWidth'] as double?) ?? 2.0;
+          final bool isDotted = (props['isDotted'] as bool?) ?? false;
+
+          return SizedBox(
+            width: width,
+            height: height,
+            child: CustomPaint(
+              painter: _DrawingItemPainter(
+                tool: tool,
+                points: points,
+                color: color,
+                strokeWidth: strokeWidth,
+                isDotted: isDotted,
+              ),
+            ),
+          );
+        }
     }
   }
 
