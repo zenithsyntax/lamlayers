@@ -50,6 +50,7 @@ class DrawingPainter extends CustomPainter {
   final double currentStrokeWidth;
   final double currentOpacity;
   final String? currentPathText;
+  final String? currentPathFontFamily;
 
   DrawingPainter({
     required this.layers,
@@ -59,6 +60,7 @@ class DrawingPainter extends CustomPainter {
     required this.currentStrokeWidth,
     required this.currentOpacity,
     this.currentPathText,
+    this.currentPathFontFamily,
   });
 
   @override
@@ -90,6 +92,7 @@ class DrawingPainter extends CustomPainter {
           layer.text ?? '',
           layer.color,
           (layer.fontSize ?? layer.strokeWidth).toDouble(),
+          fontFamily: layer.fontFamily,
         );
       } else if (layer.isDotted) {
         paint.strokeWidth = layer.strokeWidth;
@@ -134,6 +137,7 @@ class DrawingPainter extends CustomPainter {
             txt,
             currentColor,
             currentStrokeWidth,
+            fontFamily: currentPathFontFamily,
           );
         }
       } else {
@@ -156,12 +160,29 @@ class DrawingPainter extends CustomPainter {
     List<Offset> points,
     String text,
     Color color,
-    double fontSize,
-  ) {
+    double fontSize, {
+    String? fontFamily,
+    FontWeight? fontWeight,
+    FontStyle? fontStyle,
+  }) {
     if (points.length < 2 || text.isEmpty) return;
     final ui.ParagraphBuilder builder =
-        ui.ParagraphBuilder(ui.ParagraphStyle(fontSize: fontSize))
-          ..pushStyle(ui.TextStyle(color: color))
+        ui.ParagraphBuilder(
+            ui.ParagraphStyle(
+              fontSize: fontSize,
+              fontFamily: fontFamily,
+              fontWeight: fontWeight,
+              fontStyle: fontStyle,
+            ),
+          )
+          ..pushStyle(
+            ui.TextStyle(
+              color: color,
+              fontFamily: fontFamily,
+              fontWeight: fontWeight,
+              fontStyle: fontStyle,
+            ),
+          )
           ..addText(text);
     final ui.Paragraph paragraph = builder.build();
     paragraph.layout(const ui.ParagraphConstraints(width: double.infinity));
@@ -187,9 +208,21 @@ class DrawingPainter extends CustomPainter {
       canvas.translate(sample.position.dx, sample.position.dy);
       canvas.rotate(sample.angle);
       final ui.ParagraphBuilder cb = ui.ParagraphBuilder(
-        ui.ParagraphStyle(fontSize: fontSize),
+        ui.ParagraphStyle(
+          fontSize: fontSize,
+          fontFamily: fontFamily,
+          fontWeight: fontWeight,
+          fontStyle: fontStyle,
+        ),
       );
-      cb.pushStyle(ui.TextStyle(color: color));
+      cb.pushStyle(
+        ui.TextStyle(
+          color: color,
+          fontFamily: fontFamily,
+          fontWeight: fontWeight,
+          fontStyle: fontStyle,
+        ),
+      );
       cb.addText(char);
       final ui.Paragraph p = cb.build();
       p.layout(const ui.ParagraphConstraints(width: double.infinity));
@@ -631,6 +664,9 @@ class _MultiStrokeDrawingPainter extends CustomPainter {
       final double opacity = (stroke['opacity'] as double?) ?? 1.0;
       final String text = (stroke['text'] as String?) ?? '';
       final double fontSize = (stroke['fontSize'] as double?) ?? strokeWidth;
+      final String? fontFamily = stroke['fontFamily'] as String?;
+      final FontWeight? fontWeight = stroke['fontWeight'] as FontWeight?;
+      final FontStyle? fontStyle = stroke['fontStyle'] as FontStyle?;
 
       if (points.isEmpty) continue;
 
@@ -646,7 +682,16 @@ class _MultiStrokeDrawingPainter extends CustomPainter {
         ..strokeJoin = StrokeJoin.round;
 
       if ((tool) == DrawingTool.textPath) {
-        _drawTextAlongPath(canvas, points, text, color, fontSize);
+        _drawTextAlongPath(
+          canvas,
+          points,
+          text,
+          color,
+          fontSize,
+          fontFamily: fontFamily,
+          fontWeight: fontWeight,
+          fontStyle: fontStyle,
+        );
       } else if (isDotted) {
         _drawDottedPath(canvas, paint, points);
       } else {
@@ -661,12 +706,29 @@ class _MultiStrokeDrawingPainter extends CustomPainter {
     List<Offset> points,
     String text,
     Color color,
-    double fontSize,
-  ) {
+    double fontSize, {
+    String? fontFamily,
+    FontWeight? fontWeight,
+    FontStyle? fontStyle,
+  }) {
     if (points.length < 2 || text.isEmpty) return;
     final ui.ParagraphBuilder builder =
-        ui.ParagraphBuilder(ui.ParagraphStyle(fontSize: fontSize))
-          ..pushStyle(ui.TextStyle(color: color))
+        ui.ParagraphBuilder(
+            ui.ParagraphStyle(
+              fontSize: fontSize,
+              fontFamily: fontFamily,
+              fontWeight: fontWeight,
+              fontStyle: fontStyle,
+            ),
+          )
+          ..pushStyle(
+            ui.TextStyle(
+              color: color,
+              fontFamily: fontFamily,
+              fontWeight: fontWeight,
+              fontStyle: fontStyle,
+            ),
+          )
           ..addText(text);
     final ui.Paragraph paragraph = builder.build();
     paragraph.layout(const ui.ParagraphConstraints(width: double.infinity));
@@ -691,8 +753,22 @@ class _MultiStrokeDrawingPainter extends CustomPainter {
       canvas.translate(sample.position.dx, sample.position.dy);
       canvas.rotate(sample.angle);
       final ui.ParagraphBuilder cb =
-          ui.ParagraphBuilder(ui.ParagraphStyle(fontSize: fontSize))
-            ..pushStyle(ui.TextStyle(color: color))
+          ui.ParagraphBuilder(
+              ui.ParagraphStyle(
+                fontSize: fontSize,
+                fontFamily: fontFamily,
+                fontWeight: fontWeight,
+                fontStyle: fontStyle,
+              ),
+            )
+            ..pushStyle(
+              ui.TextStyle(
+                color: color,
+                fontFamily: fontFamily,
+                fontWeight: fontWeight,
+                fontStyle: fontStyle,
+              ),
+            )
             ..addText(char);
       final ui.Paragraph p = cb.build();
       p.layout(const ui.ParagraphConstraints(width: double.infinity));
@@ -1445,6 +1521,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   DrawingTool? _previousNonEraserTool;
   // Text along path current input
   String? _currentPathText = '';
+  String? _currentPathFontFamily;
 
   // Text items now driven by liked Google Fonts with a leading plus button
   List<String> get likedFontFamilies => FontFavorites.instance.likedFamilies;
@@ -4072,6 +4149,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             fontSize: selectedDrawingTool == DrawingTool.textPath
                 ? drawingStrokeWidth
                 : null,
+            fontFamily: selectedDrawingTool == DrawingTool.textPath
+                ? _currentPathFontFamily
+                : null,
           ),
         );
         currentDrawingPoints.clear();
@@ -4247,6 +4327,35 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           ),
         ),
         SizedBox(width: 8.w),
+        if (selectedDrawingTool == DrawingTool.textPath)
+          GestureDetector(
+            onTap: _showTextPathFontFavorites,
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 6.h),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(8.r),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.favorite_rounded, size: 14.sp, color: Colors.pink),
+                  SizedBox(width: 6.w),
+                  Text(
+                    _currentPathFontFamily ?? 'Fav fonts',
+                    style: TextStyle(fontSize: 8.sp),
+                  ),
+                  SizedBox(width: 2.w),
+                  Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    size: 12.sp,
+                    color: Colors.grey.shade600,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        SizedBox(width: 8.w),
         // Opacity slider
         Expanded(
           child: Column(
@@ -4282,6 +4391,81 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           ),
         ),
       ],
+    );
+  }
+
+  void _showTextPathFontFavorites() {
+    final liked = FontFavorites.instance.likedFamilies;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16.r)),
+      ),
+      builder: (context) {
+        return SizedBox(
+          height: 340.h,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: EdgeInsets.all(16.w),
+                child: Row(
+                  children: [
+                    Icon(Icons.favorite_rounded, color: Colors.pink),
+                    SizedBox(width: 8.w),
+                    Text(
+                      'Choose favorite font',
+                      style: TextStyle(
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Divider(height: 1, color: Colors.grey.shade200),
+              Expanded(
+                child: liked.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(16.w),
+                          child: Text(
+                            'No favorite fonts yet. Browse fonts and tap heart to add.',
+                            style: TextStyle(color: Colors.grey[600]),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      )
+                    : ListView.separated(
+                        itemCount: liked.length,
+                        separatorBuilder: (_, __) =>
+                            Divider(height: 1, color: Colors.grey.shade100),
+                        itemBuilder: (context, index) {
+                          final family = liked[index];
+                          return ListTile(
+                            title: Text(
+                              family,
+                              style: TextStyle(fontFamily: family),
+                            ),
+                            subtitle: Text(
+                              'The quick brown fox jumps',
+                              style: TextStyle(fontFamily: family),
+                            ),
+                            onTap: () {
+                              setState(() {
+                                _currentPathFontFamily = family;
+                              });
+                              Navigator.of(context).pop();
+                            },
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -4473,6 +4657,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             if (l.tool == DrawingTool.textPath) ...{
               'text': l.text ?? '',
               'fontSize': l.fontSize ?? l.strokeWidth,
+              'fontFamily': l.fontFamily,
+              'fontWeight': l.fontWeight,
+              'fontStyle': l.fontStyle,
             },
           },
         )
@@ -4650,6 +4837,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                                       currentStrokeWidth: drawingStrokeWidth,
                                       currentOpacity: drawingOpacity,
                                       currentPathText: _currentPathText,
+                                      currentPathFontFamily:
+                                          _currentPathFontFamily,
                                     ),
                                   ),
                                 )
