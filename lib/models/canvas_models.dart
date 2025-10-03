@@ -15,6 +15,7 @@ enum DrawingTool {
   arrow,
   dottedLine,
   dottedArrow,
+  textPath,
 }
 
 // Enum for drawing modes
@@ -103,6 +104,12 @@ class DrawingLayer {
   final double opacity;
   final bool isVisible;
   final DateTime createdAt;
+  // Optional text-path properties
+  final String? text;
+  final double? fontSize;
+  final String? fontFamily;
+  final FontWeight? fontWeight;
+  final FontStyle? fontStyle;
 
   DrawingLayer({
     required this.id,
@@ -114,6 +121,11 @@ class DrawingLayer {
     this.opacity = 1.0,
     this.isVisible = true,
     required this.createdAt,
+    this.text,
+    this.fontSize,
+    this.fontFamily,
+    this.fontWeight,
+    this.fontStyle,
   });
 
   DrawingLayer copyWith({
@@ -126,6 +138,11 @@ class DrawingLayer {
     double? opacity,
     bool? isVisible,
     DateTime? createdAt,
+    String? text,
+    double? fontSize,
+    String? fontFamily,
+    FontWeight? fontWeight,
+    FontStyle? fontStyle,
   }) {
     return DrawingLayer(
       id: id ?? this.id,
@@ -137,6 +154,11 @@ class DrawingLayer {
       opacity: opacity ?? this.opacity,
       isVisible: isVisible ?? this.isVisible,
       createdAt: createdAt ?? this.createdAt,
+      text: text ?? this.text,
+      fontSize: fontSize ?? this.fontSize,
+      fontFamily: fontFamily ?? this.fontFamily,
+      fontWeight: fontWeight ?? this.fontWeight,
+      fontStyle: fontStyle ?? this.fontStyle,
     );
   }
 }

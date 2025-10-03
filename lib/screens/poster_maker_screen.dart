@@ -49,6 +49,7 @@ class DrawingPainter extends CustomPainter {
   final Color currentColor;
   final double currentStrokeWidth;
   final double currentOpacity;
+  final String? currentPathText;
 
   DrawingPainter({
     required this.layers,
@@ -57,6 +58,7 @@ class DrawingPainter extends CustomPainter {
     required this.currentColor,
     required this.currentStrokeWidth,
     required this.currentOpacity,
+    this.currentPathText,
   });
 
   @override
@@ -81,7 +83,15 @@ class DrawingPainter extends CustomPainter {
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round;
 
-      if (layer.isDotted) {
+      if (layer.tool == DrawingTool.textPath) {
+        _drawTextAlongPath(
+          canvas,
+          layer.points,
+          layer.text ?? '',
+          layer.color,
+          (layer.fontSize ?? layer.strokeWidth).toDouble(),
+        );
+      } else if (layer.isDotted) {
         paint.strokeWidth = layer.strokeWidth;
         // Create dotted effect by drawing small segments
         _drawDottedPath(canvas, paint, layer.points);
@@ -106,17 +116,115 @@ class DrawingPainter extends CustomPainter {
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round;
 
-      final isDotted =
-          currentTool == DrawingTool.dottedLine ||
-          currentTool == DrawingTool.dottedArrow;
-
-      if (isDotted) {
-        _drawDottedPath(canvas, paint, currentPoints);
+      if (currentTool == DrawingTool.textPath) {
+        final String txt = (currentPathText ?? '').trim();
+        if (txt.isEmpty) {
+          // Show the path as a light preview if no text entered yet
+          final previewPaint = Paint()
+            ..color = currentColor.withOpacity(currentOpacity * 0.6)
+            ..strokeWidth = currentStrokeWidth
+            ..style = PaintingStyle.stroke
+            ..strokeCap = StrokeCap.round
+            ..strokeJoin = StrokeJoin.round;
+          _drawPath(canvas, previewPaint, currentPoints, DrawingTool.brush);
+        } else {
+          _drawTextAlongPath(
+            canvas,
+            currentPoints,
+            txt,
+            currentColor,
+            currentStrokeWidth,
+          );
+        }
       } else {
-        _drawPath(canvas, paint, currentPoints, currentTool);
+        final isDotted =
+            currentTool == DrawingTool.dottedLine ||
+            currentTool == DrawingTool.dottedArrow;
+
+        if (isDotted) {
+          _drawDottedPath(canvas, paint, currentPoints);
+        } else {
+          _drawPath(canvas, paint, currentPoints, currentTool);
+        }
       }
     }
     canvas.restore();
+  }
+
+  void _drawTextAlongPath(
+    Canvas canvas,
+    List<Offset> points,
+    String text,
+    Color color,
+    double fontSize,
+  ) {
+    if (points.length < 2 || text.isEmpty) return;
+    final ui.ParagraphBuilder builder =
+        ui.ParagraphBuilder(ui.ParagraphStyle(fontSize: fontSize))
+          ..pushStyle(ui.TextStyle(color: color))
+          ..addText(text);
+    final ui.Paragraph paragraph = builder.build();
+    paragraph.layout(const ui.ParagraphConstraints(width: double.infinity));
+
+    // Place each character along path
+    double distanceAlong = 0.0;
+    final List<_Segment> segments = _segmentsFromPoints(points);
+    for (int i = 0; i < text.length; i++) {
+      final String char = text[i];
+      final ui.TextBox box = paragraph.getBoxesForRange(i, i + 1).first;
+      final double charWidth = (box.right - box.left).abs();
+      final _PathSample sample = _sampleAtDistance(
+        segments,
+        distanceAlong + charWidth / 2,
+      );
+      if (!sample.valid) break;
+      canvas.save();
+      canvas.translate(sample.position.dx, sample.position.dy);
+      canvas.rotate(sample.angle);
+      final ui.ParagraphBuilder cb = ui.ParagraphBuilder(
+        ui.ParagraphStyle(fontSize: fontSize),
+      );
+      cb.pushStyle(ui.TextStyle(color: color));
+      cb.addText(char);
+      final ui.Paragraph p = cb.build();
+      p.layout(const ui.ParagraphConstraints(width: double.infinity));
+      canvas.drawParagraph(p, Offset(-charWidth / 2, -fontSize));
+      canvas.restore();
+      distanceAlong += charWidth;
+    }
+  }
+
+  List<_Segment> _segmentsFromPoints(List<Offset> points) {
+    final List<_Segment> segments = [];
+    for (int i = 0; i < points.length - 1; i++) {
+      final Offset a = points[i];
+      final Offset b = points[i + 1];
+      final double len = (b - a).distance;
+      if (len > 0.0001) {
+        segments.add(_Segment(start: a, end: b, length: len));
+      }
+    }
+    return segments;
+  }
+
+  _PathSample _sampleAtDistance(List<_Segment> segments, double d) {
+    double remaining = d;
+    for (final s in segments) {
+      if (remaining <= s.length) {
+        final t = remaining / s.length;
+        final Offset pos = Offset(
+          s.start.dx + (s.end.dx - s.start.dx) * t,
+          s.start.dy + (s.end.dy - s.start.dy) * t,
+        );
+        final double angle = math.atan2(
+          s.end.dy - s.start.dy,
+          s.end.dx - s.start.dx,
+        );
+        return _PathSample(position: pos, angle: angle, valid: true);
+      }
+      remaining -= s.length;
+    }
+    return _PathSample(position: Offset.zero, angle: 0, valid: false);
   }
 
   void _drawPath(
@@ -136,6 +244,9 @@ class DrawingPainter extends CustomPainter {
         } else {
           canvas.drawPoints(ui.PointMode.polygon, points, paint);
         }
+        break;
+      case DrawingTool.textPath:
+        // handled elsewhere
         break;
       case DrawingTool.line:
       case DrawingTool.dottedLine:
@@ -263,6 +374,24 @@ class DrawingPainter extends CustomPainter {
   }
 }
 
+class _Segment {
+  final Offset start;
+  final Offset end;
+  final double length;
+  _Segment({required this.start, required this.end, required this.length});
+}
+
+class _PathSample {
+  final Offset position;
+  final double angle;
+  final bool valid;
+  _PathSample({
+    required this.position,
+    required this.angle,
+    required this.valid,
+  });
+}
+
 class _SelectionBorderPainter extends CustomPainter {
   final Offset topLeft;
   final Offset topRight;
@@ -353,6 +482,9 @@ class _DrawingItemPainter extends CustomPainter {
         } else {
           canvas.drawPoints(ui.PointMode.polygon, points, paint);
         }
+        break;
+      case DrawingTool.textPath:
+        // handled elsewhere
         break;
       case DrawingTool.line:
       case DrawingTool.dottedLine:
@@ -490,6 +622,8 @@ class _MultiStrokeDrawingPainter extends CustomPainter {
       final double strokeWidth = (stroke['strokeWidth'] as double?) ?? 2.0;
       final bool isDotted = (stroke['isDotted'] as bool?) ?? false;
       final double opacity = (stroke['opacity'] as double?) ?? 1.0;
+      final String text = (stroke['text'] as String?) ?? '';
+      final double fontSize = (stroke['fontSize'] as double?) ?? strokeWidth;
 
       if (points.isEmpty) continue;
 
@@ -504,13 +638,89 @@ class _MultiStrokeDrawingPainter extends CustomPainter {
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round;
 
-      if (isDotted) {
+      if ((tool) == DrawingTool.textPath) {
+        _drawTextAlongPath(canvas, points, text, color, fontSize);
+      } else if (isDotted) {
         _drawDottedPath(canvas, paint, points);
       } else {
         _drawPath(canvas, paint, points, tool);
       }
     }
     canvas.restore();
+  }
+
+  void _drawTextAlongPath(
+    Canvas canvas,
+    List<Offset> points,
+    String text,
+    Color color,
+    double fontSize,
+  ) {
+    if (points.length < 2 || text.isEmpty) return;
+    final ui.ParagraphBuilder builder =
+        ui.ParagraphBuilder(ui.ParagraphStyle(fontSize: fontSize))
+          ..pushStyle(ui.TextStyle(color: color))
+          ..addText(text);
+    final ui.Paragraph paragraph = builder.build();
+    paragraph.layout(const ui.ParagraphConstraints(width: double.infinity));
+
+    double distanceAlong = 0.0;
+    final List<_Segment> segments = _segmentsFromPoints(points);
+    for (int i = 0; i < text.length; i++) {
+      final String char = text[i];
+      final ui.TextBox box = paragraph.getBoxesForRange(i, i + 1).first;
+      final double charWidth = (box.right - box.left).abs();
+      final _PathSample sample = _sampleAtDistance(
+        segments,
+        distanceAlong + charWidth / 2,
+      );
+      if (!sample.valid) break;
+      canvas.save();
+      canvas.translate(sample.position.dx, sample.position.dy);
+      canvas.rotate(sample.angle);
+      final ui.ParagraphBuilder cb =
+          ui.ParagraphBuilder(ui.ParagraphStyle(fontSize: fontSize))
+            ..pushStyle(ui.TextStyle(color: color))
+            ..addText(char);
+      final ui.Paragraph p = cb.build();
+      p.layout(const ui.ParagraphConstraints(width: double.infinity));
+      canvas.drawParagraph(p, Offset(-charWidth / 2, -fontSize));
+      canvas.restore();
+      distanceAlong += charWidth;
+    }
+  }
+
+  List<_Segment> _segmentsFromPoints(List<Offset> points) {
+    final List<_Segment> segments = [];
+    for (int i = 0; i < points.length - 1; i++) {
+      final Offset a = points[i];
+      final Offset b = points[i + 1];
+      final double len = (b - a).distance;
+      if (len > 0.0001) {
+        segments.add(_Segment(start: a, end: b, length: len));
+      }
+    }
+    return segments;
+  }
+
+  _PathSample _sampleAtDistance(List<_Segment> segments, double d) {
+    double remaining = d;
+    for (final s in segments) {
+      if (remaining <= s.length) {
+        final t = remaining / s.length;
+        final Offset pos = Offset(
+          s.start.dx + (s.end.dx - s.start.dx) * t,
+          s.start.dy + (s.end.dy - s.start.dy) * t,
+        );
+        final double angle = math.atan2(
+          s.end.dy - s.start.dy,
+          s.end.dx - s.start.dx,
+        );
+        return _PathSample(position: pos, angle: angle, valid: true);
+      }
+      remaining -= s.length;
+    }
+    return _PathSample(position: Offset.zero, angle: 0, valid: false);
   }
 
   void _drawPath(
@@ -530,6 +740,8 @@ class _MultiStrokeDrawingPainter extends CustomPainter {
         } else {
           canvas.drawPoints(ui.PointMode.polygon, points, paint);
         }
+        break;
+      case DrawingTool.textPath:
         break;
       case DrawingTool.line:
       case DrawingTool.dottedLine:
@@ -1217,6 +1429,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   DateTime? _lastDrawingUpdate;
   // Remembers last non-eraser tool to restore after toggling eraser off
   DrawingTool? _previousNonEraserTool;
+  // Text along path current input
+  String? _currentPathText = '';
 
   // Text items now driven by liked Google Fonts with a leading plus button
   List<String> get likedFontFamilies => FontFavorites.instance.likedFamilies;
@@ -1249,6 +1463,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         'icon': Icons.arrow_forward_ios,
         'name': 'Dotted Arrow',
       },
+      {'tool': DrawingTool.textPath, 'icon': Icons.title, 'name': 'Text Path'},
     ];
   }
 
@@ -3758,7 +3973,42 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       currentDrawingPoints = [details.localPosition];
       _lastDrawingUpdate = DateTime.now();
     });
+    if (selectedDrawingTool == DrawingTool.textPath &&
+        ((_currentPathText == null) || _currentPathText!.trim().isEmpty)) {
+      _promptForPathText();
+    }
     print('Drawing started with ${currentDrawingPoints.length} points');
+  }
+
+  Future<void> _promptForPathText() async {
+    String temp = _currentPathText ?? '';
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Type text for path'),
+          content: TextField(
+            autofocus: true,
+            controller: TextEditingController(text: temp),
+            onChanged: (v) => temp = v,
+            decoration: const InputDecoration(hintText: 'Enter text'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                setState(() => _currentPathText = temp);
+              },
+              child: const Text('Use Text'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _onDrawingUpdate(DragUpdateDetails details) {
@@ -3901,7 +4151,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           ),
         ),
         SizedBox(width: 8.w),
-        // Start Drawing button
+        // Start Drawing button (for textPath we also ensure text is set)
         ElevatedButton.icon(
           onPressed: () {
             print('Starting drawing mode...');
@@ -3909,6 +4159,11 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               showDrawingControls = false;
               drawingMode = DrawingMode.enabled;
             });
+            if (selectedDrawingTool == DrawingTool.textPath &&
+                ((_currentPathText == null) ||
+                    _currentPathText!.trim().isEmpty)) {
+              _promptForPathText();
+            }
             print('Drawing mode set to: $drawingMode');
           },
           icon: Icon(Icons.brush, size: 12.sp),
@@ -3935,12 +4190,14 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           ),
         ),
         SizedBox(width: 8.w),
-        // Size slider
+        // Size slider (used as font size when textPath)
         Expanded(
           child: Column(
             children: [
               Text(
-                'Size: ${drawingStrokeWidth.toInt()}',
+                selectedDrawingTool == DrawingTool.textPath
+                    ? 'Font: ${drawingStrokeWidth.toInt()}'
+                    : 'Size: ${drawingStrokeWidth.toInt()}',
                 style: TextStyle(fontSize: 8.sp, fontWeight: FontWeight.w500),
               ),
               SizedBox(height: 2.h),
@@ -4164,6 +4421,12 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               selectedDrawingTool == DrawingTool.dottedArrow,
           opacity: drawingOpacity,
           createdAt: DateTime.now(),
+          text: selectedDrawingTool == DrawingTool.textPath
+              ? _currentPathText
+              : null,
+          fontSize: selectedDrawingTool == DrawingTool.textPath
+              ? drawingStrokeWidth
+              : null,
         ),
       );
       currentDrawingPoints.clear();
@@ -4187,6 +4450,10 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             'strokeWidth': l.strokeWidth,
             'isDotted': l.isDotted,
             'opacity': l.opacity,
+            if (l.tool == DrawingTool.textPath) ...{
+              'text': l.text ?? '',
+              'fontSize': l.fontSize ?? l.strokeWidth,
+            },
           },
         )
         .toList();
@@ -4362,6 +4629,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                                       currentColor: drawingColor,
                                       currentStrokeWidth: drawingStrokeWidth,
                                       currentOpacity: drawingOpacity,
+                                      currentPathText: _currentPathText,
                                     ),
                                   ),
                                 )
@@ -5697,6 +5965,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         return 'Dotted Line';
       case DrawingTool.dottedArrow:
         return 'Dotted Arrow';
+      case DrawingTool.textPath:
+        return 'Text Path';
     }
   }
 
