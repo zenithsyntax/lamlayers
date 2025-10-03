@@ -4544,9 +4544,20 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                                   ? GoogleFonts.getFont(family)
                                   : TextStyle(fontFamily: family),
                             ),
-                            onTap: () {
+                            onTap: () async {
+                              // Preload Google Font so Paragraph can render it immediately
+                              String resolvedFamily = family;
+                              if (_isGoogleFont) {
+                                final ts = GoogleFonts.getFont(family);
+                                try {
+                                  await GoogleFonts.pendingFonts([ts]);
+                                } catch (_) {
+                                  // ignore loading errors; fallback to default
+                                }
+                                resolvedFamily = ts.fontFamily ?? family;
+                              }
                               setState(() {
-                                _currentPathFontFamily = family;
+                                _currentPathFontFamily = resolvedFamily;
                               });
                               Navigator.of(context).pop();
                             },
@@ -4722,6 +4733,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               : null,
           fontSize: selectedDrawingTool == DrawingTool.textPath
               ? drawingStrokeWidth
+              : null,
+          fontFamily: selectedDrawingTool == DrawingTool.textPath
+              ? _currentPathFontFamily
               : null,
         ),
       );
