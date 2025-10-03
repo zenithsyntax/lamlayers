@@ -4825,12 +4825,14 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   // Drawing control helper methods
   void _showDrawingColorPicker() {
-    if (selectedItem == null || selectedItem!.type != CanvasItemType.drawing)
-      return;
+    // Allow opening even when no drawing item is selected; fall back to current drawingColor
+    final bool hasSelectedDrawing =
+        selectedItem != null && selectedItem!.type == CanvasItemType.drawing;
 
-    final currentColor =
-        (selectedItem!.properties['color'] as HiveColor?)?.toColor() ??
-        Colors.black;
+    final Color currentColor = hasSelectedDrawing
+        ? ((selectedItem!.properties['color'] as HiveColor?)?.toColor() ??
+              drawingColor)
+        : drawingColor;
 
     showDialog(
       context: context,
@@ -4842,18 +4844,24 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               pickerColor: currentColor,
               onColorChanged: (color) {
                 setState(() {
-                  selectedItem!.properties['color'] = HiveColor.fromColor(
-                    color,
-                  );
-                  final List<Map<String, dynamic>>? strokes =
-                      (selectedItem!.properties['strokes'] as List<dynamic>?)
-                          ?.map((e) => e as Map<String, dynamic>)
-                          .toList();
-                  if (strokes != null) {
-                    for (final stroke in strokes) {
-                      stroke['color'] = HiveColor.fromColor(color);
+                  // Always update the live drawing color used for new strokes
+                  drawingColor = color;
+
+                  // If a drawing item is selected, also update its stored color and strokes
+                  if (hasSelectedDrawing) {
+                    selectedItem!.properties['color'] = HiveColor.fromColor(
+                      color,
+                    );
+                    final List<Map<String, dynamic>>? strokes =
+                        (selectedItem!.properties['strokes'] as List<dynamic>?)
+                            ?.map((e) => e as Map<String, dynamic>)
+                            .toList();
+                    if (strokes != null) {
+                      for (final stroke in strokes) {
+                        stroke['color'] = HiveColor.fromColor(color);
+                      }
+                      selectedItem!.properties['strokes'] = strokes;
                     }
-                    selectedItem!.properties['strokes'] = strokes;
                   }
                 });
               },
