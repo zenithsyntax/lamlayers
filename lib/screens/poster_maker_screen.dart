@@ -282,6 +282,167 @@ class _SelectionBorderPainter extends CustomPainter {
   }
 }
 
+class _DrawingItemPainter extends CustomPainter {
+  final DrawingTool tool;
+  final List<Offset> points;
+  final Color color;
+  final double strokeWidth;
+  final bool isDotted;
+
+  _DrawingItemPainter({
+    required this.tool,
+    required this.points,
+    required this.color,
+    required this.strokeWidth,
+    required this.isDotted,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (points.isEmpty) return;
+
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    if (isDotted) {
+      _drawDottedPath(canvas, paint, points);
+    } else {
+      _drawPath(canvas, paint, points, tool);
+    }
+  }
+
+  void _drawPath(
+    Canvas canvas,
+    Paint paint,
+    List<Offset> points,
+    DrawingTool tool,
+  ) {
+    if (points.isEmpty) return;
+
+    switch (tool) {
+      case DrawingTool.brush:
+      case DrawingTool.pencil:
+        if (points.length == 1) {
+          canvas.drawPoints(ui.PointMode.points, points, paint);
+        } else {
+          canvas.drawPoints(ui.PointMode.polygon, points, paint);
+        }
+        break;
+      case DrawingTool.line:
+      case DrawingTool.dottedLine:
+        if (points.length >= 2) {
+          canvas.drawLine(points.first, points.last, paint);
+        }
+        break;
+      case DrawingTool.arrow:
+      case DrawingTool.dottedArrow:
+        if (points.length >= 2) {
+          canvas.drawLine(points.first, points.last, paint);
+          _drawArrowhead(canvas, paint, points.first, points.last);
+        }
+        break;
+      case DrawingTool.rectangle:
+        if (points.length >= 2) {
+          final rect = Rect.fromPoints(points.first, points.last);
+          canvas.drawRect(rect, paint);
+        }
+        break;
+      case DrawingTool.circle:
+        if (points.length >= 2) {
+          final center = Offset(
+            (points.first.dx + points.last.dx) / 2,
+            (points.first.dy + points.last.dy) / 2,
+          );
+          final radius = (points.first - points.last).distance / 2;
+          canvas.drawCircle(center, radius, paint);
+        }
+        break;
+      case DrawingTool.triangle:
+        if (points.length >= 2) {
+          _drawTriangle(canvas, paint, points.first, points.last);
+        }
+        break;
+    }
+  }
+
+  void _drawDottedPath(Canvas canvas, Paint paint, List<Offset> points) {
+    if (points.length < 2) return;
+
+    const dashLength = 8.0;
+    const dashSpace = 4.0;
+
+    for (int i = 0; i < points.length - 1; i += 2) {
+      final start = points[i];
+      final end = i + 1 < points.length ? points[i + 1] : points.last;
+
+      final distance = (end - start).distance;
+      final dashCount = (distance / (dashLength + dashSpace)).floor();
+
+      for (int j = 0; j < dashCount; j++) {
+        final startRatio = j * (dashLength + dashSpace) / distance;
+        final endRatio = (j * (dashLength + dashSpace) + dashLength) / distance;
+
+        final dashStart = Offset.lerp(start, end, startRatio)!;
+        final dashEnd = Offset.lerp(start, end, endRatio)!;
+
+        canvas.drawLine(dashStart, dashEnd, paint);
+      }
+    }
+  }
+
+  void _drawArrowhead(Canvas canvas, Paint paint, Offset start, Offset end) {
+    final direction = (end - start).direction;
+    final arrowLength = strokeWidth * 2;
+    final arrowAngle = math.pi / 6; // 30 degrees
+
+    final arrowPoint1 =
+        end +
+        Offset(
+          -arrowLength * math.cos(direction - arrowAngle),
+          -arrowLength * math.sin(direction - arrowAngle),
+        );
+    final arrowPoint2 =
+        end +
+        Offset(
+          -arrowLength * math.cos(direction + arrowAngle),
+          -arrowLength * math.sin(direction + arrowAngle),
+        );
+
+    final path = Path()
+      ..moveTo(end.dx, end.dy)
+      ..lineTo(arrowPoint1.dx, arrowPoint1.dy)
+      ..moveTo(end.dx, end.dy)
+      ..lineTo(arrowPoint2.dx, arrowPoint2.dy);
+
+    canvas.drawPath(path, paint);
+  }
+
+  void _drawTriangle(Canvas canvas, Paint paint, Offset start, Offset end) {
+    final center = Offset((start.dx + end.dx) / 2, (start.dy + end.dy) / 2);
+
+    final path = Path()
+      ..moveTo(center.dx, start.dy) // Top point
+      ..lineTo(start.dx, end.dy) // Bottom left
+      ..lineTo(end.dx, end.dy) // Bottom right
+      ..close();
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _DrawingItemPainter oldDelegate) {
+    return tool != oldDelegate.tool ||
+        points != oldDelegate.points ||
+        color != oldDelegate.color ||
+        strokeWidth != oldDelegate.strokeWidth ||
+        isDotted != oldDelegate.isDotted;
+  }
+}
+
 class _ShapePainter extends CustomPainter {
   final Map<String, dynamic> props;
 
@@ -2101,9 +2262,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             'Color',
             (selectedItem!.properties['color'] as HiveColor?)?.toColor() ??
                 Colors.black,
-            () => _showColorPicker('color'),
+            () => _showDrawingColorPicker(),
           ),
-          _miniSliderButton(
+          _miniSlider(
             'Stroke Width',
             (selectedItem!.properties['strokeWidth'] as double?) ?? 2.0,
             1.0,
@@ -3753,28 +3914,82 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   void _saveCurrentDrawing() {
     if (currentDrawingPoints.isNotEmpty) {
-      final newLayer = DrawingLayer(
+      // Calculate bounding box for the drawing
+      final bounds = _calculateDrawingBounds(currentDrawingPoints);
+
+      // Create a canvas item for the drawing
+      final drawingItem = CanvasItem(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
-        tool: selectedDrawingTool,
-        points: List<Offset>.from(currentDrawingPoints),
-        color: drawingColor,
-        strokeWidth: drawingStrokeWidth,
-        isDotted:
-            selectedDrawingTool == DrawingTool.dottedLine ||
-            selectedDrawingTool == DrawingTool.dottedArrow,
+        type: CanvasItemType.drawing,
+        position: bounds.topLeft,
+        scale: 1.0,
+        rotation: 0.0,
         opacity: drawingOpacity,
+        layerIndex: canvasItems.length,
+        isVisible: true,
+        isLocked: false,
+        properties: {
+          'tool': selectedDrawingTool,
+          'points': currentDrawingPoints
+              .map((p) => p - bounds.topLeft)
+              .toList(), // Relative to item position
+          'color': HiveColor.fromColor(drawingColor),
+          'strokeWidth': drawingStrokeWidth,
+          'isDotted':
+              selectedDrawingTool == DrawingTool.dottedLine ||
+              selectedDrawingTool == DrawingTool.dottedArrow,
+          'width': bounds.width,
+          'height': bounds.height,
+        },
         createdAt: DateTime.now(),
+        lastModified: DateTime.now(),
       );
 
       setState(() {
-        drawingLayers.add(newLayer);
+        canvasItems.add(drawingItem);
+        _selectItem(drawingItem);
         currentDrawingPoints.clear();
+        drawingLayers
+            .clear(); // Clear the drawing layers to prevent duplication
+        showDrawingControls = true;
       });
     }
   }
 
+  Rect _calculateDrawingBounds(List<Offset> points) {
+    if (points.isEmpty) return Rect.zero;
+
+    double minX = points.first.dx;
+    double maxX = points.first.dx;
+    double minY = points.first.dy;
+    double maxY = points.first.dy;
+
+    for (final point in points) {
+      minX = math.min(minX, point.dx);
+      maxX = math.max(maxX, point.dx);
+      minY = math.min(minY, point.dy);
+      maxY = math.max(maxY, point.dy);
+    }
+
+    // Add some padding
+    const padding = 10.0;
+    return Rect.fromLTRB(
+      minX - padding,
+      minY - padding,
+      maxX + padding,
+      maxY + padding,
+    );
+  }
+
   // Drawing control helper methods
   void _showDrawingColorPicker() {
+    if (selectedItem == null || selectedItem!.type != CanvasItemType.drawing)
+      return;
+
+    final currentColor =
+        (selectedItem!.properties['color'] as HiveColor?)?.toColor() ??
+        Colors.black;
+
     showDialog(
       context: context,
       builder: (context) {
@@ -3782,10 +3997,12 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           title: Text('Choose Drawing Color'),
           content: SingleChildScrollView(
             child: ColorPicker(
-              pickerColor: drawingColor,
+              pickerColor: currentColor,
               onColorChanged: (color) {
                 setState(() {
-                  drawingColor = color;
+                  selectedItem!.properties['color'] = HiveColor.fromColor(
+                    color,
+                  );
                 });
               },
             ),
@@ -3864,16 +4081,20 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                             gridSize: 20.0,
                           ),
                           child: RepaintBoundary(
-                            child: CustomPaint(
-                              painter: DrawingPainter(
-                                layers: drawingLayers,
-                                currentPoints: currentDrawingPoints,
-                                currentTool: selectedDrawingTool,
-                                currentColor: drawingColor,
-                                currentStrokeWidth: drawingStrokeWidth,
-                                currentOpacity: drawingOpacity,
-                              ),
-                            ),
+                            child:
+                                drawingMode == DrawingMode.enabled &&
+                                    currentDrawingPoints.isNotEmpty
+                                ? CustomPaint(
+                                    painter: DrawingPainter(
+                                      layers: drawingLayers,
+                                      currentPoints: currentDrawingPoints,
+                                      currentTool: selectedDrawingTool,
+                                      currentColor: drawingColor,
+                                      currentStrokeWidth: drawingStrokeWidth,
+                                      currentOpacity: drawingOpacity,
+                                    ),
+                                  )
+                                : const SizedBox.shrink(),
                           ),
                         ),
                       ),
@@ -4645,11 +4866,34 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           child: FittedBox(fit: BoxFit.contain, child: shapeWidget),
         );
       case CanvasItemType.drawing:
-        // Drawing items are handled by the DrawingPainter in the canvas
-        return Container(
-          width: 100,
-          height: 100,
-          child: Center(child: Icon(Icons.brush, size: 40, color: Colors.grey)),
+        final props = item.properties;
+        final DrawingTool tool =
+            props['tool'] as DrawingTool? ?? DrawingTool.brush;
+        final List<Offset> points =
+            (props['points'] as List<dynamic>?)
+                ?.map((p) => p as Offset)
+                .toList() ??
+            [];
+        final Color color = (props['color'] is HiveColor)
+            ? (props['color'] as HiveColor).toColor()
+            : Colors.black;
+        final double strokeWidth = (props['strokeWidth'] as double?) ?? 2.0;
+        final bool isDotted = (props['isDotted'] as bool?) ?? false;
+        final double width = (props['width'] as double?) ?? 100.0;
+        final double height = (props['height'] as double?) ?? 100.0;
+
+        return SizedBox(
+          width: width,
+          height: height,
+          child: CustomPaint(
+            painter: _DrawingItemPainter(
+              tool: tool,
+              points: points,
+              color: color,
+              strokeWidth: strokeWidth,
+              isDotted: isDotted,
+            ),
+          ),
         );
     }
   }
@@ -4976,22 +5220,131 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   }
 
   Widget _buildDrawingOptions() {
+    if (selectedItem == null || selectedItem!.type != CanvasItemType.drawing) {
+      return const SizedBox();
+    }
+
+    final props = selectedItem!.properties;
+    final Color currentColor =
+        (props['color'] as HiveColor?)?.toColor() ?? Colors.black;
+    final double strokeWidth = (props['strokeWidth'] as double?) ?? 2.0;
+    final DrawingTool tool =
+        (props['tool'] as DrawingTool?) ?? DrawingTool.brush;
+
     return Container(
       padding: EdgeInsets.all(16.w),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Drawing Options',
+            'Drawing Properties',
             style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold),
           ),
           SizedBox(height: 16.h),
-          Text(
-            'Drawing tools are managed through the Drawing tab.',
-            style: TextStyle(fontSize: 14.sp, color: Colors.grey.shade600),
+
+          // Color picker
+          Row(
+            children: [
+              Text(
+                'Color:',
+                style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w500),
+              ),
+              SizedBox(width: 16.w),
+              GestureDetector(
+                onTap: _showDrawingColorPicker,
+                child: Container(
+                  width: 40.w,
+                  height: 40.h,
+                  decoration: BoxDecoration(
+                    color: currentColor,
+                    borderRadius: BorderRadius.circular(8.r),
+                    border: Border.all(color: Colors.grey.shade300, width: 2),
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          SizedBox(height: 16.h),
+
+          // Stroke width
+          Row(
+            children: [
+              Text(
+                'Stroke Width:',
+                style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w500),
+              ),
+              SizedBox(width: 16.w),
+              Expanded(
+                child: Slider(
+                  value: strokeWidth,
+                  min: 1.0,
+                  max: 20.0,
+                  divisions: 19,
+                  onChanged: (value) {
+                    setState(() {
+                      selectedItem!.properties['strokeWidth'] = value;
+                    });
+                  },
+                ),
+              ),
+              Text('${strokeWidth.toInt()}', style: TextStyle(fontSize: 12.sp)),
+            ],
+          ),
+
+          SizedBox(height: 16.h),
+
+          // Tool type display
+          Row(
+            children: [
+              Text(
+                'Tool:',
+                style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w500),
+              ),
+              SizedBox(width: 16.w),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(8.r),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: Text(
+                  _getDrawingToolName(tool),
+                  style: TextStyle(
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
+  }
+
+  String _getDrawingToolName(DrawingTool tool) {
+    switch (tool) {
+      case DrawingTool.brush:
+        return 'Brush';
+      case DrawingTool.pencil:
+        return 'Pencil';
+      case DrawingTool.rectangle:
+        return 'Rectangle';
+      case DrawingTool.circle:
+        return 'Circle';
+      case DrawingTool.triangle:
+        return 'Triangle';
+      case DrawingTool.line:
+        return 'Line';
+      case DrawingTool.arrow:
+        return 'Arrow';
+      case DrawingTool.dottedLine:
+        return 'Dotted Line';
+      case DrawingTool.dottedArrow:
+        return 'Dotted Arrow';
+    }
   }
 
   Widget _buildTextOptions() {
