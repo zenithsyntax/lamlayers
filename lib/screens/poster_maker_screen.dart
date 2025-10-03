@@ -61,12 +61,21 @@ class DrawingPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    // Use a layer so eraser strokes can clear previous content
+    canvas.saveLayer(Offset.zero & size, Paint());
     // Draw all completed layers
     for (final layer in layers) {
       if (!layer.isVisible) continue;
 
       final paint = Paint()
-        ..color = layer.color.withOpacity(layer.opacity)
+        ..color =
+            (layer.tool == DrawingTool.eraser
+                    ? Colors.transparent
+                    : layer.color)
+                .withOpacity(layer.opacity)
+        ..blendMode = layer.tool == DrawingTool.eraser
+            ? BlendMode.clear
+            : BlendMode.srcOver
         ..strokeWidth = layer.strokeWidth
         ..style = PaintingStyle.stroke
         ..strokeCap = StrokeCap.round
@@ -84,7 +93,14 @@ class DrawingPainter extends CustomPainter {
     // Draw current drawing in progress
     if (currentPoints.isNotEmpty) {
       final paint = Paint()
-        ..color = currentColor.withOpacity(currentOpacity)
+        ..color =
+            (currentTool == DrawingTool.eraser
+                    ? Colors.transparent
+                    : currentColor)
+                .withOpacity(currentOpacity)
+        ..blendMode = currentTool == DrawingTool.eraser
+            ? BlendMode.clear
+            : BlendMode.srcOver
         ..strokeWidth = currentStrokeWidth
         ..style = PaintingStyle.stroke
         ..strokeCap = StrokeCap.round
@@ -100,6 +116,7 @@ class DrawingPainter extends CustomPainter {
         _drawPath(canvas, paint, currentPoints, currentTool);
       }
     }
+    canvas.restore();
   }
 
   void _drawPath(
@@ -113,6 +130,7 @@ class DrawingPainter extends CustomPainter {
     switch (tool) {
       case DrawingTool.brush:
       case DrawingTool.pencil:
+      case DrawingTool.eraser:
         if (points.length == 1) {
           canvas.drawPoints(ui.PointMode.points, points, paint);
         } else {
@@ -329,6 +347,7 @@ class _DrawingItemPainter extends CustomPainter {
     switch (tool) {
       case DrawingTool.brush:
       case DrawingTool.pencil:
+      case DrawingTool.eraser:
         if (points.length == 1) {
           canvas.drawPoints(ui.PointMode.points, points, paint);
         } else {
@@ -454,6 +473,8 @@ class _MultiStrokeDrawingPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    // Use a layer to support eraser strokes via BlendMode.clear
+    canvas.saveLayer(Offset.zero & size, Paint());
     for (final stroke in strokes) {
       final DrawingTool tool =
           stroke['tool'] as DrawingTool? ?? DrawingTool.brush;
@@ -473,7 +494,11 @@ class _MultiStrokeDrawingPainter extends CustomPainter {
       if (points.isEmpty) continue;
 
       final paint = Paint()
-        ..color = color.withOpacity(opacity.clamp(0.0, 1.0))
+        ..color = (tool == DrawingTool.eraser ? Colors.transparent : color)
+            .withOpacity(opacity.clamp(0.0, 1.0))
+        ..blendMode = tool == DrawingTool.eraser
+            ? BlendMode.clear
+            : BlendMode.srcOver
         ..strokeWidth = strokeWidth
         ..style = PaintingStyle.stroke
         ..strokeCap = StrokeCap.round
@@ -485,6 +510,7 @@ class _MultiStrokeDrawingPainter extends CustomPainter {
         _drawPath(canvas, paint, points, tool);
       }
     }
+    canvas.restore();
   }
 
   void _drawPath(
@@ -498,6 +524,7 @@ class _MultiStrokeDrawingPainter extends CustomPainter {
     switch (tool) {
       case DrawingTool.brush:
       case DrawingTool.pencil:
+      case DrawingTool.eraser:
         if (points.length == 1) {
           canvas.drawPoints(ui.PointMode.points, points, paint);
         } else {
@@ -1188,6 +1215,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   bool showDrawingToolSelection = true; // Show tool selection first
   bool showDrawingControls = false; // Show controls after tool selection
   DateTime? _lastDrawingUpdate;
+  // Remembers last non-eraser tool to restore after toggling eraser off
+  DrawingTool? _previousNonEraserTool;
 
   // Text items now driven by liked Google Fonts with a leading plus button
   List<String> get likedFontFamilies => FontFavorites.instance.likedFamilies;
@@ -1208,6 +1237,11 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     return [
       {'tool': DrawingTool.brush, 'icon': Icons.brush, 'name': 'Brush'},
       {'tool': DrawingTool.pencil, 'icon': Icons.edit, 'name': 'Pencil'},
+      {
+        'tool': DrawingTool.eraser,
+        'icon': Icons.auto_fix_off,
+        'name': 'Eraser',
+      },
       {'tool': DrawingTool.line, 'icon': Icons.horizontal_rule, 'name': 'Line'},
       {'tool': DrawingTool.arrow, 'icon': Icons.arrow_forward, 'name': 'Arrow'},
       {
@@ -2425,6 +2459,19 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             }),
             Icons.format_size_rounded,
           ),
+          _miniIconButton('Eraser Mode', Icons.auto_fix_off, () {
+            // No global toggle needed; erasing occurs by drawing over the selected drawing.
+            // This button can hint the user about how to erase.
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Drag over the selected drawing to erase parts.',
+                  style: TextStyle(fontSize: 12.sp),
+                ),
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }),
         ];
     }
   }
@@ -4045,24 +4092,63 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           ],
         ),
         SizedBox(height: 4.h),
-        // Stop Drawing button
-        ElevatedButton.icon(
-          onPressed: () {
-            _saveCurrentDrawing();
-            setState(() {
-              drawingMode = DrawingMode.disabled;
-              showDrawingToolSelection = true;
-              showDrawingControls = false;
-            });
-          },
-          icon: Icon(Icons.stop, size: 12.sp),
-          label: Text('Stop & Save', style: TextStyle(fontSize: 9.sp)),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.red.shade600,
-            foregroundColor: Colors.white,
-            padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-            minimumSize: Size(0, 28.h),
-          ),
+        // Erase + Stop & Save row
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Erase toggle button
+            ElevatedButton.icon(
+              onPressed: () {
+                setState(() {
+                  final isEraserActive =
+                      selectedDrawingTool == DrawingTool.eraser;
+
+                  if (isEraserActive) {
+                    // Toggle off: restore previous non-eraser tool, default to brush
+                    selectedDrawingTool =
+                        _previousNonEraserTool ?? DrawingTool.brush;
+                  } else {
+                    // Toggle on: remember current tool if not eraser
+                    if (selectedDrawingTool != DrawingTool.eraser) {
+                      _previousNonEraserTool = selectedDrawingTool;
+                    }
+                    selectedDrawingTool = DrawingTool.eraser;
+                    drawingMode = DrawingMode.enabled;
+                  }
+                });
+              },
+              icon: Icon(Icons.auto_fix_off, size: 12.sp),
+              label: Text('Erase', style: TextStyle(fontSize: 9.sp)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: selectedDrawingTool == DrawingTool.eraser
+                    ? Colors.orange.shade700
+                    : Colors.grey.shade600,
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+                minimumSize: Size(0, 28.h),
+              ),
+            ),
+            SizedBox(width: 8.w),
+            // Stop Drawing button
+            ElevatedButton.icon(
+              onPressed: () {
+                _saveCurrentDrawing();
+                setState(() {
+                  drawingMode = DrawingMode.disabled;
+                  showDrawingToolSelection = true;
+                  showDrawingControls = false;
+                });
+              },
+              icon: Icon(Icons.stop, size: 12.sp),
+              label: Text('Stop & Save', style: TextStyle(fontSize: 9.sp)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red.shade600,
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+                minimumSize: Size(0, 28.h),
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -5077,11 +5163,54 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                 .toList();
 
         if (strokes != null && strokes.isNotEmpty) {
-          return SizedBox(
-            width: width,
-            height: height,
-            child: CustomPaint(
-              painter: _MultiStrokeDrawingPainter(strokes: strokes),
+          return GestureDetector(
+            onPanStart: (details) {
+              if (selectedItem?.id != item.id) return;
+              setState(() {
+                // Begin a new eraser stroke in local coordinates of this item
+                final Offset p = details.localPosition;
+                props['strokes'] = [
+                  ...strokes,
+                  {
+                    'tool': DrawingTool.eraser,
+                    'points': <Offset>[p],
+                    'color': HiveColor.fromColor(Colors.transparent),
+                    'strokeWidth': (props['strokeWidth'] as double?) ?? 12.0,
+                    'isDotted': false,
+                    'opacity': 1.0,
+                  },
+                ];
+              });
+            },
+            onPanUpdate: (details) {
+              if (selectedItem?.id != item.id) return;
+              setState(() {
+                final List<Map<String, dynamic>> list =
+                    (props['strokes'] as List<dynamic>)
+                        .map((e) => e as Map<String, dynamic>)
+                        .toList();
+                if (list.isEmpty) return;
+                final last = list.last;
+                if ((last['tool'] as DrawingTool?) == DrawingTool.eraser) {
+                  final List<Offset> points = (last['points'] as List<dynamic>)
+                      .map((e) => e as Offset)
+                      .toList();
+                  points.add(details.localPosition);
+                  last['points'] = points;
+                  props['strokes'] = list;
+                }
+              });
+            },
+            child: SizedBox(
+              width: width,
+              height: height,
+              child: CustomPaint(
+                painter: _MultiStrokeDrawingPainter(
+                  strokes: (props['strokes'] as List<dynamic>)
+                      .map((e) => e as Map<String, dynamic>)
+                      .toList(),
+                ),
+              ),
             ),
           );
         } else {
@@ -5559,6 +5688,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         return 'Brush';
       case DrawingTool.pencil:
         return 'Pencil';
+      case DrawingTool.eraser:
+        return 'Eraser';
       case DrawingTool.rectangle:
         return 'Rectangle';
       case DrawingTool.circle:

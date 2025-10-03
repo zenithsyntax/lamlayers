@@ -7,6 +7,7 @@ enum CanvasItemType { text, image, sticker, shape, drawing }
 enum DrawingTool {
   brush,
   pencil,
+  eraser,
   rectangle,
   circle,
   triangle,
