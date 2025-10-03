@@ -2743,6 +2743,56 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           ),
         ];
       case CanvasItemType.drawing:
+        // Determine if this drawing has any text-path strokes
+        final List<Map<String, dynamic>>? strokes =
+            (selectedItem!.properties['strokes'] as List<dynamic>?)
+                ?.map((e) => e as Map<String, dynamic>)
+                .toList();
+        final bool hasTextPath =
+            strokes?.any((s) => s['tool'] == DrawingTool.textPath) == true;
+
+        // Helper getters for initial values from first text-path stroke
+        double _initialFontSize() {
+          if (strokes == null) return 24.0;
+          final first = strokes.firstWhere(
+            (s) => s['tool'] == DrawingTool.textPath,
+            orElse: () => {},
+          );
+          if (first.isEmpty) return 24.0;
+          final double sw = (first['strokeWidth'] as double?) ?? 2.0;
+          return (first['fontSize'] as double?) ?? sw;
+        }
+
+        double _initialLetterSpacing() {
+          if (strokes == null) return 0.0;
+          final first = strokes.firstWhere(
+            (s) => s['tool'] == DrawingTool.textPath,
+            orElse: () => {},
+          );
+          if (first.isEmpty) return 0.0;
+          return (first['letterSpacing'] as double?) ?? 0.0;
+        }
+
+        String _initialText() {
+          if (strokes == null) return '';
+          final first = strokes.firstWhere(
+            (s) => s['tool'] == DrawingTool.textPath,
+            orElse: () => {},
+          );
+          if (first.isEmpty) return '';
+          return (first['text'] as String?) ?? '';
+        }
+
+        String _initialFontFamily() {
+          if (strokes == null) return 'Roboto';
+          final first = strokes.firstWhere(
+            (s) => s['tool'] == DrawingTool.textPath,
+            orElse: () => {},
+          );
+          if (first.isEmpty) return 'Roboto';
+          return (first['fontFamily'] as String?) ?? 'Roboto';
+        }
+
         return [
           _miniColorSwatch(
             'Color',
@@ -2750,26 +2800,94 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                 Colors.black,
             () => _showDrawingColorPicker(),
           ),
-          _miniSlider(
-            'Stroke Width',
-            (selectedItem!.properties['strokeWidth'] as double?) ?? 2.0,
-            1.0,
-            20.0,
-            (v) => setState(() {
-              selectedItem!.properties['strokeWidth'] = v;
-              final List<Map<String, dynamic>>? strokes =
-                  (selectedItem!.properties['strokes'] as List<dynamic>?)
-                      ?.map((e) => e as Map<String, dynamic>)
-                      .toList();
-              if (strokes != null) {
-                for (final stroke in strokes) {
-                  stroke['strokeWidth'] = v;
+          if (!hasTextPath)
+            _miniSlider(
+              'Stroke Width',
+              (selectedItem!.properties['strokeWidth'] as double?) ?? 2.0,
+              1.0,
+              20.0,
+              (v) => setState(() {
+                selectedItem!.properties['strokeWidth'] = v;
+                final List<Map<String, dynamic>>? _strokes =
+                    (selectedItem!.properties['strokes'] as List<dynamic>?)
+                        ?.map((e) => e as Map<String, dynamic>)
+                        .toList();
+                if (_strokes != null) {
+                  for (final stroke in _strokes) {
+                    stroke['strokeWidth'] = v;
+                  }
+                  selectedItem!.properties['strokes'] = _strokes;
                 }
-                selectedItem!.properties['strokes'] = strokes;
-              }
-            }),
-            Icons.format_size_rounded,
-          ),
+              }),
+              Icons.format_size_rounded,
+            ),
+          if (hasTextPath) ...[
+            _miniTextEditButton(
+              'Text',
+              _initialText(),
+              (value) => setState(() {
+                final List<Map<String, dynamic>>? _strokes =
+                    (selectedItem!.properties['strokes'] as List<dynamic>?)
+                        ?.map((e) => e as Map<String, dynamic>)
+                        .toList();
+                if (_strokes != null) {
+                  for (final stroke in _strokes) {
+                    if (stroke['tool'] == DrawingTool.textPath) {
+                      stroke['text'] = value;
+                    }
+                  }
+                  selectedItem!.properties['strokes'] = _strokes;
+                }
+              }),
+            ),
+            _miniSlider(
+              'Font Size',
+              _initialFontSize(),
+              8.0,
+              200.0,
+              (v) => setState(() {
+                final List<Map<String, dynamic>>? _strokes =
+                    (selectedItem!.properties['strokes'] as List<dynamic>?)
+                        ?.map((e) => e as Map<String, dynamic>)
+                        .toList();
+                if (_strokes != null) {
+                  for (final stroke in _strokes) {
+                    if (stroke['tool'] == DrawingTool.textPath) {
+                      stroke['fontSize'] = v;
+                    }
+                  }
+                  selectedItem!.properties['strokes'] = _strokes;
+                }
+              }),
+              Icons.format_size_rounded,
+            ),
+            _miniSlider(
+              'Letter Spacing',
+              _initialLetterSpacing(),
+              -2.0,
+              20.0,
+              (v) => setState(() {
+                final List<Map<String, dynamic>>? _strokes =
+                    (selectedItem!.properties['strokes'] as List<dynamic>?)
+                        ?.map((e) => e as Map<String, dynamic>)
+                        .toList();
+                if (_strokes != null) {
+                  for (final stroke in _strokes) {
+                    if (stroke['tool'] == DrawingTool.textPath) {
+                      stroke['letterSpacing'] = v;
+                    }
+                  }
+                  selectedItem!.properties['strokes'] = _strokes;
+                }
+              }),
+              Icons.space_bar_rounded,
+            ),
+            _miniFontButton(
+              'Font',
+              _initialFontFamily(),
+              () => _showFontSelectionDialog(),
+            ),
+          ],
         ];
     }
   }
@@ -3571,8 +3689,32 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                                 builder: (context) => GoogleFontsPage(
                                   onFontSelected: (fontFamily) {
                                     setState(() {
-                                      selectedItem!.properties['fontFamily'] =
-                                          fontFamily;
+                                      if (selectedItem == null) return;
+                                      if (selectedItem!.type ==
+                                          CanvasItemType.drawing) {
+                                        final List<Map<String, dynamic>>?
+                                        strokes =
+                                            (selectedItem!.properties['strokes']
+                                                    as List<dynamic>?)
+                                                ?.map(
+                                                  (e) =>
+                                                      e as Map<String, dynamic>,
+                                                )
+                                                .toList();
+                                        if (strokes != null) {
+                                          for (final stroke in strokes) {
+                                            if (stroke['tool'] ==
+                                                DrawingTool.textPath) {
+                                              stroke['fontFamily'] = fontFamily;
+                                            }
+                                          }
+                                          selectedItem!.properties['strokes'] =
+                                              strokes;
+                                        }
+                                      } else {
+                                        selectedItem!.properties['fontFamily'] =
+                                            fontFamily;
+                                      }
                                     });
                                   },
                                 ),
@@ -3637,7 +3779,23 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     return GestureDetector(
       onTap: () {
         setState(() {
-          selectedItem!.properties['fontFamily'] = fontFamily;
+          if (selectedItem == null) return;
+          if (selectedItem!.type == CanvasItemType.drawing) {
+            final List<Map<String, dynamic>>? strokes =
+                (selectedItem!.properties['strokes'] as List<dynamic>?)
+                    ?.map((e) => e as Map<String, dynamic>)
+                    .toList();
+            if (strokes != null) {
+              for (final stroke in strokes) {
+                if (stroke['tool'] == DrawingTool.textPath) {
+                  stroke['fontFamily'] = fontFamily;
+                }
+              }
+              selectedItem!.properties['strokes'] = strokes;
+            }
+          } else {
+            selectedItem!.properties['fontFamily'] = fontFamily;
+          }
         });
         Navigator.of(context).pop();
       },
