@@ -1,7 +1,23 @@
 import 'package:flutter/material.dart';
 
 // Enum for canvas item types
-enum CanvasItemType { text, image, sticker, shape }
+enum CanvasItemType { text, image, sticker, shape, drawing }
+
+// Enum for drawing tools
+enum DrawingTool {
+  brush,
+  pencil,
+  rectangle,
+  circle,
+  triangle,
+  line,
+  arrow,
+  dottedLine,
+  dottedArrow,
+}
+
+// Enum for drawing modes
+enum DrawingMode { enabled, disabled }
 
 // Enum for blend modes
 enum CustomBlendMode { normal, multiply, screen, overlay, darken, lighten }
@@ -75,6 +91,55 @@ class CanvasItem {
   }
 }
 
+// Model for drawing layers
+class DrawingLayer {
+  final String id;
+  final DrawingTool tool;
+  final List<Offset> points;
+  final Color color;
+  final double strokeWidth;
+  final bool isDotted;
+  final double opacity;
+  final bool isVisible;
+  final DateTime createdAt;
+
+  DrawingLayer({
+    required this.id,
+    required this.tool,
+    this.points = const [],
+    this.color = Colors.black,
+    this.strokeWidth = 2.0,
+    this.isDotted = false,
+    this.opacity = 1.0,
+    this.isVisible = true,
+    required this.createdAt,
+  });
+
+  DrawingLayer copyWith({
+    String? id,
+    DrawingTool? tool,
+    List<Offset>? points,
+    Color? color,
+    double? strokeWidth,
+    bool? isDotted,
+    double? opacity,
+    bool? isVisible,
+    DateTime? createdAt,
+  }) {
+    return DrawingLayer(
+      id: id ?? this.id,
+      tool: tool ?? this.tool,
+      points: points ?? List<Offset>.from(this.points),
+      color: color ?? this.color,
+      strokeWidth: strokeWidth ?? this.strokeWidth,
+      isDotted: isDotted ?? this.isDotted,
+      opacity: opacity ?? this.opacity,
+      isVisible: isVisible ?? this.isVisible,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+}
+
 // Action model for undo/redo
 class CanvasAction {
   final String type; // 'add', 'remove', 'modify'
@@ -89,5 +154,3 @@ class CanvasAction {
     required this.timestamp,
   });
 }
-
-

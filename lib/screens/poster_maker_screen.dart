@@ -42,6 +42,206 @@ class PosterMakerScreen extends StatefulWidget {
   State<PosterMakerScreen> createState() => _PosterMakerScreenState();
 }
 
+class DrawingPainter extends CustomPainter {
+  final List<DrawingLayer> layers;
+  final List<Offset> currentPoints;
+  final DrawingTool currentTool;
+  final Color currentColor;
+  final double currentStrokeWidth;
+  final double currentOpacity;
+
+  DrawingPainter({
+    required this.layers,
+    required this.currentPoints,
+    required this.currentTool,
+    required this.currentColor,
+    required this.currentStrokeWidth,
+    required this.currentOpacity,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Draw all completed layers
+    for (final layer in layers) {
+      if (!layer.isVisible) continue;
+
+      final paint = Paint()
+        ..color = layer.color.withOpacity(layer.opacity)
+        ..strokeWidth = layer.strokeWidth
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round;
+
+      if (layer.isDotted) {
+        paint.strokeWidth = layer.strokeWidth;
+        // Create dotted effect by drawing small segments
+        _drawDottedPath(canvas, paint, layer.points);
+      } else {
+        _drawPath(canvas, paint, layer.points, layer.tool);
+      }
+    }
+
+    // Draw current drawing in progress
+    if (currentPoints.isNotEmpty) {
+      final paint = Paint()
+        ..color = currentColor.withOpacity(currentOpacity)
+        ..strokeWidth = currentStrokeWidth
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round;
+
+      final isDotted =
+          currentTool == DrawingTool.dottedLine ||
+          currentTool == DrawingTool.dottedArrow;
+
+      if (isDotted) {
+        _drawDottedPath(canvas, paint, currentPoints);
+      } else {
+        _drawPath(canvas, paint, currentPoints, currentTool);
+      }
+    }
+  }
+
+  void _drawPath(
+    Canvas canvas,
+    Paint paint,
+    List<Offset> points,
+    DrawingTool tool,
+  ) {
+    if (points.isEmpty) return;
+
+    switch (tool) {
+      case DrawingTool.brush:
+      case DrawingTool.pencil:
+        if (points.length == 1) {
+          canvas.drawPoints(ui.PointMode.points, points, paint);
+        } else {
+          canvas.drawPoints(ui.PointMode.polygon, points, paint);
+        }
+        break;
+      case DrawingTool.line:
+      case DrawingTool.dottedLine:
+        if (points.length >= 2) {
+          canvas.drawLine(points.first, points.last, paint);
+        }
+        break;
+      case DrawingTool.arrow:
+      case DrawingTool.dottedArrow:
+        if (points.length >= 2) {
+          canvas.drawLine(points.first, points.last, paint);
+          _drawArrowhead(canvas, paint, points.first, points.last);
+        }
+        break;
+      case DrawingTool.rectangle:
+        if (points.length >= 2) {
+          final rect = Rect.fromPoints(points.first, points.last);
+          canvas.drawRect(rect, paint);
+        }
+        break;
+      case DrawingTool.circle:
+        if (points.length >= 2) {
+          final center = Offset(
+            (points.first.dx + points.last.dx) / 2,
+            (points.first.dy + points.last.dy) / 2,
+          );
+          final radius = (points.first - points.last).distance / 2;
+          canvas.drawCircle(center, radius, paint);
+        }
+        break;
+      case DrawingTool.triangle:
+        if (points.length >= 2) {
+          _drawTriangle(canvas, paint, points.first, points.last);
+        }
+        break;
+    }
+  }
+
+  void _drawDottedPath(Canvas canvas, Paint paint, List<Offset> points) {
+    if (points.length < 2) return;
+
+    const dashLength = 8.0;
+    const dashSpace = 4.0;
+
+    // Simplified dotted line drawing for better performance
+    for (int i = 0; i < points.length - 1; i += 2) {
+      // Skip every other point for performance
+      final start = points[i];
+      final end = i + 1 < points.length ? points[i + 1] : points.last;
+
+      final distance = (end - start).distance;
+      if (distance < 1.0) continue; // Skip very short segments
+
+      final normalized = _normalize(end - start);
+      double currentDistance = 0.0;
+
+      while (currentDistance < distance) {
+        final dashStart = start + normalized * currentDistance;
+        final dashEnd =
+            start +
+            normalized * (currentDistance + dashLength).clamp(0.0, distance);
+
+        canvas.drawLine(dashStart, dashEnd, paint);
+        currentDistance += dashLength + dashSpace;
+      }
+    }
+  }
+
+  void _drawArrowhead(Canvas canvas, Paint paint, Offset start, Offset end) {
+    final arrowLength = 15.0;
+    final arrowAngle = 0.5;
+
+    final direction = _normalize(end - start);
+    final perpendicular = Offset(-direction.dy, direction.dx);
+
+    final arrowPoint1 =
+        end -
+        direction * arrowLength +
+        perpendicular * arrowLength * arrowAngle;
+    final arrowPoint2 =
+        end -
+        direction * arrowLength -
+        perpendicular * arrowLength * arrowAngle;
+
+    final path = Path()
+      ..moveTo(end.dx, end.dy)
+      ..lineTo(arrowPoint1.dx, arrowPoint1.dy)
+      ..moveTo(end.dx, end.dy)
+      ..lineTo(arrowPoint2.dx, arrowPoint2.dy);
+
+    canvas.drawPath(path, paint);
+  }
+
+  Offset _normalize(Offset vector) {
+    final length = vector.distance;
+    if (length == 0) return Offset.zero;
+    return Offset(vector.dx / length, vector.dy / length);
+  }
+
+  void _drawTriangle(Canvas canvas, Paint paint, Offset start, Offset end) {
+    final path = Path()
+      ..moveTo(start.dx, start.dy) // Top left
+      ..lineTo(end.dx, end.dy) // Bottom right
+      ..lineTo(start.dx, end.dy) // Bottom left
+      ..close();
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant DrawingPainter oldDelegate) {
+    // Always repaint if there are current points being drawn
+    if (currentPoints.isNotEmpty) return true;
+
+    // Only repaint if there are actual changes to completed layers
+    return layers.length != oldDelegate.layers.length ||
+        currentPoints.length != oldDelegate.currentPoints.length ||
+        currentTool != oldDelegate.currentTool ||
+        currentColor != oldDelegate.currentColor ||
+        currentStrokeWidth != oldDelegate.currentStrokeWidth ||
+        currentOpacity != oldDelegate.currentOpacity;
+  }
+}
+
 class _SelectionBorderPainter extends CustomPainter {
   final Offset topLeft;
   final Offset topRight;
@@ -657,7 +857,20 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   CanvasItem? _preDragState;
   CanvasItem? _preTransformState;
 
-  final List<String> tabTitles = ['Text', 'Images', 'Shapes'];
+  final List<String> tabTitles = ['Text', 'Images', 'Shapes', 'Drawing'];
+
+  // Drawing state variables
+  DrawingTool selectedDrawingTool = DrawingTool.brush;
+  DrawingMode drawingMode = DrawingMode.disabled;
+  List<DrawingLayer> drawingLayers = [];
+  Color drawingColor = Colors.black;
+  double drawingStrokeWidth = 2.0;
+  double drawingOpacity = 1.0;
+  bool isDrawing = false;
+  List<Offset> currentDrawingPoints = [];
+  bool showDrawingToolSelection = true; // Show tool selection first
+  bool showDrawingControls = false; // Show controls after tool selection
+  DateTime? _lastDrawingUpdate;
 
   // Text items now driven by liked Google Fonts with a leading plus button
   List<String> get likedFontFamilies => FontFavorites.instance.likedFamilies;
@@ -673,6 +886,40 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     {'shape': 'star', 'icon': Icons.star_border_rounded},
     {'shape': 'heart', 'icon': Icons.favorite_border_rounded},
   ];
+
+  List<Map<String, dynamic>> _getDrawingTools() {
+    return [
+      {'tool': DrawingTool.brush, 'icon': Icons.brush, 'name': 'Brush'},
+      {'tool': DrawingTool.pencil, 'icon': Icons.edit, 'name': 'Pencil'},
+      {
+        'tool': DrawingTool.rectangle,
+        'icon': Icons.crop_square_rounded,
+        'name': 'Rectangle',
+      },
+      {
+        'tool': DrawingTool.circle,
+        'icon': Icons.circle_outlined,
+        'name': 'Circle',
+      },
+      {
+        'tool': DrawingTool.triangle,
+        'icon': Icons.change_history_rounded,
+        'name': 'Triangle',
+      },
+      {'tool': DrawingTool.line, 'icon': Icons.horizontal_rule, 'name': 'Line'},
+      {'tool': DrawingTool.arrow, 'icon': Icons.arrow_forward, 'name': 'Arrow'},
+      {
+        'tool': DrawingTool.dottedLine,
+        'icon': Icons.more_horiz,
+        'name': 'Dotted Line',
+      },
+      {
+        'tool': DrawingTool.dottedArrow,
+        'icon': Icons.arrow_forward_ios,
+        'name': 'Dotted Arrow',
+      },
+    ];
+  }
 
   // Recent colors for color picker
   List<Color> recentColors = [];
@@ -1174,6 +1421,14 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           'shadowBlur': 8.0,
           'shadowOpacity': 0.6,
         };
+      case CanvasItemType.drawing:
+        return {
+          'drawingTool': DrawingTool.brush,
+          'color': HiveColor.fromColor(Colors.black),
+          'strokeWidth': 2.0,
+          'opacity': 1.0,
+          'isDotted': false,
+        };
     }
   }
 
@@ -1305,7 +1560,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           Expanded(
             child: Container(
               padding: EdgeInsets.symmetric(horizontal: 24.w),
-              child: _buildTabContent(),
+              child: selectedTabIndex == 3
+                  ? _buildDrawingControls()
+                  : _buildTabContent(),
             ),
           ),
           SizedBox(height: 10.h),
@@ -1410,6 +1667,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           break;
         case CanvasItemType.sticker:
           // Stickers don't typically have shadow/gradient options
+          break;
+        case CanvasItemType.drawing:
+          // Drawings don't typically have shadow/gradient options
           break;
       }
     }
@@ -1835,9 +2095,23 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             () => _showColorPicker('color'),
           ),
         ];
-
-      default:
-        return [];
+      case CanvasItemType.drawing:
+        return [
+          _miniColorSwatch(
+            'Color',
+            (selectedItem!.properties['color'] as HiveColor?)?.toColor() ??
+                Colors.black,
+            () => _showColorPicker('color'),
+          ),
+          _miniSliderButton(
+            'Stroke Width',
+            (selectedItem!.properties['strokeWidth'] as double?) ?? 2.0,
+            1.0,
+            20.0,
+            (v) => setState(() => selectedItem!.properties['strokeWidth'] = v),
+            Icons.format_size_rounded,
+          ),
+        ];
     }
   }
 
@@ -2072,6 +2346,17 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         SizedBox(height: 10.h),
       ],
     );
+  }
+
+  Widget _miniSliderButton(
+    String label,
+    double value,
+    double min,
+    double max,
+    ValueChanged<double> onChanged,
+    IconData icon,
+  ) {
+    return _miniSlider(label, value, min, max, onChanged, icon);
   }
 
   Widget _miniColorSwatch(String label, Color color, VoidCallback onTap) {
@@ -2906,9 +3191,10 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         return 1 + likedFontFamilies.length;
       case 1:
         return 2; // Two options: Upload and Pixabay
-
       case 2:
         return sampleShapes.length;
+      case 3:
+        return _getDrawingTools().length;
       default:
         return 0;
     }
@@ -2986,6 +3272,29 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           sampleShapes[index]['icon'] as IconData,
           size: 32.sp,
           color: Colors.green.shade600,
+        );
+      case 3:
+        final drawingTool = _getDrawingTools()[index];
+        final isSelected = selectedDrawingTool == drawingTool['tool'];
+        return Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              drawingTool['icon'] as IconData,
+              size: 28.sp,
+              color: isSelected ? Colors.blue.shade600 : Colors.orange.shade600,
+            ),
+            SizedBox(height: 4.h),
+            Text(
+              drawingTool['name'] as String,
+              style: TextStyle(
+                fontSize: 9.sp,
+                fontWeight: FontWeight.w500,
+                color: isSelected ? Colors.blue.shade600 : Colors.grey.shade700,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
         );
       default:
         return const SizedBox();
@@ -3083,6 +3392,428 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           },
         );
         break;
+      case 3:
+        // Reset drawing flow when entering drawing tab
+        setState(() {
+          showDrawingToolSelection = true;
+          showDrawingControls = false;
+          drawingMode = DrawingMode.disabled;
+        });
+        break;
+    }
+  }
+
+  // Drawing gesture handlers
+  void _onDrawingStart(DragStartDetails details) {
+    print(
+      'Drawing start - Mode: $drawingMode, Enabled: ${drawingMode == DrawingMode.enabled}',
+    );
+    if (drawingMode != DrawingMode.enabled) return;
+
+    setState(() {
+      isDrawing = true;
+      currentDrawingPoints = [details.localPosition];
+      _lastDrawingUpdate = DateTime.now();
+    });
+    print('Drawing started with ${currentDrawingPoints.length} points');
+  }
+
+  void _onDrawingUpdate(DragUpdateDetails details) {
+    if (!isDrawing || drawingMode != DrawingMode.enabled) return;
+
+    final now = DateTime.now();
+
+    // Throttle updates to max 60 FPS (16ms intervals)
+    if (_lastDrawingUpdate != null &&
+        now.difference(_lastDrawingUpdate!).inMilliseconds < 16) {
+      return;
+    }
+
+    // Only add point if it's far enough from the last point to avoid too many points
+    if (currentDrawingPoints.isEmpty ||
+        (details.localPosition - currentDrawingPoints.last).distance > 1.5) {
+      setState(() {
+        currentDrawingPoints.add(details.localPosition);
+        _lastDrawingUpdate = now;
+      });
+      print('Drawing update - Points: ${currentDrawingPoints.length}');
+    }
+  }
+
+  void _onDrawingEnd(DragEndDetails details) {
+    if (!isDrawing || drawingMode != DrawingMode.enabled) return;
+
+    // Don't save immediately - wait for "Stop & Save" button
+    setState(() {
+      isDrawing = false;
+      // Keep currentDrawingPoints for preview until saved
+    });
+  }
+
+  Widget _buildDrawingControls() {
+    if (showDrawingToolSelection) {
+      return _buildToolSelection();
+    } else if (showDrawingControls) {
+      return _buildToolControls();
+    } else {
+      return _buildDrawingMode();
+    }
+  }
+
+  Widget _buildToolSelection() {
+    return Container(
+      height: 60.h,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: _getDrawingTools().length,
+        itemBuilder: (context, index) {
+          final drawingTool = _getDrawingTools()[index];
+          return Padding(
+            padding: EdgeInsets.symmetric(horizontal: 6.w),
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  selectedDrawingTool = drawingTool['tool'] as DrawingTool;
+                  showDrawingToolSelection = false;
+                  showDrawingControls = true;
+                });
+              },
+              child: Container(
+                width: 70.w,
+                padding: EdgeInsets.all(8.w),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10.r),
+                  border: Border.all(color: Colors.grey.shade300, width: 1.5),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      drawingTool['icon'] as IconData,
+                      size: 20.sp,
+                      color: Colors.orange.shade600,
+                    ),
+                    SizedBox(height: 4.h),
+                    Text(
+                      drawingTool['name'] as String,
+                      style: TextStyle(
+                        fontSize: 8.sp,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey.shade700,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildToolControls() {
+    return Row(
+      children: [
+        // Back button
+        GestureDetector(
+          onTap: () {
+            setState(() {
+              showDrawingToolSelection = true;
+              showDrawingControls = false;
+            });
+          },
+          child: Container(
+            padding: EdgeInsets.all(8.w),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(8.r),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: Icon(
+              Icons.arrow_back,
+              size: 16.sp,
+              color: Colors.grey.shade600,
+            ),
+          ),
+        ),
+        SizedBox(width: 8.w),
+        // Start Drawing button
+        ElevatedButton.icon(
+          onPressed: () {
+            print('Starting drawing mode...');
+            setState(() {
+              showDrawingControls = false;
+              drawingMode = DrawingMode.enabled;
+            });
+            print('Drawing mode set to: $drawingMode');
+          },
+          icon: Icon(Icons.brush, size: 12.sp),
+          label: Text('Start', style: TextStyle(fontSize: 8.sp)),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blue.shade600,
+            foregroundColor: Colors.white,
+            padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 6.h),
+            minimumSize: Size(0, 30.h),
+          ),
+        ),
+        SizedBox(width: 8.w),
+        // Color picker
+        GestureDetector(
+          onTap: _showDrawingColorPicker,
+          child: Container(
+            width: 35.w,
+            height: 35.w,
+            decoration: BoxDecoration(
+              color: drawingColor,
+              borderRadius: BorderRadius.circular(8.r),
+              border: Border.all(color: Colors.grey.shade300, width: 1.5),
+            ),
+          ),
+        ),
+        SizedBox(width: 8.w),
+        // Size slider
+        Expanded(
+          child: Column(
+            children: [
+              Text(
+                'Size: ${drawingStrokeWidth.toInt()}',
+                style: TextStyle(fontSize: 8.sp, fontWeight: FontWeight.w500),
+              ),
+              SizedBox(height: 2.h),
+              SliderTheme(
+                data: SliderTheme.of(context).copyWith(
+                  activeTrackColor: Colors.blue.shade400,
+                  inactiveTrackColor: Colors.blue.shade100,
+                  thumbColor: Colors.blue.shade600,
+                  trackHeight: 2.0,
+                  thumbShape: const RoundSliderThumbShape(
+                    enabledThumbRadius: 4.0,
+                  ),
+                ),
+                child: Slider(
+                  value: drawingStrokeWidth,
+                  min: 1.0,
+                  max: 20.0,
+                  divisions: 19,
+                  onChanged: (value) {
+                    setState(() {
+                      drawingStrokeWidth = value;
+                    });
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(width: 8.w),
+        // Opacity slider
+        Expanded(
+          child: Column(
+            children: [
+              Text(
+                'Opacity: ${(drawingOpacity * 100).toInt()}%',
+                style: TextStyle(fontSize: 8.sp, fontWeight: FontWeight.w500),
+              ),
+              SizedBox(height: 2.h),
+              SliderTheme(
+                data: SliderTheme.of(context).copyWith(
+                  activeTrackColor: Colors.blue.shade400,
+                  inactiveTrackColor: Colors.blue.shade100,
+                  thumbColor: Colors.blue.shade600,
+                  trackHeight: 2.0,
+                  thumbShape: const RoundSliderThumbShape(
+                    enabledThumbRadius: 4.0,
+                  ),
+                ),
+                child: Slider(
+                  value: drawingOpacity,
+                  min: 0.1,
+                  max: 1.0,
+                  divisions: 9,
+                  onChanged: (value) {
+                    setState(() {
+                      drawingOpacity = value;
+                    });
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDrawingMode() {
+    return Column(
+      children: [
+        // Current settings display with settings button at start
+        Row(
+          children: [
+            // Settings button at the beginning
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  showDrawingControls = true;
+                  drawingMode = DrawingMode.disabled;
+                });
+              },
+              child: Container(
+                padding: EdgeInsets.all(6.w),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(6.r),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: Icon(
+                  Icons.settings,
+                  size: 14.sp,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+            ),
+            SizedBox(width: 8.w),
+            // Current settings display
+            Expanded(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildSettingDisplay(
+                    'Color',
+                    Container(
+                      width: 20.w,
+                      height: 20.w,
+                      decoration: BoxDecoration(
+                        color: drawingColor,
+                        borderRadius: BorderRadius.circular(4.r),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                    ),
+                  ),
+                  _buildSettingDisplay(
+                    'Size',
+                    Text(
+                      '${drawingStrokeWidth.toInt()}',
+                      style: TextStyle(fontSize: 10.sp),
+                    ),
+                  ),
+                  _buildSettingDisplay(
+                    'Opacity',
+                    Text(
+                      '${(drawingOpacity * 100).toInt()}%',
+                      style: TextStyle(fontSize: 10.sp),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: 4.h),
+        // Stop Drawing button
+        ElevatedButton.icon(
+          onPressed: () {
+            _saveCurrentDrawing();
+            setState(() {
+              drawingMode = DrawingMode.disabled;
+              showDrawingToolSelection = true;
+              showDrawingControls = false;
+            });
+          },
+          icon: Icon(Icons.stop, size: 12.sp),
+          label: Text('Stop & Save', style: TextStyle(fontSize: 9.sp)),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.red.shade600,
+            foregroundColor: Colors.white,
+            padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+            minimumSize: Size(0, 28.h),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSettingDisplay(String label, Widget value) {
+    return Column(
+      children: [
+        Text(
+          label,
+          style: TextStyle(fontSize: 8.sp, color: Colors.grey.shade600),
+        ),
+        SizedBox(height: 2.h),
+        value,
+      ],
+    );
+  }
+
+  void _saveCurrentDrawing() {
+    if (currentDrawingPoints.isNotEmpty) {
+      final newLayer = DrawingLayer(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        tool: selectedDrawingTool,
+        points: List<Offset>.from(currentDrawingPoints),
+        color: drawingColor,
+        strokeWidth: drawingStrokeWidth,
+        isDotted:
+            selectedDrawingTool == DrawingTool.dottedLine ||
+            selectedDrawingTool == DrawingTool.dottedArrow,
+        opacity: drawingOpacity,
+        createdAt: DateTime.now(),
+      );
+
+      setState(() {
+        drawingLayers.add(newLayer);
+        currentDrawingPoints.clear();
+      });
+    }
+  }
+
+  // Drawing control helper methods
+  void _showDrawingColorPicker() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Choose Drawing Color'),
+          content: SingleChildScrollView(
+            child: ColorPicker(
+              pickerColor: drawingColor,
+              onColorChanged: (color) {
+                setState(() {
+                  drawingColor = color;
+                });
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('Done'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _clearAllDrawings() {
+    setState(() {
+      drawingLayers.clear();
+      currentDrawingPoints.clear();
+      isDrawing = false;
+    });
+  }
+
+  void _undoLastDrawing() {
+    if (drawingLayers.isNotEmpty) {
+      setState(() {
+        drawingLayers.removeLast();
+      });
     }
   }
 
@@ -3116,12 +3847,33 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                   Positioned.fill(
                     child: GestureDetector(
                       onTap: _deselectItem,
+                      onPanStart: drawingMode == DrawingMode.enabled
+                          ? _onDrawingStart
+                          : null,
+                      onPanUpdate: drawingMode == DrawingMode.enabled
+                          ? _onDrawingUpdate
+                          : null,
+                      onPanEnd: drawingMode == DrawingMode.enabled
+                          ? _onDrawingEnd
+                          : null,
                       child: Container(
                         color: Colors.white,
                         child: CustomPaint(
                           painter: CanvasGridPainter(
                             showGrid: snapToGrid,
                             gridSize: 20.0,
+                          ),
+                          child: RepaintBoundary(
+                            child: CustomPaint(
+                              painter: DrawingPainter(
+                                layers: drawingLayers,
+                                currentPoints: currentDrawingPoints,
+                                currentTool: selectedDrawingTool,
+                                currentColor: drawingColor,
+                                currentStrokeWidth: drawingStrokeWidth,
+                                currentOpacity: drawingOpacity,
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -3892,6 +4644,13 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           height: itemSize.height,
           child: FittedBox(fit: BoxFit.contain, child: shapeWidget),
         );
+      case CanvasItemType.drawing:
+        // Drawing items are handled by the DrawingPainter in the canvas
+        return Container(
+          width: 100,
+          height: 100,
+          child: Center(child: Icon(Icons.brush, size: 40, color: Colors.grey)),
+        );
     }
   }
 
@@ -4112,6 +4871,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         return Icons.emoji_emotions_rounded;
       case CanvasItemType.shape:
         return Icons.category_rounded;
+      case CanvasItemType.drawing:
+        return Icons.brush;
     }
   }
 
@@ -4209,7 +4970,28 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         return _buildStickerOptions();
       case CanvasItemType.shape:
         return _buildShapeOptions();
+      case CanvasItemType.drawing:
+        return _buildDrawingOptions();
     }
+  }
+
+  Widget _buildDrawingOptions() {
+    return Container(
+      padding: EdgeInsets.all(16.w),
+      child: Column(
+        children: [
+          Text(
+            'Drawing Options',
+            style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 16.h),
+          Text(
+            'Drawing tools are managed through the Drawing tab.',
+            style: TextStyle(fontSize: 14.sp, color: Colors.grey.shade600),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildTextOptions() {
@@ -6686,6 +7468,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                     _userPreferencesBox.get('user_prefs_id') ??
                     UserPreferences();
                 _initializeAutoSave();
+                // Trigger canvas redraw to show any pending drawings
+                setState(() {});
               });
             },
           ),
