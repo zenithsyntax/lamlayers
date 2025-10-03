@@ -51,6 +51,7 @@ class DrawingPainter extends CustomPainter {
   final double currentOpacity;
   final String? currentPathText;
   final String? currentPathFontFamily;
+  final double? currentPathLetterSpacing;
 
   DrawingPainter({
     required this.layers,
@@ -61,6 +62,7 @@ class DrawingPainter extends CustomPainter {
     required this.currentOpacity,
     this.currentPathText,
     this.currentPathFontFamily,
+    this.currentPathLetterSpacing,
   });
 
   @override
@@ -93,6 +95,7 @@ class DrawingPainter extends CustomPainter {
           layer.color,
           (layer.fontSize ?? layer.strokeWidth).toDouble(),
           fontFamily: layer.fontFamily,
+          letterSpacing: layer.letterSpacing ?? 0.0,
         );
       } else if (layer.isDotted) {
         paint.strokeWidth = layer.strokeWidth;
@@ -138,6 +141,7 @@ class DrawingPainter extends CustomPainter {
             currentColor,
             currentStrokeWidth,
             fontFamily: currentPathFontFamily,
+            letterSpacing: currentPathLetterSpacing ?? 0.0,
           );
         }
       } else {
@@ -164,6 +168,7 @@ class DrawingPainter extends CustomPainter {
     String? fontFamily,
     FontWeight? fontWeight,
     FontStyle? fontStyle,
+    double letterSpacing = 0.0,
   }) {
     if (points.length < 2 || text.isEmpty) return;
     final ui.ParagraphBuilder builder =
@@ -228,7 +233,7 @@ class DrawingPainter extends CustomPainter {
       p.layout(const ui.ParagraphConstraints(width: double.infinity));
       canvas.drawParagraph(p, Offset(-charWidth / 2, -fontSize));
       canvas.restore();
-      distanceAlong += charWidth;
+      distanceAlong += charWidth + letterSpacing;
       if (distanceAlong >= totalLength) break;
       i++;
     }
@@ -682,6 +687,8 @@ class _MultiStrokeDrawingPainter extends CustomPainter {
         ..strokeJoin = StrokeJoin.round;
 
       if ((tool) == DrawingTool.textPath) {
+        final double letterSpacing =
+            (stroke['letterSpacing'] as double?) ?? 0.0;
         _drawTextAlongPath(
           canvas,
           points,
@@ -691,6 +698,7 @@ class _MultiStrokeDrawingPainter extends CustomPainter {
           fontFamily: fontFamily,
           fontWeight: fontWeight,
           fontStyle: fontStyle,
+          letterSpacing: letterSpacing,
         );
       } else if (isDotted) {
         _drawDottedPath(canvas, paint, points);
@@ -710,6 +718,7 @@ class _MultiStrokeDrawingPainter extends CustomPainter {
     String? fontFamily,
     FontWeight? fontWeight,
     FontStyle? fontStyle,
+    double letterSpacing = 0.0,
   }) {
     if (points.length < 2 || text.isEmpty) return;
     final ui.ParagraphBuilder builder =
@@ -774,7 +783,7 @@ class _MultiStrokeDrawingPainter extends CustomPainter {
       p.layout(const ui.ParagraphConstraints(width: double.infinity));
       canvas.drawParagraph(p, Offset(-charWidth / 2, -fontSize));
       canvas.restore();
-      distanceAlong += charWidth;
+      distanceAlong += charWidth + letterSpacing;
       if (distanceAlong >= totalLength) break;
       i++;
     }
@@ -1522,6 +1531,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   // Text along path current input
   String? _currentPathText = '';
   String? _currentPathFontFamily;
+  double? _currentPathLetterSpacing;
 
   // Text items now driven by liked Google Fonts with a leading plus button
   List<String> get likedFontFamilies => FontFavorites.instance.likedFamilies;
@@ -4152,6 +4162,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             fontFamily: selectedDrawingTool == DrawingTool.textPath
                 ? _currentPathFontFamily
                 : null,
+            letterSpacing: selectedDrawingTool == DrawingTool.textPath
+                ? _currentPathLetterSpacing
+                : null,
           ),
         );
         currentDrawingPoints.clear();
@@ -4418,6 +4431,65 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                         ),
                       ],
                     ),
+                  ),
+                ),
+              ),
+            ),
+          // Letter spacing slider (only for textPath)
+          if (selectedDrawingTool == DrawingTool.textPath)
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 6.w),
+              child: Container(
+                width: 210.w,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10.r),
+                  border: Border.all(color: Colors.grey.shade300, width: 1.5),
+                ),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 10.w,
+                    vertical: 3.h,
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Letter Spacing: ${(_currentPathLetterSpacing ?? 0.0).toStringAsFixed(1)}',
+                        style: TextStyle(
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey.shade700,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          activeTrackColor: Colors.blue.shade400,
+                          inactiveTrackColor: Colors.blue.shade100,
+                          thumbColor: Colors.blue.shade600,
+                          trackHeight: 4.0,
+                          thumbShape: const RoundSliderThumbShape(
+                            enabledThumbRadius: 8.0,
+                          ),
+                        ),
+                        child: Slider(
+                          value: (_currentPathLetterSpacing ?? 0.0).clamp(
+                            -5.0,
+                            20.0,
+                          ),
+                          min: -5.0,
+                          max: 20.0,
+                          divisions: 25,
+                          onChanged: (value) {
+                            setState(() {
+                              _currentPathLetterSpacing = value;
+                            });
+                          },
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -4766,6 +4838,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               'fontFamily': l.fontFamily,
               'fontWeight': l.fontWeight,
               'fontStyle': l.fontStyle,
+              'letterSpacing': l.letterSpacing ?? 0.0,
             },
           },
         )
@@ -4953,6 +5026,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                                       currentPathText: _currentPathText,
                                       currentPathFontFamily:
                                           _currentPathFontFamily,
+                                      currentPathLetterSpacing:
+                                          _currentPathLetterSpacing,
                                     ),
                                   ),
                                 )

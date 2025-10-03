@@ -110,6 +110,8 @@ class DrawingLayer {
   final String? fontFamily;
   final FontWeight? fontWeight;
   final FontStyle? fontStyle;
+  // Optional spacing between characters along the path (logical px)
+  final double? letterSpacing;
 
   DrawingLayer({
     required this.id,
@@ -126,6 +128,7 @@ class DrawingLayer {
     this.fontFamily,
     this.fontWeight,
     this.fontStyle,
+    this.letterSpacing,
   });
 
   DrawingLayer copyWith({
@@ -143,6 +146,7 @@ class DrawingLayer {
     String? fontFamily,
     FontWeight? fontWeight,
     FontStyle? fontStyle,
+    double? letterSpacing,
   }) {
     return DrawingLayer(
       id: id ?? this.id,
@@ -159,6 +163,7 @@ class DrawingLayer {
       fontFamily: fontFamily ?? this.fontFamily,
       fontWeight: fontWeight ?? this.fontWeight,
       fontStyle: fontStyle ?? this.fontStyle,
+      letterSpacing: letterSpacing ?? this.letterSpacing,
     );
   }
 }
