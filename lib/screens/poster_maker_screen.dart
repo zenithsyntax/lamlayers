@@ -4226,171 +4226,257 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   }
 
   Widget _buildToolControls() {
-    return Row(
-      children: [
-        // Back button
-        GestureDetector(
-          onTap: () {
-            setState(() {
-              showDrawingToolSelection = true;
-              showDrawingControls = false;
-            });
-          },
-          child: Container(
-            padding: EdgeInsets.all(8.w),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(8.r),
-              border: Border.all(color: Colors.grey.shade300),
-            ),
-            child: Icon(
-              Icons.arrow_back,
-              size: 16.sp,
-              color: Colors.grey.shade600,
-            ),
-          ),
-        ),
-        SizedBox(width: 8.w),
-        // Start Drawing button (for textPath we also ensure text is set)
-        ElevatedButton.icon(
-          onPressed: () {
-            print('Starting drawing mode...');
-            setState(() {
-              showDrawingControls = false;
-              drawingMode = DrawingMode.enabled;
-            });
-            if (selectedDrawingTool == DrawingTool.textPath &&
-                ((_currentPathText == null) ||
-                    _currentPathText!.trim().isEmpty)) {
-              _promptForPathText();
-            }
-            print('Drawing mode set to: $drawingMode');
-          },
-          icon: Icon(Icons.brush, size: 12.sp),
-          label: Text('Start', style: TextStyle(fontSize: 8.sp)),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blue.shade600,
-            foregroundColor: Colors.white,
-            padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 6.h),
-            minimumSize: Size(0, 30.h),
-          ),
-        ),
-        SizedBox(width: 8.w),
-        // Color picker
-        GestureDetector(
-          onTap: _showDrawingColorPicker,
-          child: Container(
-            width: 35.w,
-            height: 35.w,
-            decoration: BoxDecoration(
-              color: drawingColor,
-              borderRadius: BorderRadius.circular(8.r),
-              border: Border.all(color: Colors.grey.shade300, width: 1.5),
-            ),
-          ),
-        ),
-        SizedBox(width: 8.w),
-        // Size slider (used as font size when textPath)
-        Expanded(
-          child: Column(
-            children: [
-              Text(
-                selectedDrawingTool == DrawingTool.textPath
-                    ? 'Font: ${drawingStrokeWidth.toInt()}'
-                    : 'Size: ${drawingStrokeWidth.toInt()}',
-                style: TextStyle(fontSize: 8.sp, fontWeight: FontWeight.w500),
-              ),
-              SizedBox(height: 2.h),
-              SliderTheme(
-                data: SliderTheme.of(context).copyWith(
-                  activeTrackColor: Colors.blue.shade400,
-                  inactiveTrackColor: Colors.blue.shade100,
-                  thumbColor: Colors.blue.shade600,
-                  trackHeight: 2.0,
-                  thumbShape: const RoundSliderThumbShape(
-                    enabledThumbRadius: 4.0,
+    return SizedBox(
+      height: 100.h,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.only(left: 6.w, right: 6.w, bottom: 20.h),
+        children: [
+          // Back button
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 6.w),
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  showDrawingToolSelection = true;
+                  showDrawingControls = false;
+                });
+              },
+              child: Container(
+                width: 60.w,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10.r),
+                  border: Border.all(color: Colors.grey.shade300, width: 1.5),
+                ),
+                child: Center(
+                  child: Icon(
+                    Icons.arrow_back,
+                    size: 24.sp,
+                    color: Colors.grey.shade700,
                   ),
                 ),
-                child: Slider(
-                  value: drawingStrokeWidth,
-                  min: 1.0,
-                  max: 20.0,
-                  divisions: 19,
-                  onChanged: (value) {
-                    setState(() {
-                      drawingStrokeWidth = value;
-                    });
-                  },
+              ),
+            ),
+          ),
+          // Start Drawing
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 6.w),
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  showDrawingControls = false;
+                  drawingMode = DrawingMode.enabled;
+                });
+                if (selectedDrawingTool == DrawingTool.textPath &&
+                    ((_currentPathText == null) ||
+                        _currentPathText!.trim().isEmpty)) {
+                  _promptForPathText();
+                }
+              },
+              child: Container(
+                width: 110.w,
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade600,
+                  borderRadius: BorderRadius.circular(10.r),
+                ),
+                child: Center(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.brush, size: 20.sp, color: Colors.white),
+                      SizedBox(width: 8.w),
+                      Text(
+                        'Start',
+                        style: TextStyle(fontSize: 14.sp, color: Colors.white),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ],
+            ),
           ),
-        ),
-        SizedBox(width: 8.w),
-        if (selectedDrawingTool == DrawingTool.textPath)
-          GestureDetector(
-            onTap: _showTextPathFontFavorites,
+          // Color picker
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 6.w),
+            child: GestureDetector(
+              onTap: _showDrawingColorPicker,
+              child: Container(
+                width: 70.w,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10.r),
+                  border: Border.all(color: Colors.grey.shade300, width: 1.5),
+                ),
+                child: Center(
+                  child: Container(
+                    width: 36.w,
+                    height: 36.w,
+                    decoration: BoxDecoration(
+                      color: drawingColor,
+                      borderRadius: BorderRadius.circular(8.r),
+                      border: Border.all(
+                        color: Colors.grey.shade300,
+                        width: 1.5,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // Size slider item
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 6.w),
             child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 6.h),
+              width: 210.w,
               decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(8.r),
-                border: Border.all(color: Colors.grey.shade300),
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10.r),
+                border: Border.all(color: Colors.grey.shade300, width: 1.5),
               ),
-              child: Row(
-                children: [
-                  Icon(Icons.favorite_rounded, size: 14.sp, color: Colors.pink),
-                  SizedBox(width: 6.w),
-                  Text(
-                    _currentPathFontFamily ?? 'Fav fonts',
-                    style: TextStyle(fontSize: 8.sp),
-                  ),
-                  SizedBox(width: 2.w),
-                  Icon(
-                    Icons.keyboard_arrow_down_rounded,
-                    size: 12.sp,
-                    color: Colors.grey.shade600,
-                  ),
-                ],
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 0.w),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  
+                  children: [
+                    Text(
+                      selectedDrawingTool == DrawingTool.textPath
+                          ? 'Font: ${drawingStrokeWidth.toInt()}'
+                          : 'Size: ${drawingStrokeWidth.toInt()}',
+                      style: TextStyle(
+                        fontSize: 12.sp,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey.shade700,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                
+                    SliderTheme(
+                      data: SliderTheme.of(context).copyWith(
+                        activeTrackColor: Colors.blue.shade400,
+                        inactiveTrackColor: Colors.blue.shade100,
+                        thumbColor: Colors.blue.shade600,
+                        trackHeight: 4.0,
+                        thumbShape: const RoundSliderThumbShape(
+                          enabledThumbRadius: 8.0,
+                        ),
+                      ),
+                      child: Slider(
+                        value: drawingStrokeWidth,
+                        min: 1.0,
+                        max: 20.0,
+                        divisions: 19,
+                        onChanged: (value) {
+                          setState(() {
+                            drawingStrokeWidth = value;
+                          });
+                        },
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-        SizedBox(width: 8.w),
-        // Opacity slider
-        Expanded(
-          child: Column(
-            children: [
-              Text(
-                'Opacity: ${(drawingOpacity * 100).toInt()}%',
-                style: TextStyle(fontSize: 8.sp, fontWeight: FontWeight.w500),
-              ),
-              SizedBox(height: 2.h),
-              SliderTheme(
-                data: SliderTheme.of(context).copyWith(
-                  activeTrackColor: Colors.blue.shade400,
-                  inactiveTrackColor: Colors.blue.shade100,
-                  thumbColor: Colors.blue.shade600,
-                  trackHeight: 2.0,
-                  thumbShape: const RoundSliderThumbShape(
-                    enabledThumbRadius: 4.0,
+          // Font favorites (only for textPath)
+          if (selectedDrawingTool == DrawingTool.textPath)
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 6.w),
+              child: GestureDetector(
+                onTap: _showTextPathFontFavorites,
+                child: Container(
+                  width: 190.w,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10.r),
+                    border: Border.all(color: Colors.grey.shade300, width: 1.5),
+                  ),
+                  child: Center(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.favorite_rounded,
+                          size: 20.sp,
+                          color: Colors.pink,
+                        ),
+                        SizedBox(width: 8.w),
+                        Text(
+                          _currentPathFontFamily ?? 'Fav fonts',
+                          style: TextStyle(
+                            fontSize: 12.sp,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                        SizedBox(width: 2.w),
+                        Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          size: 18.sp,
+                          color: Colors.grey.shade600,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                child: Slider(
-                  value: drawingOpacity,
-                  min: 0.1,
-                  max: 1.0,
-                  divisions: 9,
-                  onChanged: (value) {
-                    setState(() {
-                      drawingOpacity = value;
-                    });
-                  },
+              ),
+            ),
+          // Opacity slider item
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 6.w,),
+            child: Container(
+              width: 210.w,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10.r),
+                border: Border.all(color: Colors.grey.shade300, width: 1.5),
+              ),
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 3.h),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Opacity: ${(drawingOpacity * 100).toInt()}%',
+                      style: TextStyle(
+                        fontSize: 12.sp,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey.shade700,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                   
+                    SliderTheme(
+                      data: SliderTheme.of(context).copyWith(
+                        activeTrackColor: Colors.blue.shade400,
+                        inactiveTrackColor: Colors.blue.shade100,
+                        thumbColor: Colors.blue.shade600,
+                        trackHeight: 4.0,
+                        thumbShape: const RoundSliderThumbShape(
+                          enabledThumbRadius: 8.0,
+                        ),
+                      ),
+                      child: Slider(
+                        value: drawingOpacity,
+                        min: 0.1,
+                        max: 1.0,
+                        divisions: 9,
+                        onChanged: (value) {
+                          setState(() {
+                            drawingOpacity = value;
+                          });
+                        },
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
