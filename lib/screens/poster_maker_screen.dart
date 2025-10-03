@@ -42,6 +42,46 @@ class PosterMakerScreen extends StatefulWidget {
   State<PosterMakerScreen> createState() => _PosterMakerScreenState();
 }
 
+class _SelectionBorderPainter extends CustomPainter {
+  final Offset topLeft;
+  final Offset topRight;
+  final Offset bottomLeft;
+  final Offset bottomRight;
+
+  _SelectionBorderPainter({
+    required this.topLeft,
+    required this.topRight,
+    required this.bottomLeft,
+    required this.bottomRight,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Paint borderPaint = Paint()
+      ..color = Colors.blue.shade400
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0
+      ..isAntiAlias = true;
+
+    final Path borderPath = Path();
+    borderPath.moveTo(topLeft.dx, topLeft.dy);
+    borderPath.lineTo(topRight.dx, topRight.dy);
+    borderPath.lineTo(bottomRight.dx, bottomRight.dy);
+    borderPath.lineTo(bottomLeft.dx, bottomLeft.dy);
+    borderPath.close();
+
+    canvas.drawPath(borderPath, borderPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _SelectionBorderPainter oldDelegate) {
+    return topLeft != oldDelegate.topLeft ||
+        topRight != oldDelegate.topRight ||
+        bottomLeft != oldDelegate.bottomLeft ||
+        bottomRight != oldDelegate.bottomRight;
+  }
+}
+
 class _ShapePainter extends CustomPainter {
   final Map<String, dynamic> props;
 
@@ -156,9 +196,8 @@ class _ShapePainter extends CustomPainter {
       case 'circle':
         return Path()..addOval(rect);
       case 'rectangle':
-        return Path()..addRRect(
-          RRect.fromRectAndRadius(rect, Radius.circular(cornerRadius)),
-        );
+      case 'square':
+        return _rectanglePath(rect, cornerRadius);
       case 'triangle':
         return _trianglePath(rect, cornerRadius);
       case 'diamond':
@@ -170,13 +209,179 @@ class _ShapePainter extends CustomPainter {
       case 'heart':
         return _heartPathAccurate(rect, cornerRadius);
       default:
-        return Path()..addRRect(
-          RRect.fromRectAndRadius(rect, Radius.circular(cornerRadius)),
-        );
+        return _rectanglePath(rect, cornerRadius);
     }
   }
 
+  Path _rectanglePath(Rect rect, double cornerRadius) {
+    // Check if individual side lengths are available
+    final double? topSide = props['topSide'] as double?;
+    final double? rightSide = props['rightSide'] as double?;
+    final double? bottomSide = props['bottomSide'] as double?;
+    final double? leftSide = props['leftSide'] as double?;
+
+    // If individual side lengths are provided, create custom rectangle
+    if (topSide != null ||
+        rightSide != null ||
+        bottomSide != null ||
+        leftSide != null) {
+      return _createCustomRectanglePath(
+        rect,
+        topSide ?? rect.width,
+        rightSide ?? rect.height,
+        bottomSide ?? rect.width,
+        leftSide ?? rect.height,
+        cornerRadius,
+      );
+    }
+
+    // Check if individual corner radius values are available
+    final double? topLeftRadius = props['topLeftRadius'] as double?;
+    final double? topRightRadius = props['topRightRadius'] as double?;
+    final double? bottomLeftRadius = props['bottomLeftRadius'] as double?;
+    final double? bottomRightRadius = props['bottomRightRadius'] as double?;
+
+    // If individual corner radius values are provided, use them
+    if (topLeftRadius != null ||
+        topRightRadius != null ||
+        bottomLeftRadius != null ||
+        bottomRightRadius != null) {
+      return Path()..addRRect(
+        RRect.fromLTRBAndCorners(
+          rect.left,
+          rect.top,
+          rect.right,
+          rect.bottom,
+          topLeft: Radius.circular(topLeftRadius ?? 0.0),
+          topRight: Radius.circular(topRightRadius ?? 0.0),
+          bottomLeft: Radius.circular(bottomLeftRadius ?? 0.0),
+          bottomRight: Radius.circular(bottomRightRadius ?? 0.0),
+        ),
+      );
+    }
+
+    // Otherwise, use the uniform corner radius
+    return Path()
+      ..addRRect(RRect.fromRectAndRadius(rect, Radius.circular(cornerRadius)));
+  }
+
+  Path _createCustomRectanglePath(
+    Rect rect,
+    double topSide,
+    double rightSide,
+    double bottomSide,
+    double leftSide,
+    double cornerRadius,
+  ) {
+    final Path path = Path();
+
+    // Calculate the center point
+    final double centerX = rect.center.dx;
+    final double centerY = rect.center.dy;
+
+    // Calculate corner points to create a quadrilateral
+    // For a true quadrilateral, we need to calculate the actual corner positions
+    // based on the side lengths and create a polygon
+
+    // Calculate the four corners of the quadrilateral
+    final double halfTopSide = topSide / 2;
+    final double halfBottomSide = bottomSide / 2;
+    final double halfLeftSide = leftSide / 2;
+    final double halfRightSide = rightSide / 2;
+
+    // Calculate corner positions
+    final Offset topLeft = Offset(
+      centerX - halfTopSide,
+      centerY - halfLeftSide,
+    );
+    final Offset topRight = Offset(
+      centerX + halfTopSide,
+      centerY - halfRightSide,
+    );
+    final Offset bottomLeft = Offset(
+      centerX - halfBottomSide,
+      centerY + halfLeftSide,
+    );
+    final Offset bottomRight = Offset(
+      centerX + halfBottomSide,
+      centerY + halfRightSide,
+    );
+
+    // Create a quadrilateral path
+    path.moveTo(topLeft.dx, topLeft.dy);
+
+    // Add rounded corners if corner radius is specified
+    if (cornerRadius > 0) {
+      // Top side
+      path.lineTo(topRight.dx - cornerRadius, topRight.dy);
+      path.quadraticBezierTo(
+        topRight.dx,
+        topRight.dy,
+        topRight.dx,
+        topRight.dy + cornerRadius,
+      );
+
+      // Right side
+      path.lineTo(bottomRight.dx, bottomRight.dy - cornerRadius);
+      path.quadraticBezierTo(
+        bottomRight.dx,
+        bottomRight.dy,
+        bottomRight.dx - cornerRadius,
+        bottomRight.dy,
+      );
+
+      // Bottom side
+      path.lineTo(bottomLeft.dx + cornerRadius, bottomLeft.dy);
+      path.quadraticBezierTo(
+        bottomLeft.dx,
+        bottomLeft.dy,
+        bottomLeft.dx,
+        bottomLeft.dy - cornerRadius,
+      );
+
+      // Left side
+      path.lineTo(topLeft.dx, topLeft.dy + cornerRadius);
+      path.quadraticBezierTo(
+        topLeft.dx,
+        topLeft.dy,
+        topLeft.dx + cornerRadius,
+        topLeft.dy,
+      );
+    } else {
+      // No rounded corners - create sharp quadrilateral
+      path.lineTo(topRight.dx, topRight.dy);
+      path.lineTo(bottomRight.dx, bottomRight.dy);
+      path.lineTo(bottomLeft.dx, bottomLeft.dy);
+      path.close();
+    }
+
+    return path;
+  }
+
   Path _trianglePath(Rect rect, double radius) {
+    // Check if individual corner radius values are available for triangle
+    final double? topRadius = props['topRadius'] as double?;
+    final double? bottomRightRadius = props['bottomRightRadius'] as double?;
+    final double? bottomLeftRadius = props['bottomLeftRadius'] as double?;
+
+    // If individual corner radius values are provided, use them
+    if (topRadius != null ||
+        bottomRightRadius != null ||
+        bottomLeftRadius != null) {
+      final List<Offset> points = [
+        Offset(rect.center.dx, rect.top),
+        Offset(rect.right, rect.bottom),
+        Offset(rect.left, rect.bottom),
+      ];
+      final List<double> radii = [
+        topRadius ?? 0.0,
+        bottomRightRadius ?? 0.0,
+        bottomLeftRadius ?? 0.0,
+      ];
+      return _roundedPolygonPathWithIndividualRadii(points, radii);
+    }
+
+    // Otherwise, use the uniform corner radius
     final List<Offset> points = [
       Offset(rect.center.dx, rect.top),
       Offset(rect.right, rect.bottom),
@@ -245,6 +450,68 @@ class _ShapePainter extends CustomPainter {
 
     // Compute first corner trimmed start point
     for (int i = 0; i < n; i++) {
+      final Offset p0 = vertices[(i - 1 + n) % n];
+      final Offset p1 = vertices[i];
+      final Offset p2 = vertices[(i + 1) % n];
+
+      final Offset v1 = (p0 - p1);
+      final Offset v2 = (p2 - p1);
+
+      final double len1 = v1.distance;
+      final double len2 = v2.distance;
+      if (len1 == 0 || len2 == 0) continue;
+
+      final Offset u1 = v1 / len1;
+      final Offset u2 = v2 / len2;
+
+      // Angle between incoming and outgoing edges
+      final double dot = (u1.dx * u2.dx + u1.dy * u2.dy).clamp(-1.0, 1.0);
+      final double theta = math.acos(dot);
+      // Avoid division by zero for straight lines
+      final double tangent = math.tan(theta / 2);
+      double offsetDist = tangent == 0 ? 0 : (radius / tangent);
+      // Limit by half of each adjacent edge
+      offsetDist = math.min(offsetDist, math.min(len1, len2) / 2 - 0.01);
+      if (offsetDist.isNaN || offsetDist.isInfinite || offsetDist < 0) {
+        offsetDist = 0;
+      }
+
+      final Offset start = _trimPoint(p1, p0, offsetDist);
+      final Offset end = _trimPoint(p1, p2, offsetDist);
+
+      if (i == 0) {
+        path.moveTo(start.dx, start.dy);
+      } else {
+        path.lineTo(start.dx, start.dy);
+      }
+
+      // Use quadratic curve with control at the original vertex to handle concave and convex cases
+      path.quadraticBezierTo(p1.dx, p1.dy, end.dx, end.dy);
+    }
+
+    path.close();
+    return path;
+  }
+
+  // Build a rounded-corner polygon path with individual radii for each corner
+  Path _roundedPolygonPathWithIndividualRadii(
+    List<Offset> vertices,
+    List<double> radii,
+  ) {
+    final int n = vertices.length;
+    final Path path = Path();
+
+    Offset _trimPoint(Offset from, Offset to, double d) {
+      final Offset vec = to - from;
+      final double len = vec.distance;
+      if (len == 0) return from;
+      final double t = (d / len).clamp(0.0, 1.0);
+      return from + vec * t;
+    }
+
+    // Compute first corner trimmed start point
+    for (int i = 0; i < n; i++) {
+      final double radius = radii[i];
       final Offset p0 = vertices[(i - 1 + n) % n];
       final Offset p1 = vertices[i];
       final Offset p2 = vertices[(i + 1) % n];
@@ -890,6 +1157,17 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           'hasGradient': false,
           'gradientColors': const [],
           'cornerRadius': 0.0,
+          'width': 100.0,
+          'height': 100.0,
+          'topSide': 100.0,
+          'rightSide': 100.0,
+          'bottomSide': 100.0,
+          'leftSide': 100.0,
+          'topLeftRadius': 0.0,
+          'topRightRadius': 0.0,
+          'bottomLeftRadius': 0.0,
+          'bottomRightRadius': 0.0,
+          'topRadius': 0.0,
           'hasShadow': false,
           'shadowColor': HiveColor.fromColor(Colors.black.withOpacity(0.6)),
           'shadowOffset': const Offset(8, 8),
@@ -1464,6 +1742,10 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         ];
 
       case CanvasItemType.shape:
+        final String shape =
+            (selectedItem!.properties['shape'] as String?) ?? 'rectangle';
+        final bool isQuadrilateral = shape == 'rectangle' || shape == 'square';
+
         return [
           _miniColorSwatch(
             'Fill',
@@ -1496,6 +1778,41 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             (v) => setState(() => selectedItem!.properties['cornerRadius'] = v),
             Icons.rounded_corner_rounded,
           ),
+          // Add individual side controls for quadrilaterals
+          if (isQuadrilateral) ...[
+            _miniSlider(
+              'Top Side',
+              (selectedItem!.properties['topSide'] as double?) ?? 100.0,
+              20.0,
+              500.0,
+              (v) => setState(() => selectedItem!.properties['topSide'] = v),
+              Icons.keyboard_arrow_up_rounded,
+            ),
+            _miniSlider(
+              'Right Side',
+              (selectedItem!.properties['rightSide'] as double?) ?? 100.0,
+              20.0,
+              500.0,
+              (v) => setState(() => selectedItem!.properties['rightSide'] = v),
+              Icons.keyboard_arrow_right_rounded,
+            ),
+            _miniSlider(
+              'Bottom Side',
+              (selectedItem!.properties['bottomSide'] as double?) ?? 100.0,
+              20.0,
+              500.0,
+              (v) => setState(() => selectedItem!.properties['bottomSide'] = v),
+              Icons.keyboard_arrow_down_rounded,
+            ),
+            _miniSlider(
+              'Left Side',
+              (selectedItem!.properties['leftSide'] as double?) ?? 100.0,
+              20.0,
+              500.0,
+              (v) => setState(() => selectedItem!.properties['leftSide'] = v),
+              Icons.keyboard_arrow_left_rounded,
+            ),
+          ],
           _miniIconButton(
             'Image Fill',
             Icons.photo_library_rounded,
@@ -2752,6 +3069,17 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               HiveColor.fromColor(Colors.green),
             ],
             'cornerRadius': 0.0,
+            'width': 100.0,
+            'height': 100.0,
+            'topSide': 100.0,
+            'rightSide': 100.0,
+            'bottomSide': 100.0,
+            'leftSide': 100.0,
+            'topLeftRadius': 0.0,
+            'topRightRadius': 0.0,
+            'bottomLeftRadius': 0.0,
+            'bottomRightRadius': 0.0,
+            'topRadius': 0.0,
           },
         );
         break;
@@ -2888,9 +3216,18 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                 Container(
                   decoration: BoxDecoration(
                     border: Border.all(
-                      color: isSelected
-                          ? Colors.blue.shade400
-                          : Colors.transparent,
+                      color:
+                          (isSelected &&
+                              item.type == CanvasItemType.shape &&
+                              ((item.properties['shape'] as String?) ==
+                                      'rectangle' ||
+                                  (item.properties['shape'] as String?) ==
+                                      'square'))
+                          ? Colors
+                                .transparent // Hide default border for quadrilaterals
+                          : (isSelected
+                                ? Colors.blue.shade400
+                                : Colors.transparent),
                       width: 2,
                     ),
                   ),
@@ -2899,9 +3236,57 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                     child: _buildItemContent(item),
                   ),
                 ),
+                // Add custom selection border for quadrilaterals
+                if (isSelected &&
+                    item.type == CanvasItemType.shape &&
+                    ((item.properties['shape'] as String?) == 'rectangle' ||
+                        (item.properties['shape'] as String?) == 'square'))
+                  _buildCustomSelectionBorder(item),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCustomSelectionBorder(CanvasItem item) {
+    final double topSide = (item.properties['topSide'] as double?) ?? 100.0;
+    final double rightSide = (item.properties['rightSide'] as double?) ?? 100.0;
+    final double bottomSide =
+        (item.properties['bottomSide'] as double?) ?? 100.0;
+    final double leftSide = (item.properties['leftSide'] as double?) ?? 100.0;
+
+    // Calculate the actual bounds of the quadrilateral
+    final double maxWidth = math.max(leftSide, rightSide);
+    final double maxHeight = math.max(topSide, bottomSide);
+
+    // Calculate corner positions exactly like the shape painter does
+    final double centerX = maxWidth / 2;
+    final double centerY = maxHeight / 2;
+
+    final double halfTopSide = topSide / 2;
+    final double halfBottomSide = bottomSide / 2;
+    final double halfLeftSide = leftSide / 2;
+    final double halfRightSide = rightSide / 2;
+
+    // Calculate corner positions (matching _createCustomRectanglePath)
+    final double topLeftX = (centerX - halfTopSide).w;
+    final double topLeftY = (centerY - halfLeftSide).h;
+    final double topRightX = (centerX + halfTopSide).w;
+    final double topRightY = (centerY - halfRightSide).h;
+    final double bottomLeftX = (centerX - halfBottomSide).w;
+    final double bottomLeftY = (centerY + halfLeftSide).h;
+    final double bottomRightX = (centerX + halfBottomSide).w;
+    final double bottomRightY = (centerY + halfRightSide).h;
+
+    return Positioned.fill(
+      child: CustomPaint(
+        painter: _SelectionBorderPainter(
+          topLeft: Offset(topLeftX, topLeftY),
+          topRight: Offset(topRightX, topRightY),
+          bottomLeft: Offset(bottomLeftX, bottomLeftY),
+          bottomRight: Offset(bottomRightX, bottomRightY),
         ),
       ),
     );
@@ -2925,40 +3310,120 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   }
 
   List<Widget> _buildCornerHandles(CanvasItem item) {
-    return [
-      Positioned(
-        top: -6.h,
-        left: -6.w,
-        child: _buildResizeHandle(
-          item,
-          (details) => _handleResizeUpdate(item, details, scaleSign: -1),
+    // Check if this is a shape with individual side controls
+    final bool isShapeWithSides =
+        item.type == CanvasItemType.shape &&
+        ((item.properties['shape'] as String?) == 'rectangle' ||
+            (item.properties['shape'] as String?) == 'square');
+
+    if (isShapeWithSides) {
+      // Calculate dynamic positioning based on actual shape dimensions
+      final double topSide = (item.properties['topSide'] as double?) ?? 100.0;
+      final double rightSide =
+          (item.properties['rightSide'] as double?) ?? 100.0;
+      final double bottomSide =
+          (item.properties['bottomSide'] as double?) ?? 100.0;
+      final double leftSide = (item.properties['leftSide'] as double?) ?? 100.0;
+
+      // Calculate the actual bounds of the quadrilateral
+      final double maxWidth = math.max(leftSide, rightSide);
+      final double maxHeight = math.max(topSide, bottomSide);
+
+      // Calculate corner positions exactly like the shape painter does
+      final double centerX = maxWidth / 2;
+      final double centerY = maxHeight / 2;
+
+      final double halfTopSide = topSide / 2;
+      final double halfBottomSide = bottomSide / 2;
+      final double halfLeftSide = leftSide / 2;
+      final double halfRightSide = rightSide / 2;
+
+      // Calculate corner positions (matching _createCustomRectanglePath)
+      // Apply the same scaling as the container (.w and .h)
+      final double topLeftX = (centerX - halfTopSide).w;
+      final double topLeftY = (centerY - halfLeftSide).h;
+      final double topRightX = (centerX + halfTopSide).w;
+      final double topRightY = (centerY - halfRightSide).h;
+      final double bottomLeftX = (centerX - halfBottomSide).w;
+      final double bottomLeftY = (centerY + halfLeftSide).h;
+      final double bottomRightX = (centerX + halfBottomSide).w;
+      final double bottomRightY = (centerY + halfRightSide).h;
+
+      return [
+        // Top-left corner - positioned at actual quadrilateral corner
+        Positioned(
+          top: topLeftY - 6.h,
+          left: topLeftX - 6.w,
+          child: _buildResizeHandle(
+            item,
+            (details) => _handleShapeCornerResize(item, details, 'topLeft'),
+          ),
         ),
-      ),
-      Positioned(
-        top: -6.h,
-        right: -6.w,
-        child: _buildResizeHandle(
-          item,
-          (details) => _handleResizeUpdate(item, details, scaleSign: 1),
+        // Top-right corner - positioned at actual quadrilateral corner
+        Positioned(
+          top: topRightY - 6.h,
+          left: topRightX - 6.w,
+          child: _buildResizeHandle(
+            item,
+            (details) => _handleShapeCornerResize(item, details, 'topRight'),
+          ),
         ),
-      ),
-      Positioned(
-        bottom: -6.h,
-        left: -6.w,
-        child: _buildResizeHandle(
-          item,
-          (details) => _handleResizeUpdate(item, details, scaleSign: 1),
+        // Bottom-left corner - positioned at actual quadrilateral corner
+        Positioned(
+          top: bottomLeftY - 6.h,
+          left: bottomLeftX - 6.w,
+          child: _buildResizeHandle(
+            item,
+            (details) => _handleShapeCornerResize(item, details, 'bottomLeft'),
+          ),
         ),
-      ),
-      Positioned(
-        bottom: -6.h,
-        right: -6.w,
-        child: _buildResizeHandle(
-          item,
-          (details) => _handleResizeUpdate(item, details, scaleSign: 1),
+        // Bottom-right corner - positioned at actual quadrilateral corner
+        Positioned(
+          top: bottomRightY - 6.h,
+          left: bottomRightX - 6.w,
+          child: _buildResizeHandle(
+            item,
+            (details) => _handleShapeCornerResize(item, details, 'bottomRight'),
+          ),
         ),
-      ),
-    ];
+      ];
+    } else {
+      // Default corner handles for other items
+      return [
+        Positioned(
+          top: -6.h,
+          left: -6.w,
+          child: _buildResizeHandle(
+            item,
+            (details) => _handleResizeUpdate(item, details, scaleSign: -1),
+          ),
+        ),
+        Positioned(
+          top: -6.h,
+          right: -6.w,
+          child: _buildResizeHandle(
+            item,
+            (details) => _handleResizeUpdate(item, details, scaleSign: 1),
+          ),
+        ),
+        Positioned(
+          bottom: -6.h,
+          left: -6.w,
+          child: _buildResizeHandle(
+            item,
+            (details) => _handleResizeUpdate(item, details, scaleSign: 1),
+          ),
+        ),
+        Positioned(
+          bottom: -6.h,
+          right: -6.w,
+          child: _buildResizeHandle(
+            item,
+            (details) => _handleResizeUpdate(item, details, scaleSign: 1),
+          ),
+        ),
+      ];
+    }
   }
 
   Widget _buildResizeHandle(
@@ -3016,6 +3481,59 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         10.0,
       ); // Changed from 5.0 to 10.0
       item.scale = newScale;
+    });
+  }
+
+  void _handleShapeCornerResize(
+    CanvasItem item,
+    DragUpdateDetails details,
+    String corner,
+  ) {
+    setState(() {
+      final double sensitivity =
+          0.5; // Adjust sensitivity for side length changes
+      final double deltaX = details.delta.dx * sensitivity;
+      final double deltaY = details.delta.dy * sensitivity;
+
+      // Get current side lengths
+      double topSide = (item.properties['topSide'] as double?) ?? 100.0;
+      double rightSide = (item.properties['rightSide'] as double?) ?? 100.0;
+      double bottomSide = (item.properties['bottomSide'] as double?) ?? 100.0;
+      double leftSide = (item.properties['leftSide'] as double?) ?? 100.0;
+
+      // Update side lengths based on corner being dragged
+      switch (corner) {
+        case 'topLeft':
+          // Dragging top-left affects top and left sides
+          topSide = (topSide - deltaY).clamp(20.0, 500.0);
+          leftSide = (leftSide - deltaX).clamp(20.0, 500.0);
+          break;
+        case 'topRight':
+          // Dragging top-right affects top and right sides
+          topSide = (topSide - deltaY).clamp(20.0, 500.0);
+          rightSide = (rightSide + deltaX).clamp(20.0, 500.0);
+          break;
+        case 'bottomLeft':
+          // Dragging bottom-left affects bottom and left sides
+          bottomSide = (bottomSide + deltaY).clamp(20.0, 500.0);
+          leftSide = (leftSide - deltaX).clamp(20.0, 500.0);
+          break;
+        case 'bottomRight':
+          // Dragging bottom-right affects bottom and right sides
+          bottomSide = (bottomSide + deltaY).clamp(20.0, 500.0);
+          rightSide = (rightSide + deltaX).clamp(20.0, 500.0);
+          break;
+      }
+
+      // Update the properties
+      item.properties['topSide'] = topSide;
+      item.properties['rightSide'] = rightSide;
+      item.properties['bottomSide'] = bottomSide;
+      item.properties['leftSide'] = leftSide;
+
+      // Update overall width and height to match the new dimensions
+      item.properties['width'] = math.max(leftSide, rightSide);
+      item.properties['height'] = math.max(topSide, bottomSide);
     });
   }
 
@@ -3316,8 +3834,25 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         final ui.Image? fillImage =
             props['image'] as ui.Image?; // Get the ui.Image
         final HiveSize? hiveSize = props['size'] as HiveSize?;
+        final double width = (props['width'] as double?) ?? 100.0;
+        final double height = (props['height'] as double?) ?? 100.0;
 
-        Size itemSize = hiveSize?.toSize() ?? Size(100.0.w, 100.0.h);
+        // For quadrilaterals, calculate the actual bounds based on side lengths
+        Size itemSize;
+        if (shape == 'rectangle' || shape == 'square') {
+          final double topSide = (props['topSide'] as double?) ?? 100.0;
+          final double rightSide = (props['rightSide'] as double?) ?? 100.0;
+          final double bottomSide = (props['bottomSide'] as double?) ?? 100.0;
+          final double leftSide = (props['leftSide'] as double?) ?? 100.0;
+
+          // Calculate the maximum bounds needed to contain the quadrilateral
+          final double maxWidth = math.max(leftSide, rightSide);
+          final double maxHeight = math.max(topSide, bottomSide);
+
+          itemSize = Size(maxWidth.w, maxHeight.h);
+        } else {
+          itemSize = Size(width.w, height.h);
+        }
 
         Widget shapeWidget = CustomPaint(
           painter: _ShapePainter({
@@ -3326,6 +3861,15 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             'strokeColor': HiveColor.fromColor(strokeColor),
             'strokeWidth': strokeWidth,
             'cornerRadius': cornerRadius,
+            'topSide': props['topSide'] as double?,
+            'rightSide': props['rightSide'] as double?,
+            'bottomSide': props['bottomSide'] as double?,
+            'leftSide': props['leftSide'] as double?,
+            'topLeftRadius': props['topLeftRadius'] as double?,
+            'topRightRadius': props['topRightRadius'] as double?,
+            'bottomLeftRadius': props['bottomLeftRadius'] as double?,
+            'bottomRightRadius': props['bottomRightRadius'] as double?,
+            'topRadius': props['topRadius'] as double?,
             'hasGradient':
                 hasGradient &&
                 fillImage == null, // Disable gradient if image is present
@@ -4261,6 +4805,89 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         ),
         SizedBox(height: 16.h),
         _buildSliderOption(
+          'Width',
+          (props['width'] as double?) ?? 100.0,
+          20.0,
+          500.0,
+          (v) => setState(() => props['width'] = v),
+          Icons.width_full_rounded,
+        ),
+        SizedBox(height: 16.h),
+        _buildSliderOption(
+          'Height',
+          (props['height'] as double?) ?? 100.0,
+          20.0,
+          500.0,
+          (v) => setState(() => props['height'] = v),
+          Icons.height_rounded,
+        ),
+        SizedBox(height: 16.h),
+        // Individual side length controls for rectangle/square shapes
+        if ((props['shape'] as String?) == 'rectangle' ||
+            (props['shape'] as String?) == 'square') ...[
+          Text(
+            'Individual Side Lengths',
+            style: TextStyle(
+              fontSize: 16.sp,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[700],
+            ),
+          ),
+          SizedBox(height: 12.h),
+          Row(
+            children: [
+              Expanded(
+                child: _buildSliderOption(
+                  'Top Side',
+                  (props['topSide'] as double?) ?? 100.0,
+                  20.0,
+                  500.0,
+                  (v) => setState(() => props['topSide'] = v),
+                  Icons.keyboard_arrow_up_rounded,
+                ),
+              ),
+              SizedBox(width: 8.w),
+              Expanded(
+                child: _buildSliderOption(
+                  'Right Side',
+                  (props['rightSide'] as double?) ?? 100.0,
+                  20.0,
+                  500.0,
+                  (v) => setState(() => props['rightSide'] = v),
+                  Icons.keyboard_arrow_right_rounded,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 12.h),
+          Row(
+            children: [
+              Expanded(
+                child: _buildSliderOption(
+                  'Bottom Side',
+                  (props['bottomSide'] as double?) ?? 100.0,
+                  20.0,
+                  500.0,
+                  (v) => setState(() => props['bottomSide'] = v),
+                  Icons.keyboard_arrow_down_rounded,
+                ),
+              ),
+              SizedBox(width: 8.w),
+              Expanded(
+                child: _buildSliderOption(
+                  'Left Side',
+                  (props['leftSide'] as double?) ?? 100.0,
+                  20.0,
+                  500.0,
+                  (v) => setState(() => props['leftSide'] = v),
+                  Icons.keyboard_arrow_left_rounded,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 20.h),
+        ],
+        _buildSliderOption(
           'Corner Radius',
           (props['cornerRadius'] as double?) ?? 12.0,
           0.0,
@@ -4268,7 +4895,129 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           (v) => setState(() => props['cornerRadius'] = v),
           Icons.rounded_corner_rounded,
         ),
-        SizedBox(height: 20.h),
+        SizedBox(height: 16.h),
+        // Individual corner radius controls for rectangle/square shapes
+        if ((props['shape'] as String?) == 'rectangle' ||
+            (props['shape'] as String?) == 'square') ...[
+          Text(
+            'Individual Corner Radius',
+            style: TextStyle(
+              fontSize: 16.sp,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[700],
+            ),
+          ),
+          SizedBox(height: 12.h),
+          Row(
+            children: [
+              Expanded(
+                child: _buildSliderOption(
+                  'Top Left',
+                  (props['topLeftRadius'] as double?) ?? 0.0,
+                  0.0,
+                  50.0,
+                  (v) => setState(() => props['topLeftRadius'] = v),
+                  Icons.crop_square_rounded,
+                ),
+              ),
+              SizedBox(width: 8.w),
+              Expanded(
+                child: _buildSliderOption(
+                  'Top Right',
+                  (props['topRightRadius'] as double?) ?? 0.0,
+                  0.0,
+                  50.0,
+                  (v) => setState(() => props['topRightRadius'] = v),
+                  Icons.crop_square_rounded,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 12.h),
+          Row(
+            children: [
+              Expanded(
+                child: _buildSliderOption(
+                  'Bottom Left',
+                  (props['bottomLeftRadius'] as double?) ?? 0.0,
+                  0.0,
+                  50.0,
+                  (v) => setState(() => props['bottomLeftRadius'] = v),
+                  Icons.crop_square_rounded,
+                ),
+              ),
+              SizedBox(width: 8.w),
+              Expanded(
+                child: _buildSliderOption(
+                  'Bottom Right',
+                  (props['bottomRightRadius'] as double?) ?? 0.0,
+                  0.0,
+                  50.0,
+                  (v) => setState(() => props['bottomRightRadius'] = v),
+                  Icons.crop_square_rounded,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 20.h),
+        ],
+        // Individual corner radius controls for triangle shapes
+        if ((props['shape'] as String?) == 'triangle') ...[
+          Text(
+            'Triangle Corner Radius',
+            style: TextStyle(
+              fontSize: 16.sp,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[700],
+            ),
+          ),
+          SizedBox(height: 12.h),
+          Row(
+            children: [
+              Expanded(
+                child: _buildSliderOption(
+                  'Top Corner',
+                  (props['topRadius'] as double?) ?? 0.0,
+                  0.0,
+                  50.0,
+                  (v) => setState(() => props['topRadius'] = v),
+                  Icons.keyboard_arrow_up_rounded,
+                ),
+              ),
+              SizedBox(width: 8.w),
+              Expanded(
+                child: _buildSliderOption(
+                  'Bottom Right',
+                  (props['bottomRightRadius'] as double?) ?? 0.0,
+                  0.0,
+                  50.0,
+                  (v) => setState(() => props['bottomRightRadius'] = v),
+                  Icons.crop_square_rounded,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 12.h),
+          Row(
+            children: [
+              Expanded(
+                child: _buildSliderOption(
+                  'Bottom Left',
+                  (props['bottomLeftRadius'] as double?) ?? 0.0,
+                  0.0,
+                  50.0,
+                  (v) => setState(() => props['bottomLeftRadius'] = v),
+                  Icons.crop_square_rounded,
+                ),
+              ),
+              SizedBox(width: 8.w),
+              Expanded(
+                child: Container(), // Empty space for alignment
+              ),
+            ],
+          ),
+          SizedBox(height: 20.h),
+        ],
         _buildToggleOption(
           'Gradient Fill',
           (props['hasGradient'] as bool?) ?? false,
