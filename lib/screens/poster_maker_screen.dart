@@ -5145,11 +5145,32 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                 .toList();
 
         if (strokes != null && strokes.isNotEmpty) {
+          final bool canErase =
+              drawingMode == DrawingMode.enabled &&
+              selectedItem?.id == item.id &&
+              selectedDrawingTool == DrawingTool.eraser;
+
+          final Widget painted = SizedBox(
+            width: width,
+            height: height,
+            child: CustomPaint(
+              painter: _MultiStrokeDrawingPainter(
+                strokes: (props['strokes'] as List<dynamic>)
+                    .map((e) => e as Map<String, dynamic>)
+                    .toList(),
+              ),
+            ),
+          );
+
+          if (!canErase) {
+            // Not in eraser mode → let parent gesture handle moving/transforming
+            return painted;
+          }
+
           return GestureDetector(
             onPanStart: (details) {
               if (selectedItem?.id != item.id) return;
               setState(() {
-                // Begin a new eraser stroke in local coordinates of this item
                 final Offset p = details.localPosition;
                 props['strokes'] = [
                   ...strokes,
@@ -5183,17 +5204,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                 }
               });
             },
-            child: SizedBox(
-              width: width,
-              height: height,
-              child: CustomPaint(
-                painter: _MultiStrokeDrawingPainter(
-                  strokes: (props['strokes'] as List<dynamic>)
-                      .map((e) => e as Map<String, dynamic>)
-                      .toList(),
-                ),
-              ),
-            ),
+            child: painted,
           );
         } else {
           // Backward compatibility for single-stroke drawings
