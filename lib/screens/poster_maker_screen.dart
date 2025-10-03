@@ -4339,7 +4339,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                 padding: EdgeInsets.symmetric(horizontal: 0.w),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  
+
                   children: [
                     Text(
                       selectedDrawingTool == DrawingTool.textPath
@@ -4352,7 +4352,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                       ),
                       textAlign: TextAlign.center,
                     ),
-                
+
                     SliderTheme(
                       data: SliderTheme.of(context).copyWith(
                         activeTrackColor: Colors.blue.shade400,
@@ -4424,7 +4424,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             ),
           // Opacity slider item
           Padding(
-            padding: EdgeInsets.symmetric(horizontal: 6.w,),
+            padding: EdgeInsets.symmetric(horizontal: 6.w),
             child: Container(
               width: 210.w,
               decoration: BoxDecoration(
@@ -4447,7 +4447,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                       ),
                       textAlign: TextAlign.center,
                     ),
-                   
+
                     SliderTheme(
                       data: SliderTheme.of(context).copyWith(
                         activeTrackColor: Colors.blue.shade400,
@@ -4529,14 +4529,20 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                             Divider(height: 1, color: Colors.grey.shade100),
                         itemBuilder: (context, index) {
                           final family = liked[index];
+                          final bool _isGoogleFont = GoogleFonts.asMap()
+                              .containsKey(family);
                           return ListTile(
                             title: Text(
                               family,
-                              style: TextStyle(fontFamily: family),
+                              style: _isGoogleFont
+                                  ? GoogleFonts.getFont(family)
+                                  : TextStyle(fontFamily: family),
                             ),
                             subtitle: Text(
-                              'The quick brown fox jumps',
-                              style: TextStyle(fontFamily: family),
+                              'The quick brown fox jumps over the lazy dog',
+                              style: _isGoogleFont
+                                  ? GoogleFonts.getFont(family)
+                                  : TextStyle(fontFamily: family),
                             ),
                             onTap: () {
                               setState(() {
