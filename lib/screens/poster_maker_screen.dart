@@ -2410,7 +2410,19 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             (selectedItem!.properties['strokeWidth'] as double?) ?? 2.0,
             1.0,
             20.0,
-            (v) => setState(() => selectedItem!.properties['strokeWidth'] = v),
+            (v) => setState(() {
+              selectedItem!.properties['strokeWidth'] = v;
+              final List<Map<String, dynamic>>? strokes =
+                  (selectedItem!.properties['strokes'] as List<dynamic>?)
+                      ?.map((e) => e as Map<String, dynamic>)
+                      .toList();
+              if (strokes != null) {
+                for (final stroke in strokes) {
+                  stroke['strokeWidth'] = v;
+                }
+                selectedItem!.properties['strokes'] = strokes;
+              }
+            }),
             Icons.format_size_rounded,
           ),
         ];
@@ -4185,6 +4197,16 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                   selectedItem!.properties['color'] = HiveColor.fromColor(
                     color,
                   );
+                  final List<Map<String, dynamic>>? strokes =
+                      (selectedItem!.properties['strokes'] as List<dynamic>?)
+                          ?.map((e) => e as Map<String, dynamic>)
+                          .toList();
+                  if (strokes != null) {
+                    for (final stroke in strokes) {
+                      stroke['color'] = HiveColor.fromColor(color);
+                    }
+                    selectedItem!.properties['strokes'] = strokes;
+                  }
                 });
               },
             ),
@@ -5480,6 +5502,17 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                   onChanged: (value) {
                     setState(() {
                       selectedItem!.properties['strokeWidth'] = value;
+                      final List<Map<String, dynamic>>? strokes =
+                          (selectedItem!.properties['strokes']
+                                  as List<dynamic>?)
+                              ?.map((e) => e as Map<String, dynamic>)
+                              .toList();
+                      if (strokes != null) {
+                        for (final stroke in strokes) {
+                          stroke['strokeWidth'] = value;
+                        }
+                        selectedItem!.properties['strokes'] = strokes;
+                      }
                     });
                   },
                 ),
