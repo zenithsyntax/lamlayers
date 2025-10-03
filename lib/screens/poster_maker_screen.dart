@@ -166,12 +166,17 @@ class DrawingPainter extends CustomPainter {
     final ui.Paragraph paragraph = builder.build();
     paragraph.layout(const ui.ParagraphConstraints(width: double.infinity));
 
-    // Place each character along path
+    // Place characters repeatedly along the entire path
     double distanceAlong = 0.0;
     final List<_Segment> segments = _segmentsFromPoints(points);
-    for (int i = 0; i < text.length; i++) {
-      final String char = text[i];
-      final ui.TextBox box = paragraph.getBoxesForRange(i, i + 1).first;
+    final double totalLength = segments.fold(0.0, (sum, s) => sum + s.length);
+    int i = 0;
+    while (true) {
+      final int charIndex = i % text.length;
+      final String char = text[charIndex];
+      final ui.TextBox box = paragraph
+          .getBoxesForRange(charIndex, charIndex + 1)
+          .first;
       final double charWidth = (box.right - box.left).abs();
       final _PathSample sample = _sampleAtDistance(
         segments,
@@ -191,6 +196,8 @@ class DrawingPainter extends CustomPainter {
       canvas.drawParagraph(p, Offset(-charWidth / 2, -fontSize));
       canvas.restore();
       distanceAlong += charWidth;
+      if (distanceAlong >= totalLength) break;
+      i++;
     }
   }
 
@@ -666,9 +673,14 @@ class _MultiStrokeDrawingPainter extends CustomPainter {
 
     double distanceAlong = 0.0;
     final List<_Segment> segments = _segmentsFromPoints(points);
-    for (int i = 0; i < text.length; i++) {
-      final String char = text[i];
-      final ui.TextBox box = paragraph.getBoxesForRange(i, i + 1).first;
+    final double totalLength = segments.fold(0.0, (sum, s) => sum + s.length);
+    int i = 0;
+    while (true) {
+      final int charIndex = i % text.length;
+      final String char = text[charIndex];
+      final ui.TextBox box = paragraph
+          .getBoxesForRange(charIndex, charIndex + 1)
+          .first;
       final double charWidth = (box.right - box.left).abs();
       final _PathSample sample = _sampleAtDistance(
         segments,
@@ -687,6 +699,8 @@ class _MultiStrokeDrawingPainter extends CustomPainter {
       canvas.drawParagraph(p, Offset(-charWidth / 2, -fontSize));
       canvas.restore();
       distanceAlong += charWidth;
+      if (distanceAlong >= totalLength) break;
+      i++;
     }
   }
 
