@@ -3294,6 +3294,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   }
 
   Widget _miniColorSwatch(String label, Color color, VoidCallback onTap) {
+    final bool isTransparent = color == Colors.transparent;
+
     return Container(
       margin: EdgeInsets.only(right: 12.w, bottom: 35.h),
       padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
@@ -3309,10 +3311,33 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             width: 22.w,
             height: 22.h,
             decoration: BoxDecoration(
-              color: color,
+              color: isTransparent ? Colors.white : color,
               borderRadius: BorderRadius.circular(6.r),
               border: Border.all(color: Colors.grey.shade300),
             ),
+            child: isTransparent
+                ? Stack(
+                    children: [
+                      // Checkerboard pattern for transparent
+                      CustomPaint(
+                        painter: CheckerboardPainter(),
+                        size: Size(22.w, 22.h),
+                      ),
+                      // Diagonal line to indicate transparent
+                      Center(
+                        child: Container(
+                          width: 16.w,
+                          height: 2.h,
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            borderRadius: BorderRadius.circular(1.r),
+                          ),
+                          transform: Matrix4.rotationZ(0.785398), // 45 degrees
+                        ),
+                      ),
+                    ],
+                  )
+                : null,
           ),
           SizedBox(width: 8.w),
           Text(
@@ -6282,13 +6307,19 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       final double sy = math.sin(rad);
       final Alignment begin = Alignment(-cx, -sy);
       final Alignment end = Alignment(cx, sy);
+
+      // Check if any gradient color is transparent
+      final bool hasTransparent = grad.any(
+        (color) => color == Colors.transparent,
+      );
+
       imageWidget = ShaderMask(
         shaderCallback: (bounds) => LinearGradient(
           colors: grad,
           begin: begin,
           end: end,
         ).createShader(bounds),
-        blendMode: BlendMode.srcIn,
+        blendMode: hasTransparent ? BlendMode.srcATop : BlendMode.srcIn,
         child: imageWidget,
       );
     } else {
@@ -6802,10 +6833,35 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                 width: 32.w,
                 height: 32.h,
                 decoration: BoxDecoration(
-                  color: grad.first,
+                  color: grad.first == Colors.transparent
+                      ? Colors.white
+                      : grad.first,
                   borderRadius: BorderRadius.circular(8.r),
                   border: Border.all(color: Colors.grey.shade300, width: 2),
                 ),
+                child: grad.first == Colors.transparent
+                    ? Stack(
+                        children: [
+                          CustomPaint(
+                            painter: CheckerboardPainter(),
+                            size: Size(32.w, 32.h),
+                          ),
+                          Center(
+                            child: Container(
+                              width: 20.w,
+                              height: 2.h,
+                              decoration: BoxDecoration(
+                                color: Colors.red,
+                                borderRadius: BorderRadius.circular(1.r),
+                              ),
+                              transform: Matrix4.rotationZ(
+                                0.785398,
+                              ), // 45 degrees
+                            ),
+                          ),
+                        ],
+                      )
+                    : null,
               ),
             ),
             SizedBox(width: 8.w),
@@ -6821,10 +6877,35 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                 width: 32.w,
                 height: 32.h,
                 decoration: BoxDecoration(
-                  color: grad.last,
+                  color: grad.last == Colors.transparent
+                      ? Colors.white
+                      : grad.last,
                   borderRadius: BorderRadius.circular(8.r),
                   border: Border.all(color: Colors.grey.shade300, width: 2),
                 ),
+                child: grad.last == Colors.transparent
+                    ? Stack(
+                        children: [
+                          CustomPaint(
+                            painter: CheckerboardPainter(),
+                            size: Size(32.w, 32.h),
+                          ),
+                          Center(
+                            child: Container(
+                              width: 20.w,
+                              height: 2.h,
+                              decoration: BoxDecoration(
+                                color: Colors.red,
+                                borderRadius: BorderRadius.circular(1.r),
+                              ),
+                              transform: Matrix4.rotationZ(
+                                0.785398,
+                              ), // 45 degrees
+                            ),
+                          ),
+                        ],
+                      )
+                    : null,
               ),
             ),
             SizedBox(width: 12.w),
@@ -7781,6 +7862,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   void _showColorPicker(String property, {bool isGradient = false}) {
     final predefinedColors = <Color>[
+      Colors.transparent, // Add transparent as first option
       Colors.black,
       Colors.white,
       Colors.redAccent,
@@ -7988,7 +8070,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                               width: 50.h,
                               height: 50.h,
                               decoration: BoxDecoration(
-                                color: color,
+                                color: color == Colors.transparent
+                                    ? Colors.white
+                                    : color,
                                 borderRadius: BorderRadius.circular(12.r),
                                 border: Border.all(
                                   color: Colors.grey.shade300,
@@ -8002,6 +8086,30 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                                   ),
                                 ],
                               ),
+                              child: color == Colors.transparent
+                                  ? Stack(
+                                      children: [
+                                        CustomPaint(
+                                          painter: CheckerboardPainter(),
+                                          size: Size(50.h, 50.h),
+                                        ),
+                                        Center(
+                                          child: Container(
+                                            width: 30.w,
+                                            height: 3.h,
+                                            decoration: BoxDecoration(
+                                              color: Colors.red,
+                                              borderRadius:
+                                                  BorderRadius.circular(1.5.r),
+                                            ),
+                                            transform: Matrix4.rotationZ(
+                                              0.785398,
+                                            ), // 45 degrees
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  : null,
                             ),
                           ),
                         );
@@ -8048,7 +8156,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                           },
                           child: Container(
                             decoration: BoxDecoration(
-                              color: color,
+                              color: color == Colors.transparent
+                                  ? Colors.white
+                                  : color,
                               borderRadius: BorderRadius.circular(16.r),
                               border: Border.all(
                                 color: Colors.grey.shade300,
@@ -8062,6 +8172,31 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                                 ),
                               ],
                             ),
+                            child: color == Colors.transparent
+                                ? Stack(
+                                    children: [
+                                      CustomPaint(
+                                        painter: CheckerboardPainter(),
+                                        size: Size(50.w, 50.h),
+                                      ),
+                                      Center(
+                                        child: Container(
+                                          width: 30.w,
+                                          height: 3.h,
+                                          decoration: BoxDecoration(
+                                            color: Colors.red,
+                                            borderRadius: BorderRadius.circular(
+                                              1.5.r,
+                                            ),
+                                          ),
+                                          transform: Matrix4.rotationZ(
+                                            0.785398,
+                                          ), // 45 degrees
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                : null,
                           ),
                         );
                       },
@@ -9214,4 +9349,35 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       bottomSheet: const SizedBox.shrink(),
     );
   }
+}
+
+// Custom painter for checkerboard pattern to indicate transparency
+class CheckerboardPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Paint paint1 = Paint()..color = Colors.grey[300]!;
+    final Paint paint2 = Paint()..color = Colors.grey[200]!;
+
+    const double squareSize = 4.0;
+    final int rows = (size.height / squareSize).ceil();
+    final int cols = (size.width / squareSize).ceil();
+
+    for (int row = 0; row < rows; row++) {
+      for (int col = 0; col < cols; col++) {
+        final Paint paint = (row + col) % 2 == 0 ? paint1 : paint2;
+        canvas.drawRect(
+          Rect.fromLTWH(
+            col * squareSize,
+            row * squareSize,
+            squareSize,
+            squareSize,
+          ),
+          paint,
+        );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }
