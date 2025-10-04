@@ -2236,20 +2236,51 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   void _bringToFront(CanvasItem item) {
     setState(() {
+      // Remove the item from the list
       canvasItems.remove(item);
-      item.layerIndex = canvasItems.length;
+
+      // Find the current highest layer index
+      int maxLayerIndex = canvasItems.isEmpty
+          ? -1
+          : canvasItems
+                .map((it) => it.layerIndex)
+                .reduce((a, b) => a > b ? a : b);
+
+      // Set the item to be on top (highest layer index + 1)
+      item.layerIndex = maxLayerIndex + 1;
+
+      // Add the item back to the list
       canvasItems.add(item);
+
+      // Ensure selectedItem reference is maintained after reordering
+      if (selectedItem == item) {
+        selectedItem = item;
+      }
     });
   }
 
   void _sendToBack(CanvasItem item) {
     setState(() {
+      // Remove the item from the list
       canvasItems.remove(item);
-      for (var existingItem in canvasItems) {
-        existingItem.layerIndex++;
+
+      // Find the current lowest layer index
+      int minLayerIndex = canvasItems.isEmpty
+          ? 1
+          : canvasItems
+                .map((it) => it.layerIndex)
+                .reduce((a, b) => a < b ? a : b);
+
+      // Set the item to be at the bottom (lowest layer index - 1)
+      item.layerIndex = minLayerIndex - 1;
+
+      // Add the item back to the list
+      canvasItems.add(item);
+
+      // Ensure selectedItem reference is maintained after reordering
+      if (selectedItem == item) {
+        selectedItem = item;
       }
-      item.layerIndex = 0;
-      canvasItems.insert(0, item);
     });
   }
 
@@ -8391,6 +8422,15 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           final int n = layersTopFirst.length;
           for (int i = 0; i < n; i++) {
             layersTopFirst[i].layerIndex = n - 1 - i;
+          }
+          // Update the original canvasItems list with the new layer indices
+          for (final item in layersTopFirst) {
+            final originalIndex = canvasItems.indexWhere(
+              (it) => it.id == item.id,
+            );
+            if (originalIndex != -1) {
+              canvasItems[originalIndex].layerIndex = item.layerIndex;
+            }
           }
         });
       },
