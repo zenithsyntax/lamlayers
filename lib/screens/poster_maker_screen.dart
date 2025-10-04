@@ -1,41 +1,74 @@
 //push test 1
+
 import 'dart:io';
+
 import 'dart:typed_data';
+
 import 'dart:ui' as ui;
+
 import 'dart:math' as math;
+
 import 'package:flutter/cupertino.dart';
+
 import 'package:flutter/material.dart';
+
 import 'package:flutter/rendering.dart';
+
 import 'package:flutter/painting.dart';
+
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+
 import 'package:image_picker/image_picker.dart';
+
 import 'package:lamlayers/screens/hive_model.dart';
+
 import 'package:path_provider/path_provider.dart';
+
 import 'package:share_plus/share_plus.dart';
+
 import '../models/canvas_models.dart';
+
 import '../widgets/canvas_grid_painter.dart';
+
 import '../widgets/action_bar.dart';
+
 import '../models/font_favorites.dart';
+
 import 'package:google_fonts/google_fonts.dart';
+
 import 'package:flutter/services.dart';
+
 import 'package:lamlayers/screens/add_images.dart';
+
 import 'package:lamlayers/screens/settings_screen.dart';
+
 import 'package:cached_network_image/cached_network_image.dart';
+
 import 'package:hive/hive.dart';
+
 import 'package:hive_flutter/hive_flutter.dart';
+
 import 'package:flutter/widgets.dart';
+
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+
 import 'package:lamlayers/screens/google_font_screen.dart';
+
 import 'dart:async'; // Import for Timer
 
 import 'package:image_editor_plus/image_editor_plus.dart';
+
 import 'package:lamlayers/utils/image_stroke_processor.dart';
+
 import 'package:lamlayers/utils/image_stroke_processor_v2.dart';
+
 import 'package:http/http.dart' as http;
+
 import 'package:image_background_remover/image_background_remover.dart';
 
 class PosterMakerScreen extends StatefulWidget {
   final String? projectId;
+
   const PosterMakerScreen({super.key, this.projectId});
 
   @override
@@ -44,32 +77,51 @@ class PosterMakerScreen extends StatefulWidget {
 
 class DrawingPainter extends CustomPainter {
   final List<DrawingLayer> layers;
+
   final List<Offset> currentPoints;
+
   final DrawingTool currentTool;
+
   final Color currentColor;
+
   final double currentStrokeWidth;
+
   final double currentOpacity;
+
   final String? currentPathText;
+
   final String? currentPathFontFamily;
+
   final double? currentPathLetterSpacing;
 
   DrawingPainter({
     required this.layers,
+
     required this.currentPoints,
+
     required this.currentTool,
+
     required this.currentColor,
+
     required this.currentStrokeWidth,
+
     required this.currentOpacity,
+
     this.currentPathText,
+
     this.currentPathFontFamily,
+
     this.currentPathLetterSpacing,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
     // Use a layer so eraser strokes can clear previous content
+
     canvas.saveLayer(Offset.zero & size, Paint());
+
     // Draw all completed layers
+
     for (final layer in layers) {
       if (!layer.isVisible) continue;
 
@@ -90,16 +142,24 @@ class DrawingPainter extends CustomPainter {
       if (layer.tool == DrawingTool.textPath) {
         _drawTextAlongPath(
           canvas,
+
           layer.points,
+
           layer.text ?? '',
+
           layer.color,
+
           (layer.fontSize ?? layer.strokeWidth).toDouble(),
+
           fontFamily: layer.fontFamily,
+
           letterSpacing: layer.letterSpacing ?? 0.0,
         );
       } else if (layer.isDotted) {
         paint.strokeWidth = layer.strokeWidth;
+
         // Create dotted effect by drawing small segments
+
         _drawDottedPath(canvas, paint, layer.points);
       } else {
         _drawPath(canvas, paint, layer.points, layer.tool);
@@ -107,6 +167,7 @@ class DrawingPainter extends CustomPainter {
     }
 
     // Draw current drawing in progress
+
     if (currentPoints.isNotEmpty) {
       final paint = Paint()
         ..color =
@@ -124,23 +185,32 @@ class DrawingPainter extends CustomPainter {
 
       if (currentTool == DrawingTool.textPath) {
         final String txt = (currentPathText ?? '').trim();
+
         if (txt.isEmpty) {
           // Show the path as a light preview if no text entered yet
+
           final previewPaint = Paint()
             ..color = currentColor.withOpacity(currentOpacity * 0.6)
             ..strokeWidth = currentStrokeWidth
             ..style = PaintingStyle.stroke
             ..strokeCap = StrokeCap.round
             ..strokeJoin = StrokeJoin.round;
+
           _drawPath(canvas, previewPaint, currentPoints, DrawingTool.brush);
         } else {
           _drawTextAlongPath(
             canvas,
+
             currentPoints,
+
             txt,
+
             currentColor,
+
             currentStrokeWidth,
+
             fontFamily: currentPathFontFamily,
+
             letterSpacing: currentPathLetterSpacing ?? 0.0,
           );
         }
@@ -156,126 +226,190 @@ class DrawingPainter extends CustomPainter {
         }
       }
     }
+
     canvas.restore();
   }
 
   void _drawTextAlongPath(
     Canvas canvas,
+
     List<Offset> points,
+
     String text,
+
     Color color,
+
     double fontSize, {
+
     String? fontFamily,
+
     FontWeight? fontWeight,
+
     FontStyle? fontStyle,
+
     double letterSpacing = 0.0,
   }) {
     if (points.length < 2 || text.isEmpty) return;
+
     final ui.ParagraphBuilder builder =
         ui.ParagraphBuilder(
             ui.ParagraphStyle(
               fontSize: fontSize,
+
               fontFamily: fontFamily,
+
               fontWeight: fontWeight,
+
               fontStyle: fontStyle,
             ),
           )
           ..pushStyle(
             ui.TextStyle(
               color: color,
+
               fontFamily: fontFamily,
+
               fontWeight: fontWeight,
+
               fontStyle: fontStyle,
             ),
           )
           ..addText(text);
+
     final ui.Paragraph paragraph = builder.build();
+
     paragraph.layout(const ui.ParagraphConstraints(width: double.infinity));
 
     // Place characters repeatedly along the entire path
+
     double distanceAlong = 0.0;
+
     final List<_Segment> segments = _segmentsFromPoints(points);
+
     final double totalLength = segments.fold(0.0, (sum, s) => sum + s.length);
+
     int i = 0;
+
     while (true) {
       final int charIndex = i % text.length;
+
       final String char = text[charIndex];
+
       final ui.TextBox box = paragraph
           .getBoxesForRange(charIndex, charIndex + 1)
           .first;
+
       final double charWidth = (box.right - box.left).abs();
+
       final _PathSample sample = _sampleAtDistance(
         segments,
+
         distanceAlong + charWidth / 2,
       );
+
       if (!sample.valid) break;
+
       canvas.save();
+
       canvas.translate(sample.position.dx, sample.position.dy);
+
       canvas.rotate(sample.angle);
+
       final ui.ParagraphBuilder cb = ui.ParagraphBuilder(
         ui.ParagraphStyle(
           fontSize: fontSize,
+
           fontFamily: fontFamily,
+
           fontWeight: fontWeight,
+
           fontStyle: fontStyle,
         ),
       );
+
       cb.pushStyle(
         ui.TextStyle(
           color: color,
+
           fontFamily: fontFamily,
+
           fontWeight: fontWeight,
+
           fontStyle: fontStyle,
         ),
       );
+
       cb.addText(char);
+
       final ui.Paragraph p = cb.build();
+
       p.layout(const ui.ParagraphConstraints(width: double.infinity));
+
       canvas.drawParagraph(p, Offset(-charWidth / 2, -fontSize));
+
       canvas.restore();
+
       distanceAlong += charWidth + letterSpacing;
+
       if (distanceAlong >= totalLength) break;
+
       i++;
     }
   }
 
   List<_Segment> _segmentsFromPoints(List<Offset> points) {
     final List<_Segment> segments = [];
+
     for (int i = 0; i < points.length - 1; i++) {
       final Offset a = points[i];
+
       final Offset b = points[i + 1];
+
       final double len = (b - a).distance;
+
       if (len > 0.0001) {
         segments.add(_Segment(start: a, end: b, length: len));
       }
     }
+
     return segments;
   }
 
   _PathSample _sampleAtDistance(List<_Segment> segments, double d) {
     double remaining = d;
+
     for (final s in segments) {
       if (remaining <= s.length) {
         final t = remaining / s.length;
+
         final Offset pos = Offset(
           s.start.dx + (s.end.dx - s.start.dx) * t,
+
           s.start.dy + (s.end.dy - s.start.dy) * t,
         );
+
         final double angle = math.atan2(
           s.end.dy - s.start.dy,
+
           s.end.dx - s.start.dx,
         );
+
         return _PathSample(position: pos, angle: angle, valid: true);
       }
+
       remaining -= s.length;
     }
+
     return _PathSample(position: Offset.zero, angle: 0, valid: false);
   }
 
   void _drawPath(
     Canvas canvas,
+
     Paint paint,
+
     List<Offset> points,
+
     DrawingTool tool,
   ) {
     if (points.isEmpty) return;
@@ -289,43 +423,62 @@ class DrawingPainter extends CustomPainter {
         } else {
           canvas.drawPoints(ui.PointMode.polygon, points, paint);
         }
+
         break;
+
       case DrawingTool.textPath:
+
         // handled elsewhere
+
         break;
+
       case DrawingTool.line:
       case DrawingTool.dottedLine:
         if (points.length >= 2) {
           canvas.drawLine(points.first, points.last, paint);
         }
+
         break;
+
       case DrawingTool.arrow:
       case DrawingTool.dottedArrow:
         if (points.length >= 2) {
           canvas.drawLine(points.first, points.last, paint);
+
           _drawArrowhead(canvas, paint, points.first, points.last);
         }
+
         break;
+
       case DrawingTool.rectangle:
         if (points.length >= 2) {
           final rect = Rect.fromPoints(points.first, points.last);
+
           canvas.drawRect(rect, paint);
         }
+
         break;
+
       case DrawingTool.circle:
         if (points.length >= 2) {
           final center = Offset(
             (points.first.dx + points.last.dx) / 2,
+
             (points.first.dy + points.last.dy) / 2,
           );
+
           final radius = (points.first - points.last).distance / 2;
+
           canvas.drawCircle(center, radius, paint);
         }
+
         break;
+
       case DrawingTool.triangle:
         if (points.length >= 2) {
           _drawTriangle(canvas, paint, points.first, points.last);
         }
+
         break;
     }
   }
@@ -334,27 +487,35 @@ class DrawingPainter extends CustomPainter {
     if (points.length < 2) return;
 
     const dashLength = 8.0;
+
     const dashSpace = 4.0;
 
     // Simplified dotted line drawing for better performance
+
     for (int i = 0; i < points.length - 1; i += 2) {
       // Skip every other point for performance
+
       final start = points[i];
+
       final end = i + 1 < points.length ? points[i + 1] : points.last;
 
       final distance = (end - start).distance;
+
       if (distance < 1.0) continue; // Skip very short segments
 
       final normalized = _normalize(end - start);
+
       double currentDistance = 0.0;
 
       while (currentDistance < distance) {
         final dashStart = start + normalized * currentDistance;
+
         final dashEnd =
             start +
             normalized * (currentDistance + dashLength).clamp(0.0, distance);
 
         canvas.drawLine(dashStart, dashEnd, paint);
+
         currentDistance += dashLength + dashSpace;
       }
     }
@@ -362,15 +523,18 @@ class DrawingPainter extends CustomPainter {
 
   void _drawArrowhead(Canvas canvas, Paint paint, Offset start, Offset end) {
     final arrowLength = 15.0;
+
     final arrowAngle = 0.5;
 
     final direction = _normalize(end - start);
+
     final perpendicular = Offset(-direction.dy, direction.dx);
 
     final arrowPoint1 =
         end -
         direction * arrowLength +
         perpendicular * arrowLength * arrowAngle;
+
     final arrowPoint2 =
         end -
         direction * arrowLength -
@@ -387,29 +551,38 @@ class DrawingPainter extends CustomPainter {
 
   void _drawTriangle(Canvas canvas, Paint paint, Offset start, Offset end) {
     final Rect rect = Rect.fromPoints(start, end);
+
     final Offset top = Offset(rect.center.dx, rect.top);
+
     final Offset left = Offset(rect.left, rect.bottom);
+
     final Offset right = Offset(rect.right, rect.bottom);
+
     final Path path = Path()
       ..moveTo(top.dx, top.dy)
       ..lineTo(left.dx, left.dy)
       ..lineTo(right.dx, right.dy)
       ..close();
+
     canvas.drawPath(path, paint);
   }
 
   Offset _normalize(Offset vector) {
     final length = vector.distance;
+
     if (length == 0) return Offset.zero;
+
     return Offset(vector.dx / length, vector.dy / length);
   }
 
   @override
   bool shouldRepaint(covariant DrawingPainter oldDelegate) {
     // Always repaint if there are current points being drawn
+
     if (currentPoints.isNotEmpty) return true;
 
     // Only repaint if there are actual changes to completed layers
+
     return layers.length != oldDelegate.layers.length ||
         currentPoints.length != oldDelegate.currentPoints.length ||
         currentTool != oldDelegate.currentTool ||
@@ -421,32 +594,46 @@ class DrawingPainter extends CustomPainter {
 
 class _Segment {
   final Offset start;
+
   final Offset end;
+
   final double length;
+
   _Segment({required this.start, required this.end, required this.length});
 }
 
 class _PathSample {
   final Offset position;
+
   final double angle;
+
   final bool valid;
+
   _PathSample({
     required this.position,
+
     required this.angle,
+
     required this.valid,
   });
 }
 
 class _SelectionBorderPainter extends CustomPainter {
   final Offset topLeft;
+
   final Offset topRight;
+
   final Offset bottomLeft;
+
   final Offset bottomRight;
 
   _SelectionBorderPainter({
     required this.topLeft,
+
     required this.topRight,
+
     required this.bottomLeft,
+
     required this.bottomRight,
   });
 
@@ -459,10 +646,15 @@ class _SelectionBorderPainter extends CustomPainter {
       ..isAntiAlias = true;
 
     final Path borderPath = Path();
+
     borderPath.moveTo(topLeft.dx, topLeft.dy);
+
     borderPath.lineTo(topRight.dx, topRight.dy);
+
     borderPath.lineTo(bottomRight.dx, bottomRight.dy);
+
     borderPath.lineTo(bottomLeft.dx, bottomLeft.dy);
+
     borderPath.close();
 
     canvas.drawPath(borderPath, borderPaint);
@@ -479,16 +671,24 @@ class _SelectionBorderPainter extends CustomPainter {
 
 class _DrawingItemPainter extends CustomPainter {
   final DrawingTool tool;
+
   final List<Offset> points;
+
   final Color color;
+
   final double strokeWidth;
+
   final bool isDotted;
 
   _DrawingItemPainter({
     required this.tool,
+
     required this.points,
+
     required this.color,
+
     required this.strokeWidth,
+
     required this.isDotted,
   });
 
@@ -512,8 +712,11 @@ class _DrawingItemPainter extends CustomPainter {
 
   void _drawPath(
     Canvas canvas,
+
     Paint paint,
+
     List<Offset> points,
+
     DrawingTool tool,
   ) {
     if (points.isEmpty) return;
@@ -527,43 +730,62 @@ class _DrawingItemPainter extends CustomPainter {
         } else {
           canvas.drawPoints(ui.PointMode.polygon, points, paint);
         }
+
         break;
+
       case DrawingTool.textPath:
+
         // handled elsewhere
+
         break;
+
       case DrawingTool.line:
       case DrawingTool.dottedLine:
         if (points.length >= 2) {
           canvas.drawLine(points.first, points.last, paint);
         }
+
         break;
+
       case DrawingTool.arrow:
       case DrawingTool.dottedArrow:
         if (points.length >= 2) {
           canvas.drawLine(points.first, points.last, paint);
+
           _drawArrowhead(canvas, paint, points.first, points.last);
         }
+
         break;
+
       case DrawingTool.rectangle:
         if (points.length >= 2) {
           final rect = Rect.fromPoints(points.first, points.last);
+
           canvas.drawRect(rect, paint);
         }
+
         break;
+
       case DrawingTool.circle:
         if (points.length >= 2) {
           final center = Offset(
             (points.first.dx + points.last.dx) / 2,
+
             (points.first.dy + points.last.dy) / 2,
           );
+
           final radius = (points.first - points.last).distance / 2;
+
           canvas.drawCircle(center, radius, paint);
         }
+
         break;
+
       case DrawingTool.triangle:
         if (points.length >= 2) {
           _drawTriangle(canvas, paint, points.first, points.last);
         }
+
         break;
     }
   }
@@ -572,20 +794,25 @@ class _DrawingItemPainter extends CustomPainter {
     if (points.length < 2) return;
 
     const dashLength = 8.0;
+
     const dashSpace = 4.0;
 
     for (int i = 0; i < points.length - 1; i += 2) {
       final start = points[i];
+
       final end = i + 1 < points.length ? points[i + 1] : points.last;
 
       final distance = (end - start).distance;
+
       final dashCount = (distance / (dashLength + dashSpace)).floor();
 
       for (int j = 0; j < dashCount; j++) {
         final startRatio = j * (dashLength + dashSpace) / distance;
+
         final endRatio = (j * (dashLength + dashSpace) + dashLength) / distance;
 
         final dashStart = Offset.lerp(start, end, startRatio)!;
+
         final dashEnd = Offset.lerp(start, end, endRatio)!;
 
         canvas.drawLine(dashStart, dashEnd, paint);
@@ -595,19 +822,24 @@ class _DrawingItemPainter extends CustomPainter {
 
   void _drawArrowhead(Canvas canvas, Paint paint, Offset start, Offset end) {
     final direction = (end - start).direction;
+
     final arrowLength = strokeWidth * 2;
+
     final arrowAngle = math.pi / 6; // 30 degrees
 
     final arrowPoint1 =
         end +
         Offset(
           -arrowLength * math.cos(direction - arrowAngle),
+
           -arrowLength * math.sin(direction - arrowAngle),
         );
+
     final arrowPoint2 =
         end +
         Offset(
           -arrowLength * math.cos(direction + arrowAngle),
+
           -arrowLength * math.sin(direction + arrowAngle),
         );
 
@@ -622,14 +854,19 @@ class _DrawingItemPainter extends CustomPainter {
 
   void _drawTriangle(Canvas canvas, Paint paint, Offset start, Offset end) {
     final Rect rect = Rect.fromPoints(start, end);
+
     final Offset top = Offset(rect.center.dx, rect.top);
+
     final Offset left = Offset(rect.left, rect.bottom);
+
     final Offset right = Offset(rect.right, rect.bottom);
+
     final Path path = Path()
       ..moveTo(top.dx, top.dy)
       ..lineTo(left.dx, left.dy)
       ..lineTo(right.dx, right.dy)
       ..close();
+
     canvas.drawPath(path, paint);
   }
 
@@ -651,26 +888,39 @@ class _MultiStrokeDrawingPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     // Use a layer to support eraser strokes via BlendMode.clear
+
     canvas.saveLayer(Offset.zero & size, Paint());
+
     for (final stroke in strokes) {
       final DrawingTool tool =
           stroke['tool'] as DrawingTool? ?? DrawingTool.brush;
+
       final List<Offset> points =
           (stroke['points'] as List<dynamic>?)
               ?.map((p) => p as Offset)
               .toList() ??
           [];
+
       final dynamic colorRaw = stroke['color'];
+
       final Color color = colorRaw is HiveColor
           ? colorRaw.toColor()
           : (colorRaw is Color ? colorRaw : Colors.black);
+
       final double strokeWidth = (stroke['strokeWidth'] as double?) ?? 2.0;
+
       final bool isDotted = (stroke['isDotted'] as bool?) ?? false;
+
       final double opacity = (stroke['opacity'] as double?) ?? 1.0;
+
       final String text = (stroke['text'] as String?) ?? '';
+
       final double fontSize = (stroke['fontSize'] as double?) ?? strokeWidth;
+
       final String? fontFamily = stroke['fontFamily'] as String?;
+
       final FontWeight? fontWeight = stroke['fontWeight'] as FontWeight?;
+
       final FontStyle? fontStyle = stroke['fontStyle'] as FontStyle?;
 
       if (points.isEmpty) continue;
@@ -689,15 +939,24 @@ class _MultiStrokeDrawingPainter extends CustomPainter {
       if ((tool) == DrawingTool.textPath) {
         final double letterSpacing =
             (stroke['letterSpacing'] as double?) ?? 0.0;
+
         _drawTextAlongPath(
           canvas,
+
           points,
+
           text,
+
           color,
+
           fontSize,
+
           fontFamily: fontFamily,
+
           fontWeight: fontWeight,
+
           fontStyle: fontStyle,
+
           letterSpacing: letterSpacing,
         );
       } else if (isDotted) {
@@ -706,126 +965,187 @@ class _MultiStrokeDrawingPainter extends CustomPainter {
         _drawPath(canvas, paint, points, tool);
       }
     }
+
     canvas.restore();
   }
 
   void _drawTextAlongPath(
     Canvas canvas,
+
     List<Offset> points,
+
     String text,
+
     Color color,
+
     double fontSize, {
+
     String? fontFamily,
+
     FontWeight? fontWeight,
+
     FontStyle? fontStyle,
+
     double letterSpacing = 0.0,
   }) {
     if (points.length < 2 || text.isEmpty) return;
+
     final ui.ParagraphBuilder builder =
         ui.ParagraphBuilder(
             ui.ParagraphStyle(
               fontSize: fontSize,
+
               fontFamily: fontFamily,
+
               fontWeight: fontWeight,
+
               fontStyle: fontStyle,
             ),
           )
           ..pushStyle(
             ui.TextStyle(
               color: color,
+
               fontFamily: fontFamily,
+
               fontWeight: fontWeight,
+
               fontStyle: fontStyle,
             ),
           )
           ..addText(text);
+
     final ui.Paragraph paragraph = builder.build();
+
     paragraph.layout(const ui.ParagraphConstraints(width: double.infinity));
 
     double distanceAlong = 0.0;
+
     final List<_Segment> segments = _segmentsFromPoints(points);
+
     final double totalLength = segments.fold(0.0, (sum, s) => sum + s.length);
+
     int i = 0;
+
     while (true) {
       final int charIndex = i % text.length;
+
       final String char = text[charIndex];
+
       final ui.TextBox box = paragraph
           .getBoxesForRange(charIndex, charIndex + 1)
           .first;
+
       final double charWidth = (box.right - box.left).abs();
+
       final _PathSample sample = _sampleAtDistance(
         segments,
+
         distanceAlong + charWidth / 2,
       );
+
       if (!sample.valid) break;
+
       canvas.save();
+
       canvas.translate(sample.position.dx, sample.position.dy);
+
       canvas.rotate(sample.angle);
+
       final ui.ParagraphBuilder cb =
           ui.ParagraphBuilder(
               ui.ParagraphStyle(
                 fontSize: fontSize,
+
                 fontFamily: fontFamily,
+
                 fontWeight: fontWeight,
+
                 fontStyle: fontStyle,
               ),
             )
             ..pushStyle(
               ui.TextStyle(
                 color: color,
+
                 fontFamily: fontFamily,
+
                 fontWeight: fontWeight,
+
                 fontStyle: fontStyle,
               ),
             )
             ..addText(char);
+
       final ui.Paragraph p = cb.build();
+
       p.layout(const ui.ParagraphConstraints(width: double.infinity));
+
       canvas.drawParagraph(p, Offset(-charWidth / 2, -fontSize));
+
       canvas.restore();
+
       distanceAlong += charWidth + letterSpacing;
+
       if (distanceAlong >= totalLength) break;
+
       i++;
     }
   }
 
   List<_Segment> _segmentsFromPoints(List<Offset> points) {
     final List<_Segment> segments = [];
+
     for (int i = 0; i < points.length - 1; i++) {
       final Offset a = points[i];
+
       final Offset b = points[i + 1];
+
       final double len = (b - a).distance;
+
       if (len > 0.0001) {
         segments.add(_Segment(start: a, end: b, length: len));
       }
     }
+
     return segments;
   }
 
   _PathSample _sampleAtDistance(List<_Segment> segments, double d) {
     double remaining = d;
+
     for (final s in segments) {
       if (remaining <= s.length) {
         final t = remaining / s.length;
+
         final Offset pos = Offset(
           s.start.dx + (s.end.dx - s.start.dx) * t,
+
           s.start.dy + (s.end.dy - s.start.dy) * t,
         );
+
         final double angle = math.atan2(
           s.end.dy - s.start.dy,
+
           s.end.dx - s.start.dx,
         );
+
         return _PathSample(position: pos, angle: angle, valid: true);
       }
+
       remaining -= s.length;
     }
+
     return _PathSample(position: Offset.zero, angle: 0, valid: false);
   }
 
   void _drawPath(
     Canvas canvas,
+
     Paint paint,
+
     List<Offset> points,
+
     DrawingTool tool,
   ) {
     if (points.isEmpty) return;
@@ -839,61 +1159,89 @@ class _MultiStrokeDrawingPainter extends CustomPainter {
         } else {
           canvas.drawPoints(ui.PointMode.polygon, points, paint);
         }
+
         break;
+
       case DrawingTool.textPath:
         break;
+
       case DrawingTool.line:
       case DrawingTool.dottedLine:
         if (points.length >= 2) {
           canvas.drawLine(points.first, points.last, paint);
         }
+
         break;
+
       case DrawingTool.arrow:
       case DrawingTool.dottedArrow:
         if (points.length >= 2) {
           canvas.drawLine(points.first, points.last, paint);
+
           _drawArrowhead(canvas, paint, points.first, points.last);
         }
+
         break;
+
       case DrawingTool.rectangle:
         if (points.length >= 2) {
           final rect = Rect.fromPoints(points.first, points.last);
+
           canvas.drawRect(rect, paint);
         }
+
         break;
+
       case DrawingTool.circle:
         if (points.length >= 2) {
           final center = Offset(
             (points.first.dx + points.last.dx) / 2,
+
             (points.first.dy + points.last.dy) / 2,
           );
+
           final radius = (points.first - points.last).distance / 2;
+
           canvas.drawCircle(center, radius, paint);
         }
+
         break;
+
       case DrawingTool.triangle:
         if (points.length >= 2) {
           _drawTriangle(canvas, paint, points.first, points.last);
         }
+
         break;
     }
   }
 
   void _drawDottedPath(Canvas canvas, Paint paint, List<Offset> points) {
     if (points.length < 2) return;
+
     const double dashLength = 6.0;
+
     const double gapLength = 6.0;
+
     for (int i = 0; i < points.length - 1; i++) {
       final start = points[i];
+
       final end = points[i + 1];
+
       final totalLength = (end - start).distance;
+
       final direction = (end - start) / totalLength;
+
       double drawn = 0.0;
+
       while (drawn < totalLength) {
         final currentStart = start + direction * drawn;
+
         final currentEnd =
             start + direction * (drawn + dashLength).clamp(0.0, totalLength);
+
         canvas.drawLine(currentStart, currentEnd, paint);
+
         drawn += dashLength + gapLength;
       }
     }
@@ -901,33 +1249,43 @@ class _MultiStrokeDrawingPainter extends CustomPainter {
 
   void _drawArrowhead(Canvas canvas, Paint paint, Offset start, Offset end) {
     const double arrowHeadLength = 12.0;
+
     const double arrowHeadAngle = 25 * math.pi / 180;
 
     final angle = math.atan2(end.dy - start.dy, end.dx - start.dx);
+
     final path = Path()
       ..moveTo(end.dx, end.dy)
       ..lineTo(
         end.dx - arrowHeadLength * math.cos(angle - arrowHeadAngle),
+
         end.dy - arrowHeadLength * math.sin(angle - arrowHeadAngle),
       )
       ..moveTo(end.dx, end.dy)
       ..lineTo(
         end.dx - arrowHeadLength * math.cos(angle + arrowHeadAngle),
+
         end.dy - arrowHeadLength * math.sin(angle + arrowHeadAngle),
       );
+
     canvas.drawPath(path, paint);
   }
 
   void _drawTriangle(Canvas canvas, Paint paint, Offset start, Offset end) {
     final Rect rect = Rect.fromPoints(start, end);
+
     final Offset top = Offset(rect.center.dx, rect.top);
+
     final Offset left = Offset(rect.left, rect.bottom);
+
     final Offset right = Offset(rect.right, rect.bottom);
+
     final Path path = Path()
       ..moveTo(top.dx, top.dy)
       ..lineTo(left.dx, left.dy)
       ..lineTo(right.dx, right.dy)
       ..close();
+
     canvas.drawPath(path, paint);
   }
 
@@ -945,14 +1303,20 @@ class _ShapePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final Rect rect = Offset.zero & size;
+
     final String shape =
         (props['shape'] as String?)?.toLowerCase() ?? 'rectangle';
+
     final double strokeWidth = (props['strokeWidth'] as double?) ?? 2.0;
+
     final Color fillColor =
         (props['fillColor'] as HiveColor?)?.toColor() ?? Colors.blue;
+
     final Color strokeColor =
         (props['strokeColor'] as HiveColor?)?.toColor() ?? Colors.black;
+
     final bool hasGradient = (props['hasGradient'] as bool?) ?? false;
+
     final List<Color> gradientColors =
         (props['gradientColors'] as List<dynamic>?)
             ?.map(
@@ -962,77 +1326,115 @@ class _ShapePainter extends CustomPainter {
             .whereType<Color>()
             .toList() ??
         [];
+
     final double cornerRadius = (props['cornerRadius'] as double?) ?? 12.0;
+
     final ui.Image? fillImage = props['image'] as ui.Image?;
+
     final bool hasShadow = (props['hasShadow'] as bool?) ?? false;
+
     final HiveColor shadowColorHive = (props['shadowColor'] is HiveColor)
         ? (props['shadowColor'] as HiveColor)
         : (props['shadowColor'] is Color)
         ? HiveColor.fromColor(props['shadowColor'] as Color)
         : HiveColor.fromColor(Colors.black54);
+
     final double shadowBlur = (props['shadowBlur'] as double?) ?? 8.0;
+
     final Offset shadowOffset =
         (props['shadowOffset'] as Offset?) ?? const Offset(4, 4);
+
     final double shadowOpacity = (props['shadowOpacity'] as double?) ?? 0.6;
+
     final double gradientAngle = (props['gradientAngle'] as double?) ?? 0.0;
 
     final Path path = _buildPath(shape, rect, cornerRadius);
 
     if (hasShadow) {
       canvas.save();
+
       canvas.translate(shadowOffset.dx, shadowOffset.dy);
+
       // drawShadow uses elevation to approximate blur
+
       canvas.drawShadow(
         path,
+
         shadowColorHive.toColor().withOpacity(shadowOpacity.clamp(0.0, 1.0)),
+
         shadowBlur,
+
         true,
       );
+
       canvas.restore();
     }
 
     if (fillImage != null) {
       // Draw image clipped to the shape path using BoxFit.cover
+
       canvas.save();
+
       canvas.clipPath(path);
+
       final Size imageSize = Size(
         fillImage.width.toDouble(),
+
         fillImage.height.toDouble(),
       );
+
       final FittedSizes fitted = applyBoxFit(BoxFit.cover, imageSize, size);
+
       final Rect inputSubrect = Alignment.center.inscribe(
         fitted.source,
+
         Offset.zero & imageSize,
       );
+
       final Rect outputSubrect = Alignment.center.inscribe(
         fitted.destination,
+
         rect,
       );
+
       canvas.drawImageRect(
         fillImage,
+
         inputSubrect,
+
         outputSubrect,
+
         Paint()..isAntiAlias = true,
       );
+
       canvas.restore();
     } else {
       final Paint fillPaint = Paint()
         ..style = PaintingStyle.fill
         ..isAntiAlias = true;
+
       if (hasGradient) {
         final double rad = gradientAngle * math.pi / 185.0;
+
         final double cx = math.cos(rad);
+
         final double sy = math.sin(rad);
+
         final Alignment begin = Alignment(-cx, -sy);
+
         final Alignment end = Alignment(cx, sy);
+
         fillPaint.shader = LinearGradient(
           colors: gradientColors,
+
           begin: begin,
+
           end: end,
         ).createShader(rect);
       } else {
         fillPaint.color = fillColor;
       }
+
       canvas.drawPath(path, fillPaint);
     }
 
@@ -1042,6 +1444,7 @@ class _ShapePainter extends CustomPainter {
         ..strokeWidth = strokeWidth
         ..color = strokeColor
         ..isAntiAlias = true;
+
       canvas.drawPath(path, strokePaint);
     }
   }
@@ -1050,19 +1453,26 @@ class _ShapePainter extends CustomPainter {
     switch (shape) {
       case 'circle':
         return Path()..addOval(rect);
+
       case 'rectangle':
       case 'square':
         return _rectanglePath(rect, cornerRadius);
+
       case 'triangle':
         return _trianglePath(rect, cornerRadius);
+
       case 'diamond':
         return _diamondPath(rect, cornerRadius);
+
       case 'hexagon':
         return _regularPolygonPath(rect, 6, cornerRadius);
+
       case 'star':
         return _starRoundedPath(rect, 5, cornerRadius);
+
       case 'heart':
         return _heartPathAccurate(rect, cornerRadius);
+
       default:
         return _rectanglePath(rect, cornerRadius);
     }
@@ -1070,13 +1480,19 @@ class _ShapePainter extends CustomPainter {
 
   Path _rectanglePath(Rect rect, double cornerRadius) {
     // Check if individual side lengths are available and different from default
+
     final double? topSide = props['topSide'] as double?;
+
     final double? rightSide = props['rightSide'] as double?;
+
     final double? bottomSide = props['bottomSide'] as double?;
+
     final double? leftSide = props['leftSide'] as double?;
 
     // Only use custom rectangle path if side lengths are explicitly set and different from default
+
     // This prevents unnecessary use of custom path for regular squares/rectangles
+
     final bool hasCustomSides =
         (topSide != null && topSide != rect.width) ||
         (rightSide != null && rightSide != rect.height) ||
@@ -1086,21 +1502,31 @@ class _ShapePainter extends CustomPainter {
     if (hasCustomSides) {
       return _createCustomRectanglePath(
         rect,
+
         topSide ?? rect.width,
+
         rightSide ?? rect.height,
+
         bottomSide ?? rect.width,
+
         leftSide ?? rect.height,
+
         cornerRadius,
       );
     }
 
     // Check if individual corner radius values are available
+
     final double? topLeftRadius = props['topLeftRadius'] as double?;
+
     final double? topRightRadius = props['topRightRadius'] as double?;
+
     final double? bottomLeftRadius = props['bottomLeftRadius'] as double?;
+
     final double? bottomRightRadius = props['bottomRightRadius'] as double?;
 
     // If individual corner radius values are provided, use them
+
     if (topLeftRadius != null ||
         topRightRadius != null ||
         bottomLeftRadius != null ||
@@ -1108,120 +1534,176 @@ class _ShapePainter extends CustomPainter {
       return Path()..addRRect(
         RRect.fromLTRBAndCorners(
           rect.left,
+
           rect.top,
+
           rect.right,
+
           rect.bottom,
+
           topLeft: Radius.circular(topLeftRadius ?? 0.0),
+
           topRight: Radius.circular(topRightRadius ?? 0.0),
+
           bottomLeft: Radius.circular(bottomLeftRadius ?? 0.0),
+
           bottomRight: Radius.circular(bottomRightRadius ?? 0.0),
         ),
       );
     }
 
     // Otherwise, use the uniform corner radius
+
     return Path()
       ..addRRect(RRect.fromRectAndRadius(rect, Radius.circular(cornerRadius)));
   }
 
   Path _createCustomRectanglePath(
     Rect rect,
+
     double topSide,
+
     double rightSide,
+
     double bottomSide,
+
     double leftSide,
+
     double cornerRadius,
   ) {
     final Path path = Path();
 
     // Calculate the center point
+
     final double centerX = rect.center.dx;
+
     final double centerY = rect.center.dy;
 
     // Calculate corner points to create a quadrilateral
+
     // For a true quadrilateral, we need to calculate the actual corner positions
+
     // based on the side lengths and create a polygon
 
     // Calculate the four corners of the quadrilateral
+
     final double halfTopSide = topSide / 2;
+
     final double halfBottomSide = bottomSide / 2;
+
     final double halfLeftSide = leftSide / 2;
+
     final double halfRightSide = rightSide / 2;
 
     // Calculate corner positions
+
     final Offset topLeft = Offset(
       centerX - halfTopSide,
+
       centerY - halfLeftSide,
     );
+
     final Offset topRight = Offset(
       centerX + halfTopSide,
+
       centerY - halfRightSide,
     );
+
     final Offset bottomLeft = Offset(
       centerX - halfBottomSide,
+
       centerY + halfLeftSide,
     );
+
     final Offset bottomRight = Offset(
       centerX + halfBottomSide,
+
       centerY + halfRightSide,
     );
 
     // Create a quadrilateral path with proper rounded corners
+
     if (cornerRadius > 0) {
       // Start from top-left corner, accounting for corner radius
+
       path.moveTo(topLeft.dx + cornerRadius, topLeft.dy);
 
       // Top side to top-right corner
+
       path.lineTo(topRight.dx - cornerRadius, topRight.dy);
 
       // Top-right rounded corner
+
       path.quadraticBezierTo(
         topRight.dx,
+
         topRight.dy,
+
         topRight.dx,
+
         topRight.dy + cornerRadius,
       );
 
       // Right side to bottom-right corner
+
       path.lineTo(bottomRight.dx, bottomRight.dy - cornerRadius);
 
       // Bottom-right rounded corner
+
       path.quadraticBezierTo(
         bottomRight.dx,
+
         bottomRight.dy,
+
         bottomRight.dx - cornerRadius,
+
         bottomRight.dy,
       );
 
       // Bottom side to bottom-left corner
+
       path.lineTo(bottomLeft.dx + cornerRadius, bottomLeft.dy);
 
       // Bottom-left rounded corner
+
       path.quadraticBezierTo(
         bottomLeft.dx,
+
         bottomLeft.dy,
+
         bottomLeft.dx,
+
         bottomLeft.dy - cornerRadius,
       );
 
       // Left side to top-left corner
+
       path.lineTo(topLeft.dx, topLeft.dy + cornerRadius);
 
       // Top-left rounded corner
+
       path.quadraticBezierTo(
         topLeft.dx,
+
         topLeft.dy,
+
         topLeft.dx + cornerRadius,
+
         topLeft.dy,
       );
 
       path.close(); // Close the path
     } else {
       // No rounded corners - create sharp quadrilateral
+
       path.moveTo(topLeft.dx, topLeft.dy);
+
       path.lineTo(topRight.dx, topRight.dy);
+
       path.lineTo(bottomRight.dx, bottomRight.dy);
+
       path.lineTo(bottomLeft.dx, bottomLeft.dy);
+
       path.close();
     }
 
@@ -1230,13 +1712,19 @@ class _ShapePainter extends CustomPainter {
 
   Path _trianglePath(Rect rect, double radius) {
     // Check if individual corner radius values are available for triangle
+
     final double? topRadius = props['topRadius'] as double?;
+
     final double? bottomRightRadius = props['bottomRightRadius'] as double?;
+
     final double? bottomLeftRadius = props['bottomLeftRadius'] as double?;
 
     // Check if we should use individual corner radius values
+
     // Only use individual radii if at least one has been explicitly set to a non-zero value
+
     // and we're not using the uniform corner radius slider
+
     final bool useIndividualRadii =
         (topRadius != null && topRadius > 0) ||
         (bottomRightRadius != null && bottomRightRadius > 0) ||
@@ -1245,113 +1733,166 @@ class _ShapePainter extends CustomPainter {
     if (useIndividualRadii) {
       final List<Offset> points = [
         Offset(rect.center.dx, rect.top),
+
         Offset(rect.right, rect.bottom),
+
         Offset(rect.left, rect.bottom),
       ];
+
       final List<double> radii = [
         topRadius ?? 0.0,
+
         bottomRightRadius ?? 0.0,
+
         bottomLeftRadius ?? 0.0,
       ];
+
       return _roundedPolygonPathWithIndividualRadii(points, radii);
     }
 
     // Otherwise, use the uniform corner radius
+
     final List<Offset> points = [
       Offset(rect.center.dx, rect.top),
+
       Offset(rect.right, rect.bottom),
+
       Offset(rect.left, rect.bottom),
     ];
+
     return _roundedPolygonPath(points, radius);
   }
 
   Path _diamondPath(Rect rect, double radius) {
     final List<Offset> points = [
       Offset(rect.center.dx, rect.top),
+
       Offset(rect.right, rect.center.dy),
+
       Offset(rect.center.dx, rect.bottom),
+
       Offset(rect.left, rect.center.dy),
     ];
+
     return _roundedPolygonPath(points, radius);
   }
 
   Path _regularPolygonPath(Rect rect, int sides, double cornerRadius) {
     final double cx = rect.center.dx;
+
     final double cy = rect.center.dy;
+
     final double r = math.min(rect.width, rect.height) / 2;
+
     final List<Offset> points = List.generate(sides, (i) {
       final double angle = (-math.pi / 2) + (2 * math.pi * i / sides);
+
       return Offset(cx + r * math.cos(angle), cy + r * math.sin(angle));
     });
+
     return _roundedPolygonPath(points, cornerRadius);
   }
 
   Path _starRoundedPath(Rect rect, int points, double cornerRadius) {
     final double cx = rect.center.dx;
+
     final double cy = rect.center.dy;
+
     final double outerR = math.min(rect.width, rect.height) / 2;
+
     final double innerR = outerR * 0.5;
+
     final int total = points * 2;
+
     final List<Offset> vertices = List.generate(total, (i) {
       final double r = (i % 2 == 0) ? outerR : innerR;
+
       final double angle = (-math.pi / 2) + (i * math.pi / points);
+
       return Offset(cx + r * math.cos(angle), cy + r * math.sin(angle));
     });
+
     return _roundedPolygonPath(vertices, cornerRadius);
   }
 
   // Build a rounded-corner polygon path from ordered vertices
+
   Path _roundedPolygonPath(List<Offset> vertices, double radius) {
     // If radius is zero or negative, fall back to sharp polygon
+
     if (radius <= 0) {
       final Path sharp = Path()..moveTo(vertices.first.dx, vertices.first.dy);
+
       for (int i = 1; i < vertices.length; i++) {
         sharp.lineTo(vertices[i].dx, vertices[i].dy);
       }
+
       sharp.close();
+
       return sharp;
     }
 
     final int n = vertices.length;
+
     final Path path = Path();
 
     Offset _trimPoint(Offset from, Offset to, double d) {
       final Offset vec = to - from;
+
       final double len = vec.distance;
+
       if (len == 0) return from;
+
       final double t = (d / len).clamp(0.0, 1.0);
+
       return from + vec * t;
     }
 
     // Compute first corner trimmed start point
+
     for (int i = 0; i < n; i++) {
       final Offset p0 = vertices[(i - 1 + n) % n];
+
       final Offset p1 = vertices[i];
+
       final Offset p2 = vertices[(i + 1) % n];
 
       final Offset v1 = (p0 - p1);
+
       final Offset v2 = (p2 - p1);
 
       final double len1 = v1.distance;
+
       final double len2 = v2.distance;
+
       if (len1 == 0 || len2 == 0) continue;
 
       final Offset u1 = v1 / len1;
+
       final Offset u2 = v2 / len2;
 
       // Angle between incoming and outgoing edges
+
       final double dot = (u1.dx * u2.dx + u1.dy * u2.dy).clamp(-1.0, 1.0);
+
       final double theta = math.acos(dot);
+
       // Avoid division by zero for straight lines
+
       final double tangent = math.tan(theta / 2);
+
       double offsetDist = tangent == 0 ? 0 : (radius / tangent);
+
       // Limit by half of each adjacent edge
+
       offsetDist = math.min(offsetDist, math.min(len1, len2) / 2 - 0.01);
+
       if (offsetDist.isNaN || offsetDist.isInfinite || offsetDist < 0) {
         offsetDist = 0;
       }
 
       final Offset start = _trimPoint(p1, p0, offsetDist);
+
       final Offset end = _trimPoint(p1, p2, offsetDist);
 
       if (i == 0) {
@@ -1361,59 +1902,85 @@ class _ShapePainter extends CustomPainter {
       }
 
       // Use quadratic curve with control at the original vertex to handle concave and convex cases
+
       path.quadraticBezierTo(p1.dx, p1.dy, end.dx, end.dy);
     }
 
     path.close();
+
     return path;
   }
 
   // Build a rounded-corner polygon path with individual radii for each corner
+
   Path _roundedPolygonPathWithIndividualRadii(
     List<Offset> vertices,
+
     List<double> radii,
   ) {
     final int n = vertices.length;
+
     final Path path = Path();
 
     Offset _trimPoint(Offset from, Offset to, double d) {
       final Offset vec = to - from;
+
       final double len = vec.distance;
+
       if (len == 0) return from;
+
       final double t = (d / len).clamp(0.0, 1.0);
+
       return from + vec * t;
     }
 
     // Compute first corner trimmed start point
+
     for (int i = 0; i < n; i++) {
       final double radius = radii[i];
+
       final Offset p0 = vertices[(i - 1 + n) % n];
+
       final Offset p1 = vertices[i];
+
       final Offset p2 = vertices[(i + 1) % n];
 
       final Offset v1 = (p0 - p1);
+
       final Offset v2 = (p2 - p1);
 
       final double len1 = v1.distance;
+
       final double len2 = v2.distance;
+
       if (len1 == 0 || len2 == 0) continue;
 
       final Offset u1 = v1 / len1;
+
       final Offset u2 = v2 / len2;
 
       // Angle between incoming and outgoing edges
+
       final double dot = (u1.dx * u2.dx + u1.dy * u2.dy).clamp(-1.0, 1.0);
+
       final double theta = math.acos(dot);
+
       // Avoid division by zero for straight lines
+
       final double tangent = math.tan(theta / 2);
+
       double offsetDist = tangent == 0 ? 0 : (radius / tangent);
+
       // Limit by half of each adjacent edge
+
       offsetDist = math.min(offsetDist, math.min(len1, len2) / 2 - 0.01);
+
       if (offsetDist.isNaN || offsetDist.isInfinite || offsetDist < 0) {
         offsetDist = 0;
       }
 
       final Offset start = _trimPoint(p1, p0, offsetDist);
+
       final Offset end = _trimPoint(p1, p2, offsetDist);
 
       if (i == 0) {
@@ -1423,10 +1990,12 @@ class _ShapePainter extends CustomPainter {
       }
 
       // Use quadratic curve with control at the original vertex to handle concave and convex cases
+
       path.quadraticBezierTo(p1.dx, p1.dy, end.dx, end.dy);
     }
 
     path.close();
+
     return path;
   }
 
@@ -1434,65 +2003,98 @@ class _ShapePainter extends CustomPainter {
 
   Path _heartPathAccurate(Rect rect, double radius) {
     final Path path = Path();
+
     final double w = rect.width;
+
     final double h = rect.height;
+
     final double x = rect.left;
+
     final double y = rect.top;
+
     final double cx = x + w / 2;
 
     // Dip at the top (between the lobes)
+
     final double dipY = y + h * 0.25;
 
     // Start at dip
+
     path.moveTo(cx, dipY);
 
     // Left lobe top curve
+
     path.cubicTo(
       cx - w * 0.25,
+
       y, // control 1
+
       x,
+
       y + h * 0.25, // control 2
+
       x,
+
       y + h * 0.45, // end of left lobe curve
     );
 
     // Left bottom curve
+
     path.cubicTo(
       x,
+
       y + h * 0.75,
+
       cx - w * 0.25,
+
       y + h * 0.9,
+
       cx,
+
       y + h, // bottom tip
     );
 
     // Right bottom curve
+
     path.cubicTo(
       cx + w * 0.25,
+
       y + h * 0.9,
+
       x + w,
+
       y + h * 0.75,
+
       x + w,
+
       y + h * 0.45,
     );
 
     // Right lobe top curve
+
     path.cubicTo(
       x + w,
+
       y + h * 0.25,
+
       cx + w * 0.25,
+
       y,
+
       cx,
+
       dipY, // back to dip
     );
 
     path.close();
+
     return path;
   }
 
   @override
   bool shouldRepaint(covariant _ShapePainter oldDelegate) {
     // Repaint whenever the parent rebuilds to reflect in-place mutations to props
+
     return true;
   }
 }
@@ -1500,174 +2102,264 @@ class _ShapePainter extends CustomPainter {
 class _PosterMakerScreenState extends State<PosterMakerScreen>
     with TickerProviderStateMixin {
   int selectedTabIndex = 0;
+
   List<CanvasItem> canvasItems = [];
+
   CanvasItem? selectedItem;
+
   bool showBottomSheet = false;
+
   bool snapToGrid = false;
+
   double canvasZoom = 1.0;
+
   int editTopbarTabIndex = 0; // 0: General, 1: Type
+
   final ImagePicker _imagePicker = ImagePicker();
+
   final GlobalKey _canvasRepaintKey = GlobalKey();
 
   // Nudge control timers for press-and-hold behavior
+
   Timer? _nudgeRepeatTimer;
+
   Timer? _nudgeInitialDelayTimer;
+
   static const Duration _nudgeInitialDelay = Duration(milliseconds: 300);
+
   static const Duration _nudgeRepeatInterval = Duration(milliseconds: 60);
+
   static const double _nudgeStep = 4.0; // base pixels per nudge
 
   // Undo/Redo system
+
   List<CanvasAction> actionHistory = [];
+
   int currentActionIndex = -1;
 
   // Animation controllers
+
   late AnimationController _bottomSheetController;
+
   late Animation<double> _bottomSheetAnimation;
+
   late AnimationController _selectionController;
+
   late Animation<double> _selectionAnimation;
+
   late AnimationController _itemAddController;
+
   late Animation<double> _itemAddAnimation;
 
   // Temp previous states for gesture-based history
+
   CanvasItem? _preDragState;
+
   CanvasItem? _preTransformState;
 
   final List<String> tabTitles = ['Text', 'Images', 'Shapes', 'Drawing'];
 
   // Drawing state variables
+
   DrawingTool selectedDrawingTool = DrawingTool.brush;
+
   DrawingMode drawingMode = DrawingMode.disabled;
+
   List<DrawingLayer> drawingLayers = [];
+
   Color drawingColor = Colors.black;
+
   double drawingStrokeWidth = 2.0;
+
   double drawingOpacity = 1.0;
+
   bool isDrawing = false;
+
   List<Offset> currentDrawingPoints = [];
+
   bool showDrawingToolSelection = true; // Show tool selection first
+
   bool showDrawingControls = false; // Show controls after tool selection
+
   DateTime? _lastDrawingUpdate;
+
   // Remembers last non-eraser tool to restore after toggling eraser off
+
   DrawingTool? _previousNonEraserTool;
+
   // Text along path current input
+
   String? _currentPathText = '';
+
   String? _currentPathFontFamily;
+
   double? _currentPathLetterSpacing;
 
   // Text items now driven by liked Google Fonts with a leading plus button
+
   List<String> get likedFontFamilies => FontFavorites.instance.likedFamilies;
 
   // Removed sample image icons; Images tab now only supports uploads
 
   final List<Map<String, dynamic>> sampleShapes = const [
     {'shape': 'rectangle', 'icon': Icons.crop_square_rounded},
+
     {'shape': 'circle', 'icon': Icons.circle_outlined},
+
     {'shape': 'triangle', 'icon': Icons.change_history_rounded},
+
     {'shape': 'hexagon', 'icon': Icons.hexagon_outlined},
+
     {'shape': 'diamond', 'icon': Icons.diamond_outlined},
+
     {'shape': 'star', 'icon': Icons.star_border_rounded},
+
     {'shape': 'heart', 'icon': Icons.favorite_border_rounded},
   ];
 
   List<Map<String, dynamic>> _getDrawingTools() {
     return [
       {'tool': DrawingTool.textPath, 'icon': Icons.title, 'name': 'Text Path'},
+
       {'tool': DrawingTool.brush, 'icon': Icons.brush, 'name': 'Brush'},
+
       {'tool': DrawingTool.line, 'icon': Icons.horizontal_rule, 'name': 'Line'},
+
       {'tool': DrawingTool.arrow, 'icon': Icons.arrow_forward, 'name': 'Arrow'},
+
       {
         'tool': DrawingTool.dottedLine,
+
         'icon': Icons.more_horiz,
+
         'name': 'Dotted Line',
       },
     ];
   }
 
   // Recent colors for color picker
+
   List<Color> recentColors = [];
+
   final List<Color> favoriteColors = [
     Colors.black,
+
     Colors.redAccent,
+
     Colors.blueAccent,
+
     Colors.greenAccent,
   ];
 
   PosterProject? _currentProject;
+
   late Box<PosterProject> _projectBox;
+
   late Box<UserPreferences> _userPreferencesBox;
+
   late UserPreferences userPreferences;
+
   Timer? _autoSaveTimer;
 
   @override
   void initState() {
     super.initState();
+
     _projectBox = Hive.box<PosterProject>('posterProjects');
+
     _userPreferencesBox = Hive.box<UserPreferences>('userPreferences');
+
     userPreferences =
         _userPreferencesBox.get('user_prefs_id') ?? UserPreferences();
 
     // Initialize auto-save timer based on user preferences
+
     _initializeAutoSave();
 
     // Initialize background remover
+
     BackgroundRemover.instance.initializeOrt();
 
     if (widget.projectId != null) {
       _currentProject = _projectBox.get(widget.projectId);
+
       if (_currentProject != null) {
         // Convert HiveCanvasItems back to CanvasItems and load images
+
         _loadProjectData();
       }
     } else {
       _currentProject = PosterProject(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
+
         name: 'New Project',
+
         createdAt: DateTime.now(),
+
         lastModified: DateTime.now(),
+
         canvasItems: [],
+
         settings: ProjectSettings(exportSettings: ExportSettings()),
       );
+
       _projectBox.put(_currentProject!.id, _currentProject!);
     }
+
     _bottomSheetController = AnimationController(
       duration: const Duration(milliseconds: 350),
+
       vsync: this,
     );
+
     _bottomSheetAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _bottomSheetController,
+
         curve: Curves.easeOutCubic,
       ),
     );
 
     _selectionController = AnimationController(
       duration: const Duration(milliseconds: 200),
+
       vsync: this,
     );
+
     _selectionAnimation = Tween<double>(begin: 1.0, end: 1.05).animate(
       CurvedAnimation(parent: _selectionController, curve: Curves.elasticOut),
     );
 
     _itemAddController = AnimationController(
       duration: const Duration(milliseconds: 400),
+
       vsync: this,
     );
+
     _itemAddAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _itemAddController, curve: Curves.elasticOut),
     );
 
     if (_currentProject != null) {
       // Always use the canonical converter to properly rehydrate drawings
+
       // (including text-path strokes) instead of shallow-mapping properties.
+
       // This ensures brushes/text-path data are restored after app restart.
+
       _loadProjectData();
     } else {
       canvasItems = [];
     }
+
     if (userPreferences.recentColors.isEmpty) {
       userPreferences.recentColors = [
         Colors.black,
+
         Colors.redAccent,
+
         Colors.blueAccent,
+
         Colors.greenAccent,
       ].map((e) => HiveColor.fromColor(e)).toList();
     }
@@ -1676,6 +2368,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       final List<HiveColor> hiveRecentColors = List<HiveColor>.from(
         userPreferences.recentColors,
       );
+
       for (var recentColor in hiveRecentColors) {
         recentColors.add(recentColor.toColor());
       }
@@ -1685,20 +2378,29 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   @override
   void dispose() {
     _saveProject();
+
     _bottomSheetController.dispose();
+
     _selectionController.dispose();
+
     _itemAddController.dispose();
+
     _cancelNudgeTimers();
+
     _autoSaveTimer?.cancel();
+
     BackgroundRemover.instance.dispose();
+
     super.dispose();
   }
 
   void _initializeAutoSave() {
     _autoSaveTimer?.cancel();
+
     if (userPreferences.autoSave) {
       _autoSaveTimer = Timer.periodic(
         Duration(seconds: userPreferences.autoSaveInterval),
+
         (timer) {
           _saveProject();
         },
@@ -1711,6 +2413,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       canvasItems = await _convertHiveItemsToCanvas(
         _currentProject!.canvasItems,
       );
+
       if (mounted) {
         setState(() {});
       }
@@ -1720,13 +2423,17 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   void _saveProject() {
     if (_currentProject != null) {
       _currentProject!.lastModified = DateTime.now();
+
       // Convert current CanvasItems to HiveCanvasItems before saving
+
       _currentProject!.canvasItems = canvasItems
           .map((item) => _convertCanvasItemToHive(item))
           .toList();
+
       _projectBox.put(_currentProject!.id, _currentProject!);
 
       // Show auto-save indicator
+
       if (userPreferences.autoSave) {
         _showAutoSaveIndicator();
       }
@@ -1740,16 +2447,24 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       SnackBar(
         content: Row(
           mainAxisSize: MainAxisSize.min,
+
           children: [
             Icon(Icons.save, color: Colors.white, size: 16),
+
             SizedBox(width: 8),
+
             Text('Auto-saved', style: TextStyle(fontSize: 12)),
           ],
         ),
+
         backgroundColor: Colors.green.shade600,
+
         duration: Duration(seconds: 2),
+
         behavior: SnackBarBehavior.floating,
+
         margin: EdgeInsets.all(16),
+
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );
@@ -1757,27 +2472,35 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   void _updateUserPreferences(UserPreferences newPreferences) {
     userPreferences = newPreferences;
+
     _userPreferencesBox.put('user_prefs_id', userPreferences);
+
     _initializeAutoSave(); // Reinitialize auto-save with new preferences
   }
 
   HiveCanvasItem _convertCanvasItemToHive(CanvasItem item) {
     // Create a copy of properties to avoid modifying the original
+
     Map<String, dynamic> hiveProperties = Map<String, dynamic>.from(
       item.properties,
     );
 
     // Normalize drawing strokes to Hive-friendly values
+
     if (item.type == CanvasItemType.drawing) {
       final List<Map<String, dynamic>>? strokes =
           (hiveProperties['strokes'] as List<dynamic>?)
               ?.map((e) => e as Map<String, dynamic>)
               .toList();
+
       if (strokes != null) {
         final List<Map<String, dynamic>> normalized = [];
+
         for (final stroke in strokes) {
           final dynamic colorRaw = stroke['color'];
+
           // Ensure color is stored as HiveColor
+
           final HiveColor hiveColor = colorRaw is HiveColor
               ? colorRaw
               : (colorRaw is Color
@@ -1787,6 +2510,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                           : HiveColor.fromColor(Colors.black)));
 
           final dynamic toolRaw = stroke['tool'];
+
           final String toolName = toolRaw is Enum
               ? toolRaw.name
               : (toolRaw is String ? toolRaw : DrawingTool.brush.name);
@@ -1799,38 +2523,56 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
           normalized.add({
             'tool': toolName,
+
             'color': hiveColor,
+
             'strokeWidth': (stroke['strokeWidth'] as num?)?.toDouble() ?? 2.0,
+
             'opacity': (stroke['opacity'] as num?)?.toDouble() ?? 1.0,
+
             'isDotted': (stroke['isDotted'] as bool?) ?? false,
+
             'points': points,
+
             // Text-path specific
             'text': (stroke['text'] as String?) ?? '',
+
             'fontSize': (stroke['fontSize'] as num?)?.toDouble() ?? 24.0,
+
             'letterSpacing':
                 (stroke['letterSpacing'] as num?)?.toDouble() ?? 0.0,
+
             'fontFamily': (stroke['fontFamily'] as String?) ?? 'Roboto',
+
             // Preserve optional style info if present
             if (stroke.containsKey('fontWeight'))
               'fontWeight': stroke['fontWeight'],
+
             if (stroke.containsKey('fontStyle'))
               'fontStyle': stroke['fontStyle'],
           });
         }
+
         hiveProperties['strokes'] = normalized;
       }
     }
 
     // Handle ui.Image serialization for shapes
+
     if (item.type == CanvasItemType.shape &&
         hiveProperties.containsKey('image')) {
       final ui.Image? image = hiveProperties['image'] as ui.Image?;
+
       if (image != null) {
         // Remove the ui.Image object as it cannot be serialized
+
         hiveProperties.remove('image');
+
         // Keep the imagePath for reconstruction
+
         if (!hiveProperties.containsKey('imagePath')) {
           // If no imagePath exists, we need to save the image to a file
+
           _saveImageToFile(image, item.id);
         }
       }
@@ -1838,21 +2580,33 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
     return HiveCanvasItem(
       id: item.id,
+
       type: HiveCanvasItemType.values.firstWhere(
         (e) =>
             e.toString().split('.').last ==
             item.type.toString().split('.').last,
       ),
+
       position: item.position,
+
       scale: item.scale,
+
       rotation: item.rotation,
+
       opacity: item.opacity,
+
       layerIndex: item.layerIndex,
+
       isVisible: item.isVisible,
+
       isLocked: item.isLocked,
+
       properties: hiveProperties,
+
       createdAt: item.createdAt,
+
       lastModified: item.lastModified,
+
       groupId: item.groupId,
     );
   }
@@ -1860,19 +2614,25 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   Future<void> _saveImageToFile(ui.Image image, String itemId) async {
     try {
       final Directory tempDir = await getTemporaryDirectory();
+
       final String imagePath =
           '${tempDir.path}/shape_image_${itemId}_${DateTime.now().millisecondsSinceEpoch}.png';
 
       // Convert ui.Image to bytes
+
       final ByteData? byteData = await image.toByteData(
         format: ui.ImageByteFormat.png,
       );
+
       if (byteData != null) {
         final File file = File(imagePath);
+
         await file.writeAsBytes(byteData.buffer.asUint8List());
 
         // Update the item's imagePath property
+
         final itemIndex = canvasItems.indexWhere((item) => item.id == itemId);
+
         if (itemIndex != -1) {
           canvasItems[itemIndex].properties['imagePath'] = imagePath;
         }
@@ -1893,19 +2653,26 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       );
 
       // Rehydrate drawing strokes (convert 'tool' string back to enum, ensure colors)
+
       if (hiveItem.type == HiveCanvasItemType.drawing &&
           properties.containsKey('strokes')) {
         final List<dynamic>? rawStrokes =
             properties['strokes'] as List<dynamic>?;
+
         final List<Map<String, dynamic>>? strokes = rawStrokes?.map((e) {
           // Some persisted entries may be Map<dynamic, dynamic> – normalize to Map<String, dynamic>
+
           final Map raw = e as Map;
+
           return raw.map((key, value) => MapEntry(key.toString(), value));
         }).toList();
+
         if (strokes != null) {
           final List<Map<String, dynamic>> rehydrated = [];
+
           for (final stroke in strokes) {
             final dynamic colorRaw = stroke['color'];
+
             final HiveColor hiveColor = colorRaw is HiveColor
                 ? colorRaw
                 : (colorRaw is Color
@@ -1915,9 +2682,11 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                             : HiveColor.fromColor(Colors.black)));
 
             final dynamic toolRaw = stroke['tool'];
+
             final DrawingTool tool = toolRaw is String
                 ? DrawingTool.values.firstWhere(
                     (t) => t.name == toolRaw,
+
                     orElse: () => DrawingTool.brush,
                   )
                 : (toolRaw is DrawingTool ? toolRaw : DrawingTool.brush);
@@ -1930,38 +2699,57 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
             rehydrated.add({
               'tool': tool,
+
               'color': hiveColor,
+
               'strokeWidth': (stroke['strokeWidth'] as num?)?.toDouble() ?? 2.0,
+
               'opacity': (stroke['opacity'] as num?)?.toDouble() ?? 1.0,
+
               'isDotted': (stroke['isDotted'] as bool?) ?? false,
+
               'points': points,
+
               'text': (stroke['text'] as String?) ?? '',
+
               'fontSize': (stroke['fontSize'] as num?)?.toDouble() ?? 24.0,
+
               'letterSpacing':
                   (stroke['letterSpacing'] as num?)?.toDouble() ?? 0.0,
+
               'fontFamily': (stroke['fontFamily'] as String?) ?? 'Roboto',
+
               if (stroke.containsKey('fontWeight'))
                 'fontWeight': stroke['fontWeight'],
+
               if (stroke.containsKey('fontStyle'))
                 'fontStyle': stroke['fontStyle'],
             });
           }
+
           properties['strokes'] = rehydrated;
         }
       }
 
       // Load image for shapes if imagePath exists
+
       if (hiveItem.type == HiveCanvasItemType.shape &&
           properties.containsKey('imagePath')) {
         final String? imagePath = properties['imagePath'] as String?;
+
         if (imagePath != null) {
           try {
             final File imageFile = File(imagePath);
+
             if (await imageFile.exists()) {
               final Uint8List imageBytes = await imageFile.readAsBytes();
+
               final ui.Codec codec = await ui.instantiateImageCodec(imageBytes);
+
               final ui.FrameInfo frame = await codec.getNextFrame();
+
               final ui.Image image = frame.image;
+
               properties['image'] = image;
             }
           } catch (e) {
@@ -1972,21 +2760,33 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
       final CanvasItem item = CanvasItem(
         id: hiveItem.id,
+
         type: CanvasItemType.values.firstWhere(
           (e) =>
               e.toString().split('.').last ==
               hiveItem.type.toString().split('.').last,
         ),
+
         position: hiveItem.position,
+
         scale: hiveItem.scale,
+
         rotation: hiveItem.rotation,
+
         opacity: hiveItem.opacity,
+
         layerIndex: hiveItem.layerIndex,
+
         isVisible: hiveItem.isVisible,
+
         isLocked: hiveItem.isLocked,
+
         properties: properties,
+
         createdAt: hiveItem.createdAt,
+
         lastModified: hiveItem.lastModified,
+
         groupId: hiveItem.groupId,
       );
 
@@ -2000,10 +2800,13 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     switch (value) {
       case 1:
         return TextDecoration.underline;
+
       case 2:
         return TextDecoration.overline;
+
       case 3:
         return TextDecoration.lineThrough;
+
       default:
         return TextDecoration.none;
     }
@@ -2013,16 +2816,22 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     if (currentActionIndex < actionHistory.length - 1) {
       actionHistory.removeRange(currentActionIndex + 1, actionHistory.length);
     }
+
     actionHistory.add(action);
+
     currentActionIndex++;
+
     if (actionHistory.length > 50) {
       actionHistory.removeAt(0);
+
       currentActionIndex--;
     }
 
     // Apply the action immediately if it's a modify operation
+
     if (action.type == 'modify' && action.item != null) {
       final idx = canvasItems.indexWhere((it) => it.id == action.item!.id);
+
       if (idx != -1) {
         canvasItems[idx] = action.item!;
       }
@@ -2031,59 +2840,81 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   void _undo() {
     if (currentActionIndex < 0) return;
+
     final action = actionHistory[currentActionIndex];
+
     setState(() {
       switch (action.type) {
         case 'add':
           canvasItems.removeWhere((it) => it.id == action.item!.id);
+
           break;
+
         case 'remove':
           canvasItems.add(action.item!);
+
           break;
+
         case 'modify':
           final idx = canvasItems.indexWhere((it) => it.id == action.item!.id);
+
           if (idx != -1 && action.previousState != null) {
             canvasItems[idx] = action.previousState!;
           }
+
           break;
       }
 
       // Ensure selection stays consistent with current canvas items
+
       if (selectedItem != null) {
         final matchIdx = canvasItems.indexWhere(
           (it) => it.id == selectedItem!.id,
         );
+
         selectedItem = matchIdx != -1 ? canvasItems[matchIdx] : null;
       }
     });
+
     currentActionIndex--;
   }
 
   void _redo() {
     if (currentActionIndex >= actionHistory.length - 1) return;
+
     currentActionIndex++;
+
     final action = actionHistory[currentActionIndex];
+
     setState(() {
       switch (action.type) {
         case 'add':
           canvasItems.add(action.item!);
+
           break;
+
         case 'remove':
           canvasItems.removeWhere((it) => it.id == action.item!.id);
+
           break;
+
         case 'modify':
           final idx = canvasItems.indexWhere((it) => it.id == action.item!.id);
+
           if (idx != -1) {
             canvasItems[idx] = action.item!;
           }
+
           break;
       }
 
       // Ensure selection stays consistent with current canvas items
+
       if (selectedItem != null) {
         final matchIdx = canvasItems.indexWhere(
           (it) => it.id == selectedItem!.id,
         );
+
         selectedItem = matchIdx != -1 ? canvasItems[matchIdx] : null;
       }
     });
@@ -2092,20 +2923,30 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   void _addCanvasItem(CanvasItemType type, {Map<String, dynamic>? properties}) {
     final newItem = CanvasItem(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
+
       type: type,
+
       position: Offset(100.w, 100.h),
+
       properties: properties ?? _getDefaultProperties(type),
+
       layerIndex: canvasItems.length,
+
       lastModified: DateTime.now(),
+
       createdAt: DateTime.now(),
     );
+
     setState(() {
       canvasItems.add(newItem);
+
       _selectItem(newItem);
     });
+
     _addAction(
       CanvasAction(type: 'add', item: newItem, timestamp: DateTime.now()),
     );
+
     _itemAddController.forward().then((_) => _itemAddController.reset());
   }
 
@@ -2114,73 +2955,129 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       case CanvasItemType.text:
         return {
           'text': 'Sample Text',
+
           'fontSize': 24.0,
+
           'color': HiveColor.fromColor(Colors.black),
+
           'fontWeight': FontWeight.normal.index,
+
           'fontStyle': FontStyle.normal.index,
+
           'textAlign': TextAlign.center.index,
+
           'hasGradient': false,
+
           'gradientColors': const [],
+
           'gradientAngle': 0.0,
+
           'decoration': 0, // TextDecoration.none
+
           'letterSpacing': 0.0,
+
           'hasShadow': false,
+
           'shadowColor': HiveColor.fromColor(Colors.black.withOpacity(0.6)),
+
           'shadowOffset': const Offset(4, 4),
+
           'shadowBlur': 4.0,
+
           'shadowOpacity': 0.6,
         };
+
       case CanvasItemType.image:
         return {
           'tint': HiveColor.fromColor(Colors.transparent),
+
           'blur': 0.0,
+
           'hasGradient': false,
+
           'gradientColors': const [],
+
           'gradientAngle': 0.0,
+
           'hasShadow': false,
+
           'shadowColor': HiveColor.fromColor(Colors.black.withOpacity(0.6)),
+
           'shadowOffset': const Offset(8, 8),
+
           'shadowBlur': 8.0,
+
           'shadowOpacity': 0.6,
         };
+
       case CanvasItemType.sticker:
         return {
           'iconCodePoint': Icons.star.codePoint,
+
           'color': HiveColor.fromColor(Colors.yellow),
+
           'size': 60.0,
         };
+
       case CanvasItemType.shape:
         return {
           'shape': 'rectangle',
+
           'fillColor': HiveColor.fromColor(Colors.blue),
+
           'strokeColor': HiveColor.fromColor(Colors.black),
+
           'strokeWidth': 2.0,
+
           'hasGradient': false,
+
           'gradientColors': const [],
+
           'cornerRadius': 0.0,
+
           'width': 100.0,
+
           'height': 100.0,
+
           'topSide': 100.0,
+
           'rightSide': 100.0,
+
           'bottomSide': 100.0,
+
           'leftSide': 100.0,
+
           'topLeftRadius': 0.0,
+
           'topRightRadius': 0.0,
+
           'bottomLeftRadius': 0.0,
+
           'bottomRightRadius': 0.0,
+
           'topRadius': 0.0,
+
           'hasShadow': false,
+
           'shadowColor': HiveColor.fromColor(Colors.black.withOpacity(0.6)),
+
           'shadowOffset': const Offset(8, 8),
+
           'shadowBlur': 8.0,
+
           'shadowOpacity': 0.6,
         };
+
       case CanvasItemType.drawing:
         return {
           'drawingTool': DrawingTool.brush,
+
           'color': HiveColor.fromColor(Colors.black),
+
           'strokeWidth': 2.0,
+
           'opacity': 1.0,
+
           'isDotted': false,
         };
     }
@@ -2189,27 +3086,34 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   void _selectItem(CanvasItem item) {
     setState(() {
       selectedItem = item;
+
       showBottomSheet = false;
     });
+
     // Removed: _selectionController.forward();
   }
 
   void _deselectItem() {
     setState(() {
       selectedItem = null;
+
       showBottomSheet = false;
     });
+
     _bottomSheetController.reverse();
+
     // Removed: _selectionController.reverse();
   }
 
   void _removeItem(CanvasItem item) {
     setState(() {
       canvasItems.remove(item);
+
       if (selectedItem == item) {
         _deselectItem();
       }
     });
+
     _addAction(
       CanvasAction(type: 'remove', item: item, timestamp: DateTime.now()),
     );
@@ -2218,17 +3122,24 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   void _duplicateItem(CanvasItem item) {
     final duplicatedItem = item.copyWith(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
+
       position: item.position + const Offset(20, 20),
+
       layerIndex: canvasItems.length,
     );
+
     setState(() {
       canvasItems.add(duplicatedItem);
+
       _selectItem(duplicatedItem);
     });
+
     _addAction(
       CanvasAction(
         type: 'add',
+
         item: duplicatedItem,
+
         timestamp: DateTime.now(),
       ),
     );
@@ -2237,9 +3148,11 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   void _bringToFront(CanvasItem item) {
     setState(() {
       // Remove the item from the list
+
       canvasItems.remove(item);
 
       // Find the current highest layer index
+
       int maxLayerIndex = canvasItems.isEmpty
           ? -1
           : canvasItems
@@ -2247,12 +3160,15 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                 .reduce((a, b) => a > b ? a : b);
 
       // Set the item to be on top (highest layer index + 1)
+
       item.layerIndex = maxLayerIndex + 1;
 
       // Add the item back to the list
+
       canvasItems.add(item);
 
       // Ensure selectedItem reference is maintained after reordering
+
       if (selectedItem == item) {
         selectedItem = item;
       }
@@ -2262,9 +3178,11 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   void _sendToBack(CanvasItem item) {
     setState(() {
       // Remove the item from the list
+
       canvasItems.remove(item);
 
       // Find the current lowest layer index
+
       int minLayerIndex = canvasItems.isEmpty
           ? 1
           : canvasItems
@@ -2272,12 +3190,15 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                 .reduce((a, b) => a < b ? a : b);
 
       // Set the item to be at the bottom (lowest layer index - 1)
+
       item.layerIndex = minLayerIndex - 1;
 
       // Add the item back to the list
+
       canvasItems.add(item);
 
       // Ensure selectedItem reference is maintained after reordering
+
       if (selectedItem == item) {
         selectedItem = item;
       }
@@ -2288,49 +3209,68 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     if (selectedItem != null) {
       return _buildTopEditToolbar();
     }
+
     return Container(
       height: 185.h,
+
       decoration: BoxDecoration(
         color: Colors.white,
+
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.06),
+
             blurRadius: 20,
+
             offset: const Offset(0, 4),
           ),
         ],
       ),
+
       child: Column(
         children: [
           Container(
             padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 20.h),
+
             child: Row(
               children: List.generate(tabTitles.length, (index) {
                 final isSelected = selectedTabIndex == index;
+
                 return Expanded(
                   child: GestureDetector(
                     onTap: () => setState(() => selectedTabIndex = index),
+
                     child: Container(
                       margin: EdgeInsets.symmetric(horizontal: 6.w),
+
                       padding: EdgeInsets.symmetric(vertical: 14.h),
+
                       decoration: BoxDecoration(
                         color: isSelected ? Colors.blue : Colors.white,
+
                         borderRadius: BorderRadius.circular(20.r),
+
                         border: Border.all(
                           color: isSelected
                               ? Colors.blue
                               : Colors.grey.shade300,
+
                           width: 1.2,
                         ),
                       ),
+
                       child: Text(
                         tabTitles[index],
+
                         textAlign: TextAlign.center,
+
                         style: TextStyle(
                           color: isSelected
                               ? Colors.white
                               : Colors.grey.shade700,
+
                           fontSize: 15.sp,
+
                           fontWeight: isSelected
                               ? FontWeight.w600
                               : FontWeight.w400,
@@ -2342,14 +3282,17 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               }),
             ),
           ),
+
           Expanded(
             child: Container(
               padding: EdgeInsets.symmetric(horizontal: 24.w),
+
               child: selectedTabIndex == 3
                   ? _buildDrawingControls()
                   : _buildTabContent(),
             ),
           ),
+
           SizedBox(height: 10.h),
         ],
       ),
@@ -2358,60 +3301,86 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   Widget _buildTopEditToolbar() {
     // Compact editing UI shown at the top when an item is selected
+
     return Container(
       height: 185.h,
+
       decoration: BoxDecoration(
         color: Colors.white,
+
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.06),
+
             blurRadius: 20,
+
             offset: const Offset(0, 4),
           ),
         ],
       ),
+
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+
         children: [
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+
             child: Row(
               children: [
                 Container(
                   padding: EdgeInsets.all(10.w),
+
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [Colors.blue.shade400, Colors.blue.shade600],
                     ),
+
                     borderRadius: BorderRadius.circular(14.r),
                   ),
+
                   child: Icon(
                     _getItemTypeIcon(selectedItem!.type),
+
                     color: Colors.white,
+
                     size: 20.sp,
                   ),
                 ),
+
                 // SizedBox(width: 12.w),
+
                 // Text('${selectedItem!.type.name.toUpperCase()} ', style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.bold, color: Colors.grey[800])),
                 const Spacer(),
+
                 _buildEditModeSegmentedControl(),
+
                 const Spacer(),
+
                 GestureDetector(
                   onTap: _deselectItem,
+
                   child: Container(
                     padding: EdgeInsets.symmetric(
                       horizontal: 12.w,
+
                       vertical: 8.h,
                     ),
+
                     decoration: BoxDecoration(
                       color: Colors.grey[100],
+
                       borderRadius: BorderRadius.circular(12.r),
+
                       border: Border.all(color: Colors.grey.shade300),
                     ),
+
                     child: Row(
                       children: [
                         Icon(Icons.check, size: 16.sp, color: Colors.grey[700]),
+
                         // SizedBox(width: 6.w),
+
                         // Text('Done', style: TextStyle(fontSize: 12.sp, color: Colors.grey[700], fontWeight: FontWeight.w600)),
                       ],
                     ),
@@ -2420,17 +3389,21 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               ],
             ),
           ),
+
           Expanded(
             child: selectedItem == null
                 ? const SizedBox()
                 : Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16.w),
+
                     child: ListView(
                       scrollDirection: Axis.horizontal,
+
                       children: _buildTopbarQuickControls(),
                     ),
                   ),
           ),
+
           SizedBox(height: 10.h),
         ],
       ),
@@ -2443,18 +3416,28 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     final List<String> tabs = ['General', 'Type'];
 
     // Add Shadow and Gradient tabs based on item type
+
     if (selectedItem != null) {
       switch (selectedItem!.type) {
         case CanvasItemType.text:
-        case CanvasItemType.image:
         case CanvasItemType.shape:
           tabs.addAll(['Shadow', 'Gradient']);
           break;
-        case CanvasItemType.sticker:
-          // Stickers don't typically have shadow/gradient options
+
+        case CanvasItemType.image:
+          tabs.add('Shadow'); // Images only get shadow, no gradient
           break;
+
+        case CanvasItemType.sticker:
+
+          // Stickers don't typically have shadow/gradient options
+
+          break;
+
         case CanvasItemType.drawing:
+
           // Drawings don't typically have shadow/gradient options
+
           break;
       }
     }
@@ -2462,15 +3445,21 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     return Container(
       decoration: BoxDecoration(
         color: Colors.grey[100],
+
         borderRadius: BorderRadius.circular(12.r),
+
         border: Border.all(color: Colors.grey.shade300),
       ),
+
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
+
         child: Row(
           children: tabs.asMap().entries.map((entry) {
             final int index = entry.key;
+
             final String label = entry.value;
+
             return _buildSegmentButton(label, index);
           }).toList(),
         ),
@@ -2480,29 +3469,41 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   Widget _buildSegmentButton(String label, int index) {
     final bool isActive = editTopbarTabIndex == index;
+
     return GestureDetector(
       onTap: () => setState(() => editTopbarTabIndex = index),
+
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 185),
+
         padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+
         decoration: BoxDecoration(
           color: isActive ? Colors.white : Colors.transparent,
+
           borderRadius: BorderRadius.circular(10.r),
+
           boxShadow: isActive
               ? [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.05),
+
                     blurRadius: 6,
+
                     offset: const Offset(0, 2),
                   ),
                 ]
               : null,
         ),
+
         child: Text(
           label,
+
           style: TextStyle(
             fontSize: 12.sp,
+
             color: isActive ? Colors.blue.shade700 : Colors.grey.shade700,
+
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -2515,61 +3516,95 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
     switch (editTopbarTabIndex) {
       case 0: // General controls
+
         return [
           _miniNudgePad(),
+
           _miniSlider(
             'Opacity',
+
             selectedItem!.opacity,
+
             0.1,
+
             1.0,
+
             (v) => setState(() => selectedItem!.opacity = v),
+
             Icons.opacity_rounded,
           ),
+
           _miniSlider(
             'Scale',
+
             selectedItem!.scale,
+
             0.3,
+
             10.0,
+
             (v) => setState(() => selectedItem!.scale = v),
+
             Icons.zoom_out_map_rounded,
           ),
+
           _miniSlider(
             'Rotate',
+
             selectedItem!.rotation * 185 / 3.14159,
+
             -185,
+
             185,
+
             (v) => setState(() => selectedItem!.rotation = v * 3.14159 / 185),
+
             Icons.rotate_right_rounded,
           ),
+
           _miniIconButton(
             'Duplicate',
+
             Icons.copy_rounded,
+
             () => _duplicateItem(selectedItem!),
           ),
+
           _miniIconButton(
             'Delete',
+
             Icons.delete_rounded,
+
             () => _removeItem(selectedItem!),
           ),
+
           _miniIconButton(
             'Front',
+
             Icons.vertical_align_top_rounded,
+
             () => _bringToFront(selectedItem!),
           ),
+
           _miniIconButton(
             'Back',
+
             Icons.vertical_align_bottom_rounded,
+
             () => _sendToBack(selectedItem!),
           ),
         ];
 
       case 1: // Type specific controls
+
         return _buildTypeSpecificQuickControls();
 
       case 2: // Shadow controls
+
         return _buildShadowQuickControls();
 
       case 3: // Gradient controls
+
         return _buildGradientQuickControls();
 
       default:
@@ -2581,73 +3616,112 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     if (selectedItem == null) return [];
 
     final props = selectedItem!.properties;
+
     final bool hasShadow = props['hasShadow'] == true;
 
     return [
       _miniToggleIcon(
         'Enable Shadow',
+
         CupertinoIcons.moon_stars,
+
         hasShadow,
+
         () => setState(() {
           props['hasShadow'] = !hasShadow;
         }),
       ),
+
       if (hasShadow) ...[
         _miniColorSwatch(
           'Color',
+
           (props['shadowColor'] is HiveColor)
               ? (props['shadowColor'] as HiveColor).toColor()
               : (props['shadowColor'] is Color)
               ? (props['shadowColor'] as Color)
               : Colors.black54,
+
           () => _showColorPicker('shadowColor'),
         ),
+
         _miniSlider(
           'Blur',
+
           (props['shadowBlur'] as double?) ?? 4.0,
+
           0.0,
+
           40.0,
+
           (v) => setState(() => props['shadowBlur'] = v),
+
           Icons.blur_on_rounded,
         ),
+
         _miniSlider(
           'Opacity',
+
           (props['shadowOpacity'] as double?) ?? 0.6,
+
           0.0,
+
           1.0,
+
           (v) => setState(() => props['shadowOpacity'] = v),
+
           Icons.opacity_rounded,
         ),
+
         _miniSlider(
           'Offset X',
+
           (props['shadowOffset'] as Offset?)?.dx ?? 4.0,
+
           -100.0,
+
           100.0,
+
           (v) => setState(() {
             final cur =
                 (props['shadowOffset'] as Offset?) ?? const Offset(4, 4);
+
             props['shadowOffset'] = Offset(v, cur.dy);
           }),
+
           Icons.swap_horiz_rounded,
         ),
+
         _miniSlider(
           'Offset Y',
+
           (props['shadowOffset'] as Offset?)?.dy ?? 4.0,
+
           -100.0,
+
           100.0,
+
           (v) => setState(() {
             final cur =
                 (props['shadowOffset'] as Offset?) ?? const Offset(4, 4);
+
             props['shadowOffset'] = Offset(cur.dx, v);
           }),
+
           Icons.swap_vert_rounded,
         ),
+
         _miniSlider(
           'Size',
+
           (props['shadowSize'] as double?) ?? 0.0,
+
           0.0,
+
           100.0,
+
           (v) => setState(() => props['shadowSize'] = v),
+
           Icons.zoom_out_map_rounded,
         ),
       ],
@@ -2658,43 +3732,62 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     if (selectedItem == null) return [];
 
     final props = selectedItem!.properties;
+
     final bool hasGradient = props['hasGradient'] == true;
 
     return [
       _miniToggleIcon(
         'Enable Gradient',
+
         Icons.gradient_rounded,
+
         hasGradient,
+
         () => setState(() {
           props['hasGradient'] = !hasGradient;
+
           // Initialize gradient colors if not present
+
           if (hasGradient &&
               (props['gradientColors'] == null ||
                   (props['gradientColors'] as List).isEmpty)) {
             props['gradientColors'] = [
               HiveColor.fromColor(Colors.blue),
+
               HiveColor.fromColor(Colors.purple),
             ];
           }
         }),
       ),
+
       if (hasGradient) ...[
         _miniColorSwatch(
           'Color A',
+
           _getDisplayGradientColors().first,
+
           () => _showColorPicker('gradientColor1', isGradient: true),
         ),
+
         _miniColorSwatch(
           'Color B',
+
           _getDisplayGradientColors().last,
+
           () => _showColorPicker('gradientColor2', isGradient: true),
         ),
+
         _miniSlider(
           'Angle',
+
           (props['gradientAngle'] as double?) ?? 0.0,
+
           -185.0,
+
           185.0,
+
           (v) => setState(() => props['gradientAngle'] = v),
+
           Icons.rotate_right_rounded,
         ),
       ],
@@ -2709,21 +3802,33 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         return [
           _miniTextEditButton(
             'Text',
+
             (selectedItem!.properties['text'] as String?) ?? '',
+
             (v) => setState(() => selectedItem!.properties['text'] = v),
           ),
+
           _miniSlider(
             'Font Size',
+
             (selectedItem!.properties['fontSize'] as double?) ?? 24.0,
+
             10.0,
+
             72.0,
+
             (v) => setState(() => selectedItem!.properties['fontSize'] = v),
+
             Icons.format_size_rounded,
           ),
+
           _miniToggleIcon(
             'Bold',
+
             Icons.format_bold_rounded,
+
             selectedItem!.properties['fontWeight'] == FontWeight.bold,
+
             () => setState(() {
               selectedItem!.properties['fontWeight'] =
                   (selectedItem!.properties['fontWeight'] == FontWeight.bold)
@@ -2731,10 +3836,14 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                   : FontWeight.bold;
             }),
           ),
+
           _miniToggleIcon(
             'Italic',
+
             Icons.format_italic_rounded,
+
             selectedItem!.properties['fontStyle'] == FontStyle.italic,
+
             () => setState(() {
               selectedItem!.properties['fontStyle'] =
                   (selectedItem!.properties['fontStyle'] == FontStyle.italic)
@@ -2742,16 +3851,22 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                   : FontStyle.italic;
             }),
           ),
+
           _miniFontButton(
             'Font',
+
             selectedItem!.properties['fontFamily'] as String? ?? 'Roboto',
+
             () => _showFontSelectionDialog(),
           ),
+
           _miniColorSwatch(
             'Color',
+
             (selectedItem!.properties['color'] is HiveColor)
                 ? (selectedItem!.properties['color'] as HiveColor).toColor()
                 : Colors.black,
+
             () => _showColorPicker('color'),
           ),
         ];
@@ -2759,29 +3874,45 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       case CanvasItemType.image:
         return [
           _miniIconButton('Edit Image', Icons.edit_rounded, _editSelectedImage),
+
           _miniIconButton(
             'Remove BG',
+
             Icons.auto_fix_high_rounded,
+
             _removeBackground,
           ),
+
           _miniIconButton(
             'Add Stroke',
+
             Icons.border_outer_rounded,
+
             _showStrokeSettingsDialog,
           ),
+
           _miniIconButton(
             'Replace',
+
             Icons.photo_library_rounded,
+
             () => _pickImage(replace: true),
           ),
+
           // _miniColorSwatch('Tint', selectedItem!.properties['tint'] as Color? ?? Colors.transparent,
+
           //   () => _showColorPicker('tint')),
           _miniSlider(
             'Blur',
+
             (selectedItem!.properties['blur'] as double?) ?? 0.0,
+
             0.0,
+
             10.0,
+
             (v) => setState(() => selectedItem!.properties['blur'] = v),
+
             Icons.blur_on_rounded,
           ),
         ];
@@ -2789,92 +3920,146 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       case CanvasItemType.shape:
         final String shape =
             (selectedItem!.properties['shape'] as String?) ?? 'rectangle';
+
         final bool isQuadrilateral = shape == 'rectangle' || shape == 'square';
 
         return [
           _miniColorSwatch(
             'Fill',
+
             (selectedItem!.properties['fillColor'] is HiveColor)
                 ? (selectedItem!.properties['fillColor'] as HiveColor).toColor()
                 : Colors.blue,
+
             () => _showColorPicker('fillColor'),
           ),
+
           _miniColorSwatch(
             'Stroke',
+
             (selectedItem!.properties['strokeColor'] is HiveColor)
                 ? (selectedItem!.properties['strokeColor'] as HiveColor)
                       .toColor()
                 : Colors.black,
+
             () => _showColorPicker('strokeColor'),
           ),
+
           _miniSlider(
             'Stroke Width',
+
             (selectedItem!.properties['strokeWidth'] as double?) ?? 2.0,
+
             0.0,
+
             10.0,
+
             (v) => setState(() => selectedItem!.properties['strokeWidth'] = v),
+
             Icons.line_weight_rounded,
           ),
+
           _miniSlider(
             'Corner Radius',
+
             (selectedItem!.properties['cornerRadius'] as double?) ?? 12.0,
+
             0.0,
+
             50.0,
+
             (v) => setState(() {
               selectedItem!.properties['cornerRadius'] = v;
+
               // Clear individual corner radius values when using uniform radius
+
               selectedItem!.properties.remove('topRadius');
+
               selectedItem!.properties.remove('bottomRightRadius');
+
               selectedItem!.properties.remove('bottomLeftRadius');
+
               selectedItem!.properties.remove('topLeftRadius');
+
               selectedItem!.properties.remove('topRightRadius');
             }),
+
             Icons.rounded_corner_rounded,
           ),
+
           // Add individual side controls for quadrilaterals
           if (isQuadrilateral) ...[
             _miniSlider(
               'Top Side',
+
               (selectedItem!.properties['topSide'] as double?) ?? 100.0,
+
               20.0,
+
               500.0,
+
               (v) => setState(() => selectedItem!.properties['topSide'] = v),
+
               Icons.keyboard_arrow_up_rounded,
             ),
+
             _miniSlider(
               'Right Side',
+
               (selectedItem!.properties['rightSide'] as double?) ?? 100.0,
+
               20.0,
+
               500.0,
+
               (v) => setState(() => selectedItem!.properties['rightSide'] = v),
+
               Icons.keyboard_arrow_right_rounded,
             ),
+
             _miniSlider(
               'Bottom Side',
+
               (selectedItem!.properties['bottomSide'] as double?) ?? 100.0,
+
               20.0,
+
               500.0,
+
               (v) => setState(() => selectedItem!.properties['bottomSide'] = v),
+
               Icons.keyboard_arrow_down_rounded,
             ),
+
             _miniSlider(
               'Left Side',
+
               (selectedItem!.properties['leftSide'] as double?) ?? 100.0,
+
               20.0,
+
               500.0,
+
               (v) => setState(() => selectedItem!.properties['leftSide'] = v),
+
               Icons.keyboard_arrow_left_rounded,
             ),
           ],
+
           _miniIconButton(
             'Image Fill',
+
             Icons.photo_library_rounded,
+
             () => _pickShapeImage(),
           ),
+
           if (selectedItem!.properties['image'] != null)
             _miniIconButton(
               'Clear Image',
+
               Icons.delete_sweep_rounded,
+
               () => setState(() => selectedItem!.properties['image'] = null),
             ),
         ];
@@ -2883,17 +4068,23 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         return [
           _miniColorSwatch(
             'Color',
+
             (selectedItem!.properties['color'] as HiveColor?)?.toColor() ??
                 Colors.orange,
+
             () => _showColorPicker('color'),
           ),
         ];
+
       case CanvasItemType.drawing:
+
         // Determine if this drawing has any text-path strokes
+
         final List<Map<String, dynamic>>? strokes =
             (selectedItem!.properties['strokes'] as List<dynamic>?)
                 ?.map((e) => e as Map<String, dynamic>)
                 .toList();
+
         final bool hasTextPath =
             strokes?.any(
               (s) => (s['tool'] is String
@@ -2903,145 +4094,198 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             true;
 
         // Helper getters for initial values from first text-path stroke
+
         double _initialFontSize() {
           if (strokes == null) return 24.0;
+
           final first = strokes.firstWhere(
             (s) => (s['tool'] is String
                 ? s['tool'] == DrawingTool.textPath.name
                 : s['tool'] == DrawingTool.textPath),
+
             orElse: () => {},
           );
+
           if (first.isEmpty) return 24.0;
+
           final double sw = (first['strokeWidth'] as double?) ?? 2.0;
+
           return (first['fontSize'] as double?) ?? sw;
         }
 
         double _initialLetterSpacing() {
           if (strokes == null) return 0.0;
+
           final first = strokes.firstWhere(
             (s) => (s['tool'] is String
                 ? s['tool'] == DrawingTool.textPath.name
                 : s['tool'] == DrawingTool.textPath),
+
             orElse: () => {},
           );
+
           if (first.isEmpty) return 0.0;
+
           return (first['letterSpacing'] as double?) ?? 0.0;
         }
 
         String _initialText() {
           if (strokes == null) return '';
+
           final first = strokes.firstWhere(
             (s) => (s['tool'] is String
                 ? s['tool'] == DrawingTool.textPath.name
                 : s['tool'] == DrawingTool.textPath),
+
             orElse: () => {},
           );
+
           if (first.isEmpty) return '';
+
           return (first['text'] as String?) ?? '';
         }
 
         String _initialFontFamily() {
           if (strokes == null) return 'Roboto';
+
           final first = strokes.firstWhere(
             (s) => s['tool'] == DrawingTool.textPath,
+
             orElse: () => {},
           );
+
           if (first.isEmpty) return 'Roboto';
+
           return (first['fontFamily'] as String?) ?? 'Roboto';
         }
 
         return [
           _miniColorSwatch(
             'Color',
+
             (selectedItem!.properties['color'] as HiveColor?)?.toColor() ??
                 Colors.black,
+
             () => _showDrawingColorPicker(),
           ),
+
           if (!hasTextPath)
             _miniSlider(
               'Stroke Width',
+
               (selectedItem!.properties['strokeWidth'] as double?) ?? 2.0,
+
               1.0,
+
               20.0,
+
               (v) => setState(() {
                 selectedItem!.properties['strokeWidth'] = v;
+
                 final List<Map<String, dynamic>>? _strokes =
                     (selectedItem!.properties['strokes'] as List<dynamic>?)
                         ?.map((e) => e as Map<String, dynamic>)
                         .toList();
+
                 if (_strokes != null) {
                   for (final stroke in _strokes) {
                     stroke['strokeWidth'] = v;
                   }
+
                   selectedItem!.properties['strokes'] = _strokes;
                 }
               }),
+
               Icons.format_size_rounded,
             ),
+
           if (hasTextPath) ...[
             _miniTextEditButton(
               'Text',
+
               _initialText(),
+
               (value) => setState(() {
                 final List<Map<String, dynamic>>? _strokes =
                     (selectedItem!.properties['strokes'] as List<dynamic>?)
                         ?.map((e) => e as Map<String, dynamic>)
                         .toList();
+
                 if (_strokes != null) {
                   for (final stroke in _strokes) {
                     if (stroke['tool'] == DrawingTool.textPath) {
                       stroke['text'] = value;
                     }
                   }
+
                   selectedItem!.properties['strokes'] = _strokes;
                 }
               }),
             ),
+
             _miniSlider(
               'Font Size',
+
               _initialFontSize(),
+
               8.0,
+
               200.0,
+
               (v) => setState(() {
                 final List<Map<String, dynamic>>? _strokes =
                     (selectedItem!.properties['strokes'] as List<dynamic>?)
                         ?.map((e) => e as Map<String, dynamic>)
                         .toList();
+
                 if (_strokes != null) {
                   for (final stroke in _strokes) {
                     if (stroke['tool'] == DrawingTool.textPath) {
                       stroke['fontSize'] = v;
                     }
                   }
+
                   selectedItem!.properties['strokes'] = _strokes;
                 }
               }),
+
               Icons.format_size_rounded,
             ),
+
             _miniSlider(
               'Letter Spacing',
+
               _initialLetterSpacing(),
+
               -2.0,
+
               20.0,
+
               (v) => setState(() {
                 final List<Map<String, dynamic>>? _strokes =
                     (selectedItem!.properties['strokes'] as List<dynamic>?)
                         ?.map((e) => e as Map<String, dynamic>)
                         .toList();
+
                 if (_strokes != null) {
                   for (final stroke in _strokes) {
                     if (stroke['tool'] == DrawingTool.textPath) {
                       stroke['letterSpacing'] = v;
                     }
                   }
+
                   selectedItem!.properties['strokes'] = _strokes;
                 }
               }),
+
               Icons.space_bar_rounded,
             ),
+
             _miniFontButton(
               'Font',
+
               _initialFontFamily(),
+
               () => _showFontSelectionDialog(),
             ),
           ],
@@ -3052,18 +4296,26 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   Widget _miniIconButton(String tooltip, IconData icon, VoidCallback onTap) {
     return Padding(
       padding: EdgeInsets.only(right: 10.w, bottom: 35.h),
+
       child: Tooltip(
         message: tooltip,
+
         child: GestureDetector(
           onTap: onTap,
+
           child: Container(
             width: 46.w,
+
             height: 46.h,
+
             decoration: BoxDecoration(
               color: Colors.grey[50],
+
               borderRadius: BorderRadius.circular(12.r),
+
               border: Border.all(color: Colors.grey.shade200),
             ),
+
             child: Icon(icon, size: 20.sp, color: Colors.grey[700]),
           ),
         ),
@@ -3072,34 +4324,48 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   }
 
   // Nudge helpers
+
   void _cancelNudgeTimers() {
     _nudgeInitialDelayTimer?.cancel();
+
     _nudgeRepeatTimer?.cancel();
+
     _nudgeInitialDelayTimer = null;
+
     _nudgeRepeatTimer = null;
   }
 
   void _nudgeSelected(Offset delta) {
     if (selectedItem == null) return;
+
     setState(() {
       // Adjust nudge by current canvas zoom so visual movement feels consistent
+
       final double zoomAdjusted = canvasZoom == 0 ? 1.0 : canvasZoom;
+
       final Offset step = delta * (_nudgeStep / zoomAdjusted);
+
       Offset newPosition = selectedItem!.position + step;
+
       if (snapToGrid) {
         const double gridSize = 20.0;
+
         newPosition = Offset(
           (newPosition.dx / gridSize).round() * gridSize,
+
           (newPosition.dy / gridSize).round() * gridSize,
         );
       }
+
       selectedItem!.position = newPosition;
     });
   }
 
   void _startNudgeHold(Offset delta) {
     _cancelNudgeTimers();
+
     // Small delay before starting fast repeat, to allow single-tap nudges
+
     _nudgeInitialDelayTimer = Timer(_nudgeInitialDelay, () {
       _nudgeRepeatTimer = Timer.periodic(_nudgeRepeatInterval, (_) {
         _nudgeSelected(delta);
@@ -3114,47 +4380,68 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   Widget _miniNudgePad() {
     return Padding(
       padding: EdgeInsets.only(right: 10.0.h),
+
       child: SizedBox(
         child: Column(
           mainAxisSize: MainAxisSize.min,
+
           children: [
             Row(
               mainAxisSize: MainAxisSize.min,
+
               children: [
                 SizedBox(width: 35.w),
+
                 _nudgeButton(
                   Icons.keyboard_arrow_up_rounded,
+
                   const Offset(0, -1),
                 ),
+
                 SizedBox(width: 35.w),
               ],
             ),
+
             SizedBox(height: 6.h),
+
             Row(
               mainAxisSize: MainAxisSize.min,
+
               children: [
                 _nudgeButton(
                   Icons.keyboard_arrow_left_rounded,
+
                   const Offset(-1, 0),
                 ),
+
                 SizedBox(width: 9.w),
+
                 _nudgeCenterIndicator(),
+
                 SizedBox(width: 9.w),
+
                 _nudgeButton(
                   Icons.keyboard_arrow_right_rounded,
+
                   const Offset(1, 0),
                 ),
               ],
             ),
+
             SizedBox(height: 6.h),
+
             Row(
               mainAxisSize: MainAxisSize.min,
+
               children: [
                 SizedBox(width: 30.w),
+
                 _nudgeButton(
                   Icons.keyboard_arrow_down_rounded,
+
                   const Offset(0, 1),
                 ),
+
                 SizedBox(width: 30.w),
               ],
             ),
@@ -3167,23 +4454,34 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   Widget _nudgeCenterIndicator() {
     return Container(
       width: 32.w,
+
       height: 32.h,
+
       decoration: BoxDecoration(
         color: Colors.white,
+
         borderRadius: BorderRadius.circular(8.r),
+
         border: Border.all(color: Colors.grey.shade300),
+
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.04),
+
             blurRadius: 4,
+
             offset: const Offset(0, 2),
           ),
         ],
       ),
+
       alignment: Alignment.center,
+
       child: Icon(
         Icons.open_with_rounded,
+
         size: 14.sp,
+
         color: Colors.grey[500],
       ),
     );
@@ -3192,18 +4490,28 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   Widget _nudgeButton(IconData icon, Offset deltaDir) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
+
       onTap: () => _nudgeSelected(deltaDir),
+
       onTapDown: (_) => _startNudgeHold(deltaDir),
+
       onTapUp: (_) => _endNudgeHold(),
+
       onTapCancel: _endNudgeHold,
+
       child: Container(
         width: 32.w,
+
         height: 32.h,
+
         decoration: BoxDecoration(
           color: Colors.white,
+
           borderRadius: BorderRadius.circular(8.r),
+
           border: Border.all(color: Colors.grey.shade300),
         ),
+
         child: Icon(icon, size: 18.sp, color: Colors.grey[700]),
       ),
     );
@@ -3211,65 +4519,98 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   Widget _miniSlider(
     String label,
+
     double value,
+
     double min,
+
     double max,
+
     ValueChanged<double> onChanged,
+
     IconData icon,
   ) {
     final clamped = value.clamp(min, max);
+
     return Column(
       children: [
         Container(
           width: 220.w,
+
           margin: EdgeInsets.only(right: 12.w),
+
           padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+
           decoration: BoxDecoration(
             color: Colors.grey[50],
+
             borderRadius: BorderRadius.circular(14.r),
+
             border: Border.all(color: Colors.grey.shade200),
           ),
+
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+
             children: [
               Row(
                 children: [
                   Icon(icon, size: 16.sp, color: Colors.grey[600]),
+
                   SizedBox(width: 8.w),
+
                   Text(
                     label,
+
                     style: TextStyle(
                       fontSize: 12.sp,
+
                       color: Colors.grey[700],
+
                       fontWeight: FontWeight.w600,
                     ),
                   ),
+
                   const Spacer(),
+
                   Text(
                     clamped.toStringAsFixed(1),
+
                     style: TextStyle(
                       fontSize: 12.sp,
+
                       color: Colors.blue.shade700,
+
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],
               ),
+
               SliderTheme(
                 data: SliderTheme.of(context).copyWith(
                   activeTrackColor: Colors.blue.shade400,
+
                   inactiveTrackColor: Colors.blue.shade100,
+
                   thumbColor: Colors.blue.shade600,
+
                   overlayColor: Colors.blue.withOpacity(0.05),
+
                   trackHeight: 4.0,
+
                   thumbShape: const RoundSliderThumbShape(
                     enabledThumbRadius: 10.0,
                   ),
                 ),
+
                 child: Slider(
                   value: clamped,
+
                   min: min,
+
                   max: max,
+
                   onChanged: onChanged,
                 ),
               ),
@@ -3284,10 +4625,15 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   Widget _miniSliderButton(
     String label,
+
     double value,
+
     double min,
+
     double max,
+
     ValueChanged<double> onChanged,
+
     IconData icon,
   ) {
     return _miniSlider(label, value, min, max, onChanged, icon);
@@ -3298,23 +4644,33 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
     return Container(
       margin: EdgeInsets.only(right: 12.w, bottom: 35.h),
+
       padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+
       decoration: BoxDecoration(
         color: Colors.grey[50],
+
         borderRadius: BorderRadius.circular(14.r),
+
         border: Border.all(color: Colors.grey.shade200),
       ),
+
       child: Row(
         mainAxisSize: MainAxisSize.min,
+
         children: [
           Container(
             width: 22.w,
+
             height: 22.h,
+
             decoration: BoxDecoration(
               color: isTransparent ? Colors.white : color,
               borderRadius: BorderRadius.circular(6.r),
+
               border: Border.all(color: Colors.grey.shade300),
             ),
+
             child: isTransparent
                 ? Stack(
                     children: [
@@ -3339,16 +4695,23 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                   )
                 : null,
           ),
+
           SizedBox(width: 8.w),
+
           Text(
             label,
+
             style: TextStyle(
               fontSize: 12.sp,
+
               color: Colors.grey[700],
+
               fontWeight: FontWeight.w600,
             ),
           ),
+
           SizedBox(width: 8.w),
+
           _miniIconButton('Pick', Icons.palette_rounded, onTap),
         ],
       ),
@@ -3356,71 +4719,104 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   }
 
   // Replace the _miniTextField method with this button version:
+
   Widget _miniTextEditButton(
     String label,
+
     String value,
+
     ValueChanged<String> onChanged,
   ) {
     return Container(
       width: 260.w,
+
       margin: EdgeInsets.only(right: 12.w),
+
       padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+
       decoration: BoxDecoration(
         color: Colors.grey[50],
+
         borderRadius: BorderRadius.circular(14.r),
+
         border: Border.all(color: Colors.grey.shade200),
       ),
+
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+
         children: [
           Row(
             children: [
               Icon(
                 Icons.text_fields_rounded,
+
                 size: 16.sp,
+
                 color: Colors.grey[600],
               ),
+
               SizedBox(width: 8.w),
+
               Text(
                 label,
+
                 style: TextStyle(
                   fontSize: 12.sp,
+
                   color: Colors.grey[700],
+
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ],
           ),
+
           SizedBox(height: 6.h),
+
           GestureDetector(
             onTap: () => _showTextEditDialog(value, onChanged),
+
             child: Container(
               width: double.infinity,
+
               padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+
               decoration: BoxDecoration(
                 color: Colors.white,
+
                 borderRadius: BorderRadius.circular(10.r),
+
                 border: Border.all(color: Colors.grey.shade300),
               ),
+
               child: Row(
                 children: [
                   Expanded(
                     child: Text(
                       value.isEmpty ? 'Tap to edit text' : value,
+
                       style: TextStyle(
                         fontSize: 12.sp,
+
                         color: value.isEmpty
                             ? Colors.grey[400]
                             : Colors.grey[800],
                       ),
+
                       maxLines: 1,
+
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
+
                   SizedBox(width: 8.w),
+
                   Icon(
                     Icons.edit_rounded,
+
                     size: 14.sp,
+
                     color: Colors.blue.shade400,
                   ),
                 ],
@@ -3433,79 +4829,113 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   }
 
   // Add this method to show the text editing dialog:
+
   void _showTextEditDialog(String currentText, ValueChanged<String> onChanged) {
     final TextEditingController controller = TextEditingController(
       text: currentText,
     );
+
     final FocusNode focusNode = FocusNode();
 
     showDialog(
       context: context,
+
       barrierDismissible: false,
+
       builder: (BuildContext context) {
         return Dialog(
           backgroundColor: Colors.transparent,
+
           insetPadding: EdgeInsets.all(20.w),
+
           child: Container(
             width: double.infinity,
+
             constraints: BoxConstraints(
               maxHeight: MediaQuery.of(context).size.height * 0.7,
+
               minHeight: 300.h,
             ),
+
             decoration: BoxDecoration(
               color: Colors.white,
+
               borderRadius: BorderRadius.circular(24.r),
+
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.15),
+
                   blurRadius: 20,
+
                   offset: const Offset(0, 8),
                 ),
               ],
             ),
+
             child: Column(
               mainAxisSize: MainAxisSize.min,
+
               children: [
                 // Header
                 Container(
                   padding: EdgeInsets.all(20.w),
+
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [Colors.blue.shade400, Colors.blue.shade600],
                     ),
+
                     borderRadius: BorderRadius.only(
                       topLeft: Radius.circular(24.r),
+
                       topRight: Radius.circular(24.r),
                     ),
                   ),
+
                   child: Row(
                     children: [
                       Icon(
                         Icons.text_fields_rounded,
+
                         color: Colors.white,
+
                         size: 24.sp,
                       ),
+
                       SizedBox(width: 12.w),
+
                       Text(
                         'Edit Text',
+
                         style: TextStyle(
                           fontSize: 20.sp,
+
                           fontWeight: FontWeight.bold,
+
                           color: Colors.white,
                         ),
                       ),
+
                       const Spacer(),
+
                       GestureDetector(
                         onTap: () => Navigator.of(context).pop(),
+
                         child: Container(
                           padding: EdgeInsets.all(8.w),
+
                           decoration: BoxDecoration(
                             color: Colors.white.withOpacity(0.2),
+
                             borderRadius: BorderRadius.circular(8.r),
                           ),
+
                           child: Icon(
                             Icons.close_rounded,
+
                             color: Colors.white,
+
                             size: 18.sp,
                           ),
                         ),
@@ -3518,52 +4948,77 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                 Flexible(
                   child: Container(
                     padding: EdgeInsets.all(20.w),
+
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
+
                       children: [
                         Text(
                           'Enter your text:',
+
                           style: TextStyle(
                             fontSize: 16.sp,
+
                             fontWeight: FontWeight.w600,
+
                             color: Colors.grey[800],
                           ),
                         ),
+
                         SizedBox(height: 12.h),
 
                         // Multi-line text field
                         Flexible(
                           child: Container(
                             width: double.infinity,
+
                             decoration: BoxDecoration(
                               color: Colors.grey[50],
+
                               borderRadius: BorderRadius.circular(16.r),
+
                               border: Border.all(color: Colors.grey.shade200),
                             ),
+
                             child: TextField(
                               controller: controller,
+
                               focusNode: focusNode,
+
                               maxLines: null,
+
                               minLines: 5,
+
                               keyboardType: TextInputType.multiline,
+
                               textInputAction: TextInputAction.newline,
+
                               style: TextStyle(
                                 fontSize: 16.sp,
+
                                 color: Colors.grey[800],
+
                                 height: 1.5,
                               ),
+
                               decoration: InputDecoration(
                                 hintText:
                                     'Type your text here...\nPress Enter for new lines',
+
                                 hintStyle: TextStyle(
                                   color: Colors.grey[400],
+
                                   fontSize: 14.sp,
                                 ),
+
                                 contentPadding: EdgeInsets.all(16.w),
+
                                 border: InputBorder.none,
                               ),
+
                               onChanged: (text) {
                                 // Real-time update on canvas
+
                                 onChanged(text);
                               },
                             ),
@@ -3575,8 +5030,10 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                         // Character count
                         Text(
                           '${controller.text.length} characters',
+
                           style: TextStyle(
                             fontSize: 12.sp,
+
                             color: Colors.grey[600],
                           ),
                         ),
@@ -3588,13 +5045,17 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                 // Action buttons
                 Container(
                   padding: EdgeInsets.all(20.w),
+
                   decoration: BoxDecoration(
                     color: Colors.grey[50],
+
                     borderRadius: BorderRadius.only(
                       bottomLeft: Radius.circular(24.r),
+
                       bottomRight: Radius.circular(24.r),
                     ),
                   ),
+
                   child: Row(
                     children: [
                       // Clear button
@@ -3602,29 +5063,43 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                         child: GestureDetector(
                           onTap: () {
                             controller.clear();
+
                             onChanged('');
                           },
+
                           child: Container(
                             padding: EdgeInsets.symmetric(vertical: 14.h),
+
                             decoration: BoxDecoration(
                               color: Colors.red.shade50,
+
                               borderRadius: BorderRadius.circular(12.r),
+
                               border: Border.all(color: Colors.red.shade200),
                             ),
+
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
+
                               children: [
                                 Icon(
                                   Icons.clear_rounded,
+
                                   color: Colors.red.shade600,
+
                                   size: 18.sp,
                                 ),
+
                                 SizedBox(width: 8.w),
+
                                 Text(
                                   'Clear',
+
                                   style: TextStyle(
                                     fontSize: 14.sp,
+
                                     fontWeight: FontWeight.w600,
+
                                     color: Colors.red.shade600,
                                   ),
                                 ),
@@ -3639,43 +5114,61 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                       // Done button
                       Expanded(
                         flex: 2,
+
                         child: GestureDetector(
                           onTap: () {
                             onChanged(controller.text);
+
                             Navigator.of(context).pop();
                           },
+
                           child: Container(
                             padding: EdgeInsets.symmetric(vertical: 14.h),
+
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
                                 colors: [
                                   Colors.blue.shade400,
+
                                   Colors.blue.shade600,
                                 ],
                               ),
+
                               borderRadius: BorderRadius.circular(12.r),
+
                               boxShadow: [
                                 BoxShadow(
                                   color: Colors.blue.withOpacity(0.3),
+
                                   blurRadius: 8,
+
                                   offset: const Offset(0, 3),
                                 ),
                               ],
                             ),
+
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
+
                               children: [
                                 Icon(
                                   Icons.check_rounded,
+
                                   color: Colors.white,
+
                                   size: 18.sp,
                                 ),
+
                                 SizedBox(width: 8.w),
+
                                 Text(
                                   'Done',
+
                                   style: TextStyle(
                                     fontSize: 14.sp,
+
                                     fontWeight: FontWeight.w600,
+
                                     color: Colors.white,
                                   ),
                                 ),
@@ -3694,6 +5187,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       },
     ).then((_) {
       // Auto-focus the text field when dialog opens
+
       Future.delayed(const Duration(milliseconds: 100), () {
         if (focusNode.canRequestFocus) {
           focusNode.requestFocus();
@@ -3705,67 +5199,97 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   void _showFontSelectionDialog() {
     showDialog(
       context: context,
+
       barrierDismissible: true,
+
       builder: (BuildContext context) {
         return Dialog(
           backgroundColor: Colors.transparent,
+
           insetPadding: EdgeInsets.all(20.w),
+
           child: Container(
             width: double.infinity,
+
             height: MediaQuery.of(context).size.height * 0.8,
+
             decoration: BoxDecoration(
               color: Colors.white,
+
               borderRadius: BorderRadius.circular(24.r),
+
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.15),
+
                   blurRadius: 20,
+
                   offset: const Offset(0, 8),
                 ),
               ],
             ),
+
             child: Column(
               children: [
                 // Header
                 Container(
                   padding: EdgeInsets.all(20.w),
+
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [Colors.blue.shade400, Colors.blue.shade600],
                     ),
+
                     borderRadius: BorderRadius.only(
                       topLeft: Radius.circular(24.r),
+
                       topRight: Radius.circular(24.r),
                     ),
                   ),
+
                   child: Row(
                     children: [
                       Icon(
                         Icons.font_download_rounded,
+
                         color: Colors.white,
+
                         size: 24.sp,
                       ),
+
                       SizedBox(width: 12.w),
+
                       Text(
                         'Select Font',
+
                         style: TextStyle(
                           fontSize: 18.sp,
+
                           fontWeight: FontWeight.bold,
+
                           color: Colors.white,
                         ),
                       ),
+
                       const Spacer(),
+
                       GestureDetector(
                         onTap: () => Navigator.of(context).pop(),
+
                         child: Container(
                           padding: EdgeInsets.all(8.w),
+
                           decoration: BoxDecoration(
                             color: Colors.white.withOpacity(0.2),
+
                             borderRadius: BorderRadius.circular(8.r),
                           ),
+
                           child: Icon(
                             Icons.close_rounded,
+
                             color: Colors.white,
+
                             size: 20.sp,
                           ),
                         ),
@@ -3781,55 +5305,78 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                       // Favorite Fonts Section
                       Container(
                         padding: EdgeInsets.all(20.w),
+
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
+
                           children: [
                             Row(
                               children: [
                                 Icon(
                                   Icons.favorite_rounded,
+
                                   color: Colors.red.shade400,
+
                                   size: 20.sp,
                                 ),
+
                                 SizedBox(width: 8.w),
+
                                 Text(
                                   'Favorite Fonts',
+
                                   style: TextStyle(
                                     fontSize: 16.sp,
+
                                     fontWeight: FontWeight.bold,
+
                                     color: Colors.grey[800],
                                   ),
                                 ),
                               ],
                             ),
+
                             SizedBox(height: 16.h),
+
                             Container(
                               height: 200.h,
+
                               child:
                                   FontFavorites.instance.likedFamilies.isEmpty
                                   ? Center(
                                       child: Column(
                                         mainAxisAlignment:
                                             MainAxisAlignment.center,
+
                                         children: [
                                           Icon(
                                             Icons.font_download_outlined,
+
                                             size: 48.sp,
+
                                             color: Colors.grey[400],
                                           ),
+
                                           SizedBox(height: 12.h),
+
                                           Text(
                                             'No favorite fonts yet',
+
                                             style: TextStyle(
                                               fontSize: 14.sp,
+
                                               color: Colors.grey[600],
                                             ),
                                           ),
+
                                           SizedBox(height: 8.h),
+
                                           Text(
                                             'Browse fonts to add favorites',
+
                                             style: TextStyle(
                                               fontSize: 12.sp,
+
                                               color: Colors.grey[500],
                                             ),
                                           ),
@@ -3841,12 +5388,15 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                                           .instance
                                           .likedFamilies
                                           .length,
+
                                       itemBuilder: (context, index) {
                                         final fontFamily = FontFavorites
                                             .instance
                                             .likedFamilies[index];
+
                                         return _buildFontListItem(
                                           fontFamily,
+
                                           true,
                                         );
                                       },
@@ -3862,16 +5412,20 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                       // Browse Fonts Button
                       Container(
                         padding: EdgeInsets.all(20.w),
+
                         child: GestureDetector(
                           onTap: () {
                             Navigator.of(context).pop();
+
                             Navigator.push(
                               context,
+
                               MaterialPageRoute(
                                 builder: (context) => GoogleFontsPage(
                                   onFontSelected: (fontFamily) {
                                     setState(() {
                                       if (selectedItem == null) return;
+
                                       if (selectedItem!.type ==
                                           CanvasItemType.drawing) {
                                         final List<Map<String, dynamic>>?
@@ -3883,6 +5437,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                                                       e as Map<String, dynamic>,
                                                 )
                                                 .toList();
+
                                         if (strokes != null) {
                                           for (final stroke in strokes) {
                                             if (stroke['tool'] ==
@@ -3890,6 +5445,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                                               stroke['fontFamily'] = fontFamily;
                                             }
                                           }
+
                                           selectedItem!.properties['strokes'] =
                                               strokes;
                                         }
@@ -3903,39 +5459,56 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                               ),
                             );
                           },
+
                           child: Container(
                             width: double.infinity,
+
                             padding: EdgeInsets.symmetric(vertical: 16.h),
+
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
                                 colors: [
                                   Colors.green.shade400,
+
                                   Colors.green.shade600,
                                 ],
                               ),
+
                               borderRadius: BorderRadius.circular(12.r),
+
                               boxShadow: [
                                 BoxShadow(
                                   color: Colors.green.withOpacity(0.3),
+
                                   blurRadius: 8,
+
                                   offset: const Offset(0, 3),
                                 ),
                               ],
                             ),
+
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
+
                               children: [
                                 Icon(
                                   Icons.search_rounded,
+
                                   color: Colors.white,
+
                                   size: 20.sp,
                                 ),
+
                                 SizedBox(width: 8.w),
+
                                 Text(
                                   'Browse All Fonts',
+
                                   style: TextStyle(
                                     fontSize: 16.sp,
+
                                     fontWeight: FontWeight.bold,
+
                                     color: Colors.white,
                                   ),
                                 ),
@@ -3962,77 +5535,105 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       onTap: () {
         setState(() {
           if (selectedItem == null) return;
+
           if (selectedItem!.type == CanvasItemType.drawing) {
             final List<Map<String, dynamic>>? strokes =
                 (selectedItem!.properties['strokes'] as List<dynamic>?)
                     ?.map((e) => e as Map<String, dynamic>)
                     .toList();
+
             if (strokes != null) {
               for (final stroke in strokes) {
                 if (stroke['tool'] == DrawingTool.textPath) {
                   stroke['fontFamily'] = fontFamily;
                 }
               }
+
               selectedItem!.properties['strokes'] = strokes;
             }
           } else {
             selectedItem!.properties['fontFamily'] = fontFamily;
           }
         });
+
         Navigator.of(context).pop();
       },
+
       child: Container(
         margin: EdgeInsets.only(bottom: 8.h),
+
         padding: EdgeInsets.all(16.w),
+
         decoration: BoxDecoration(
           color: isSelected ? Colors.blue.shade50 : Colors.grey[50],
+
           borderRadius: BorderRadius.circular(12.r),
+
           border: Border.all(
             color: isSelected ? Colors.blue.shade300 : Colors.grey.shade200,
+
             width: isSelected ? 2 : 1,
           ),
         ),
+
         child: Row(
           children: [
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+
                 children: [
                   Text(
                     fontFamily,
+
                     style: TextStyle(
                       fontSize: 16.sp,
+
                       fontWeight: FontWeight.w600,
+
                       color: isSelected
                           ? Colors.blue.shade700
                           : Colors.grey[800],
+
                       fontFamily: fontFamily,
                     ),
                   ),
+
                   SizedBox(height: 4.h),
+
                   Text(
                     'The quick brown fox jumps',
+
                     style: TextStyle(
                       fontSize: 12.sp,
+
                       color: Colors.grey[600],
+
                       fontFamily: fontFamily,
                     ),
                   ),
                 ],
               ),
             ),
+
             if (isSelected)
               Icon(
                 Icons.check_circle_rounded,
+
                 color: Colors.blue.shade600,
+
                 size: 24.sp,
               ),
+
             if (isFavorite)
               Padding(
                 padding: EdgeInsets.only(left: 8.w),
+
                 child: Icon(
                   Icons.favorite_rounded,
+
                   color: Colors.red.shade400,
+
                   size: 20.sp,
                 ),
               ),
@@ -4045,56 +5646,82 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   Widget _miniFontButton(String label, String fontFamily, VoidCallback onTap) {
     return Container(
       margin: EdgeInsets.only(right: 12.w, bottom: 35.h),
+
       padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+
       decoration: BoxDecoration(
         color: Colors.grey[50],
+
         borderRadius: BorderRadius.circular(14.r),
+
         border: Border.all(color: Colors.grey.shade200),
       ),
+
       child: Row(
         mainAxisSize: MainAxisSize.min,
+
         children: [
           Icon(
             Icons.font_download_rounded,
+
             size: 16.sp,
+
             color: Colors.grey[600],
           ),
+
           SizedBox(width: 8.w),
+
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+
             children: [
               Text(
                 label,
+
                 style: TextStyle(
                   fontSize: 10.sp,
+
                   color: Colors.grey[600],
+
                   fontWeight: FontWeight.w500,
                 ),
               ),
+
               Text(
                 fontFamily.length > 10
                     ? '${fontFamily.substring(0, 10)}...'
                     : fontFamily,
+
                 style: TextStyle(
                   fontSize: 12.sp,
+
                   color: Colors.grey[800],
+
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ],
           ),
+
           SizedBox(width: 8.w),
+
           GestureDetector(
             onTap: onTap,
+
             child: Container(
               padding: EdgeInsets.all(6.w),
+
               decoration: BoxDecoration(
                 color: Colors.blue.shade50,
+
                 borderRadius: BorderRadius.circular(8.r),
               ),
+
               child: Icon(
                 Icons.keyboard_arrow_down_rounded,
+
                 size: 16.sp,
+
                 color: Colors.blue.shade600,
               ),
             ),
@@ -4106,43 +5733,60 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   Widget _miniToggleIcon(
     String tooltip,
+
     IconData icon,
+
     bool isActive,
+
     VoidCallback onTap,
   ) {
     return Padding(
       padding: EdgeInsets.only(right: 10.w, bottom: 35.h),
+
       child: Tooltip(
         message: tooltip,
+
         child: GestureDetector(
           onTap: onTap,
+
           child: Container(
             width: 46.w,
+
             height: 46.h,
+
             decoration: BoxDecoration(
               gradient: isActive
                   ? LinearGradient(
                       colors: [Colors.blue.shade400, Colors.blue.shade600],
                     )
                   : null,
+
               color: isActive ? null : Colors.grey[50],
+
               borderRadius: BorderRadius.circular(12.r),
+
               border: Border.all(
                 color: isActive ? Colors.transparent : Colors.grey.shade200,
               ),
+
               boxShadow: isActive
                   ? [
                       BoxShadow(
                         color: Colors.blue.withOpacity(0.25),
+
                         blurRadius: 10,
+
                         offset: const Offset(0, 3),
                       ),
                     ]
                   : null,
             ),
+
             child: Icon(
               icon,
+
               size: 20.sp,
+
               color: isActive ? Colors.white : Colors.grey[700],
             ),
           ),
@@ -4154,27 +5798,39 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   Widget _buildTabContent() {
     return ListView.builder(
       scrollDirection: Axis.horizontal,
+
       itemCount: _getTabItemCount(),
+
       itemBuilder: (context, index) {
         return Padding(
           padding: EdgeInsets.only(right: 16.w),
+
           child: GestureDetector(
             onTap: () => _onTabItemTap(index),
+
             child: Container(
               width: 80.w,
+
               height: 80.h,
+
               decoration: BoxDecoration(
                 color: Colors.white,
+
                 borderRadius: BorderRadius.circular(20.r),
+
                 border: Border.all(color: Colors.grey.shade100, width: 2),
+
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.06),
+
                     blurRadius: 12,
+
                     offset: const Offset(0, 4),
                   ),
                 ],
               ),
+
               child: Center(child: _getTabItemWidget(index)),
             ),
           ),
@@ -4186,14 +5842,20 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   int _getTabItemCount() {
     switch (selectedTabIndex) {
       case 0:
+
         // 1 for the leading plus button + liked fonts as items
+
         return 1 + likedFontFamilies.length;
+
       case 1:
         return 2; // Two options: Upload and Pixabay
+
       case 2:
         return sampleShapes.length;
+
       case 3:
         return _getDrawingTools().length;
+
       default:
         return 0;
     }
@@ -4205,61 +5867,90 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         if (index == 0) {
           return Column(
             mainAxisAlignment: MainAxisAlignment.center,
+
             children: [
               Icon(Icons.add_rounded, size: 28.sp, color: Colors.blue.shade700),
+
               SizedBox(height: 6.h),
+
               Text(
                 'Add Font',
+
                 style: TextStyle(
                   fontSize: 10.sp,
+
                   fontWeight: FontWeight.w600,
+
                   color: Colors.grey.shade700,
                 ),
               ),
             ],
           );
         }
+
         final family = likedFontFamilies[index - 1];
+
         return Column(
           mainAxisAlignment: MainAxisAlignment.center,
+
           children: [
             Icon(
               Icons.text_fields_rounded,
+
               size: 24.sp,
+
               color: Colors.blue.shade600,
             ),
+
             SizedBox(height: 6.h),
+
             Text(
               family,
+
               style: GoogleFonts.getFont(
                 family,
+
                 textStyle: TextStyle(
                   fontSize: 10.sp,
+
                   fontWeight: FontWeight.w600,
+
                   color: Colors.grey.shade700,
                 ),
               ),
+
               textAlign: TextAlign.center,
+
               maxLines: 1,
+
               overflow: TextOverflow.ellipsis,
             ),
           ],
         );
+
       case 1:
         return Column(
           mainAxisAlignment: MainAxisAlignment.center,
+
           children: [
             Icon(
               Icons.add_photo_alternate_rounded,
+
               size: 28.sp,
+
               color: Colors.blue.shade700,
             ),
+
             SizedBox(height: 6.h),
+
             Text(
               'Upload',
+
               style: TextStyle(
                 fontSize: 10.sp,
+
                 fontWeight: FontWeight.w600,
+
                 color: Colors.grey.shade700,
               ),
             ),
@@ -4269,32 +5960,47 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       case 2:
         return Icon(
           sampleShapes[index]['icon'] as IconData,
+
           size: 32.sp,
+
           color: Colors.green.shade600,
         );
+
       case 3:
         final drawingTool = _getDrawingTools()[index];
+
         final isSelected = selectedDrawingTool == drawingTool['tool'];
+
         return Column(
           mainAxisAlignment: MainAxisAlignment.center,
+
           children: [
             Icon(
               drawingTool['icon'] as IconData,
+
               size: 28.sp,
+
               color: isSelected ? Colors.blue.shade600 : Colors.orange.shade600,
             ),
+
             SizedBox(height: 4.h),
+
             Text(
               drawingTool['name'] as String,
+
               style: TextStyle(
                 fontSize: 9.sp,
+
                 fontWeight: FontWeight.w500,
+
                 color: isSelected ? Colors.blue.shade600 : Colors.grey.shade700,
               ),
+
               textAlign: TextAlign.center,
             ),
           ],
         );
+
       default:
         return const SizedBox();
     }
@@ -4302,29 +6008,44 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   void _onTabItemTap(int index) {
     HapticFeedback.lightImpact();
+
     switch (selectedTabIndex) {
       case 0:
         if (index == 0) {
           Navigator.push(
             context,
+
             MaterialPageRoute(
               builder: (context) => GoogleFontsPage(
                 onFontSelected: (fontFamily) {
                   _addCanvasItem(
                     CanvasItemType.text,
+
                     properties: {
                       'text': 'New Text',
+
                       'color': Colors.black,
+
                       'fontSize': 24.0,
+
                       'fontWeight': FontWeight.normal,
+
                       'fontStyle': FontStyle.normal,
+
                       'textAlign': TextAlign.center,
+
                       'decoration': 0, // TextDecoration.none
+
                       'letterSpacing': 0.0,
+
                       'hasShadow': false,
+
                       'shadowColor': Colors.grey,
+
                       'shadowOffset': const Offset(2, 2),
+
                       'shadowBlur': 4.0,
+
                       'fontFamily': fontFamily,
                     },
                   );
@@ -4334,116 +6055,177 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           );
         } else {
           final family = likedFontFamilies[index - 1];
+
           _addCanvasItem(
             CanvasItemType.text,
+
             properties: {
               'text': 'New Text',
+
               'color': Colors.black,
+
               'fontSize': 24.0,
+
               'fontWeight': FontWeight.normal,
+
               'fontStyle': FontStyle.normal,
+
               'textAlign': TextAlign.center,
+
               'decoration': 0, // TextDecoration.none
+
               'letterSpacing': 0.0,
+
               'hasShadow': false,
+
               'shadowColor': Colors.grey,
+
               'shadowOffset': const Offset(2, 2),
+
               'shadowBlur': 4.0,
+
               'fontFamily': family,
             },
           );
         }
+
         break;
+
       case 1:
         if (index == 0) {
           _pickImage(); // Existing Upload functionality
         } else if (index == 1) {
           _navigateToPixabayImages(); // New Pixabay functionality
         }
+
         break;
 
       case 2:
         final shapeData = sampleShapes[index];
+
         _addCanvasItem(
           CanvasItemType.shape,
+
           properties: {
             'shape': shapeData['shape'],
+
             'fillColor': Colors.green,
+
             'strokeColor': Colors.greenAccent,
+
             'strokeWidth': 2.0,
+
             'hasGradient': false,
+
             'gradientColors': [
               HiveColor.fromColor(Colors.lightGreen),
+
               HiveColor.fromColor(Colors.green),
             ],
+
             'cornerRadius': 0.0,
+
             'width': 100.0,
+
             'height': 100.0,
+
             'topSide': 100.0,
+
             'rightSide': 100.0,
+
             'bottomSide': 100.0,
+
             'leftSide': 100.0,
+
             'topLeftRadius': 0.0,
+
             'topRightRadius': 0.0,
+
             'bottomLeftRadius': 0.0,
+
             'bottomRightRadius': 0.0,
+
             'topRadius': 0.0,
           },
         );
+
         break;
+
       case 3:
+
         // Reset drawing flow when entering drawing tab
+
         setState(() {
           showDrawingToolSelection = true;
+
           showDrawingControls = false;
+
           drawingMode = DrawingMode.disabled;
         });
+
         break;
     }
   }
 
   // Drawing gesture handlers
+
   void _onDrawingStart(DragStartDetails details) {
     print(
       'Drawing start - Mode: $drawingMode, Enabled: ${drawingMode == DrawingMode.enabled}',
     );
+
     if (drawingMode != DrawingMode.enabled) return;
 
     setState(() {
       isDrawing = true;
+
       currentDrawingPoints = [details.localPosition];
+
       _lastDrawingUpdate = DateTime.now();
     });
+
     if (selectedDrawingTool == DrawingTool.textPath &&
         ((_currentPathText == null) || _currentPathText!.trim().isEmpty)) {
       _promptForPathText();
     }
+
     print('Drawing started with ${currentDrawingPoints.length} points');
   }
 
   Future<void> _promptForPathText() async {
     String temp = _currentPathText ?? '';
+
     await showDialog(
       context: context,
+
       builder: (context) {
         return AlertDialog(
           title: Text('Type text for path'),
+
           content: TextField(
             autofocus: true,
+
             controller: TextEditingController(text: temp),
+
             onChanged: (v) => temp = v,
+
             decoration: const InputDecoration(hintText: 'Enter text'),
           ),
+
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
+
               child: const Text('Cancel'),
             ),
+
             ElevatedButton(
               onPressed: () {
                 Navigator.of(context).pop();
+
                 setState(() => _currentPathText = temp);
               },
+
               child: const Text('Use Text'),
             ),
           ],
@@ -4458,18 +6240,22 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     final now = DateTime.now();
 
     // Throttle updates to max 60 FPS (16ms intervals)
+
     if (_lastDrawingUpdate != null &&
         now.difference(_lastDrawingUpdate!).inMilliseconds < 16) {
       return;
     }
 
     // Only add point if it's far enough from the last point to avoid too many points
+
     if (currentDrawingPoints.isEmpty ||
         (details.localPosition - currentDrawingPoints.last).distance > 1.5) {
       setState(() {
         currentDrawingPoints.add(details.localPosition);
+
         _lastDrawingUpdate = now;
       });
+
       print('Drawing update - Points: ${currentDrawingPoints.length}');
     }
   }
@@ -4478,35 +6264,49 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     if (!isDrawing || drawingMode != DrawingMode.enabled) return;
 
     // Commit the current stroke to layers so it persists
+
     setState(() {
       isDrawing = false;
+
       if (currentDrawingPoints.isNotEmpty) {
         drawingLayers.add(
           DrawingLayer(
             id: DateTime.now().millisecondsSinceEpoch.toString(),
+
             tool: selectedDrawingTool,
+
             points: List<Offset>.from(currentDrawingPoints),
+
             color: drawingColor,
+
             strokeWidth: drawingStrokeWidth,
+
             isDotted:
                 selectedDrawingTool == DrawingTool.dottedLine ||
                 selectedDrawingTool == DrawingTool.dottedArrow,
+
             opacity: drawingOpacity,
+
             createdAt: DateTime.now(),
+
             text: selectedDrawingTool == DrawingTool.textPath
                 ? _currentPathText
                 : null,
+
             fontSize: selectedDrawingTool == DrawingTool.textPath
                 ? drawingStrokeWidth
                 : null,
+
             fontFamily: selectedDrawingTool == DrawingTool.textPath
                 ? _currentPathFontFamily
                 : null,
+
             letterSpacing: selectedDrawingTool == DrawingTool.textPath
                 ? _currentPathLetterSpacing
                 : null,
           ),
         );
+
         currentDrawingPoints.clear();
       }
     });
@@ -4525,47 +6325,71 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   Widget _buildToolSelection() {
     return Container(
       height: 60.h,
+
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
+
         itemCount: _getDrawingTools().length,
+
         itemBuilder: (context, index) {
           final drawingTool = _getDrawingTools()[index];
+
           return Padding(
             padding: EdgeInsets.symmetric(horizontal: 6.w),
+
             child: GestureDetector(
               onTap: () {
                 setState(() {
                   selectedDrawingTool = drawingTool['tool'] as DrawingTool;
+
                   showDrawingToolSelection = false;
+
                   showDrawingControls = true;
                 });
               },
+
               child: Container(
                 width: 70.w,
+
                 padding: EdgeInsets.all(8.w),
+
                 decoration: BoxDecoration(
                   color: Colors.white,
+
                   borderRadius: BorderRadius.circular(10.r),
+
                   border: Border.all(color: Colors.grey.shade300, width: 1.5),
                 ),
+
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
+
                   children: [
                     Icon(
                       drawingTool['icon'] as IconData,
+
                       size: 20.sp,
+
                       color: Colors.orange.shade600,
                     ),
+
                     SizedBox(height: 4.h),
+
                     Text(
                       drawingTool['name'] as String,
+
                       style: TextStyle(
                         fontSize: 8.sp,
+
                         fontWeight: FontWeight.w500,
+
                         color: Colors.grey.shade700,
                       ),
+
                       textAlign: TextAlign.center,
+
                       maxLines: 1,
+
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
@@ -4581,66 +6405,90 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   Widget _buildToolControls() {
     return SizedBox(
       height: 100.h,
+
       child: ListView(
         scrollDirection: Axis.horizontal,
+
         padding: EdgeInsets.only(left: 6.w, right: 6.w, bottom: 20.h),
+
         children: [
           // Back button
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 6.w),
+
             child: GestureDetector(
               onTap: () {
                 setState(() {
                   showDrawingToolSelection = true;
+
                   showDrawingControls = false;
                 });
               },
+
               child: Container(
                 width: 60.w,
+
                 decoration: BoxDecoration(
                   color: Colors.white,
+
                   borderRadius: BorderRadius.circular(10.r),
+
                   border: Border.all(color: Colors.grey.shade300, width: 1.5),
                 ),
+
                 child: Center(
                   child: Icon(
                     Icons.arrow_back,
+
                     size: 24.sp,
+
                     color: Colors.grey.shade700,
                   ),
                 ),
               ),
             ),
           ),
+
           // Start Drawing
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 6.w),
+
             child: GestureDetector(
               onTap: () {
                 setState(() {
                   showDrawingControls = false;
+
                   drawingMode = DrawingMode.enabled;
                 });
+
                 if (selectedDrawingTool == DrawingTool.textPath &&
                     ((_currentPathText == null) ||
                         _currentPathText!.trim().isEmpty)) {
                   _promptForPathText();
                 }
               },
+
               child: Container(
                 width: 110.w,
+
                 decoration: BoxDecoration(
                   color: Colors.blue.shade600,
+
                   borderRadius: BorderRadius.circular(10.r),
                 ),
+
                 child: Center(
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
+
                     children: [
                       Icon(Icons.brush, size: 20.sp, color: Colors.white),
+
                       SizedBox(width: 8.w),
+
                       Text(
                         'Start',
+
                         style: TextStyle(fontSize: 14.sp, color: Colors.white),
                       ),
                     ],
@@ -4649,27 +6497,39 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               ),
             ),
           ),
+
           // Color picker
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 6.w),
+
             child: GestureDetector(
               onTap: _showDrawingColorPicker,
+
               child: Container(
                 width: 70.w,
+
                 decoration: BoxDecoration(
                   color: Colors.white,
+
                   borderRadius: BorderRadius.circular(10.r),
+
                   border: Border.all(color: Colors.grey.shade300, width: 1.5),
                 ),
+
                 child: Center(
                   child: Container(
                     width: 36.w,
+
                     height: 36.w,
+
                     decoration: BoxDecoration(
                       color: drawingColor,
+
                       borderRadius: BorderRadius.circular(8.r),
+
                       border: Border.all(
                         color: Colors.grey.shade300,
+
                         width: 1.5,
                       ),
                     ),
@@ -4678,18 +6538,25 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               ),
             ),
           ),
+
           // Size slider item
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 6.w),
+
             child: Container(
               width: 210.w,
+
               decoration: BoxDecoration(
                 color: Colors.white,
+
                 borderRadius: BorderRadius.circular(10.r),
+
                 border: Border.all(color: Colors.grey.shade300, width: 1.5),
               ),
+
               child: Padding(
                 padding: EdgeInsets.symmetric(horizontal: 0.w),
+
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
 
@@ -4698,29 +6565,42 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                       selectedDrawingTool == DrawingTool.textPath
                           ? 'Font: ${drawingStrokeWidth.toInt()}'
                           : 'Size: ${drawingStrokeWidth.toInt()}',
+
                       style: TextStyle(
                         fontSize: 12.sp,
+
                         fontWeight: FontWeight.w500,
+
                         color: Colors.grey.shade700,
                       ),
+
                       textAlign: TextAlign.center,
                     ),
 
                     SliderTheme(
                       data: SliderTheme.of(context).copyWith(
                         activeTrackColor: Colors.blue.shade400,
+
                         inactiveTrackColor: Colors.blue.shade100,
+
                         thumbColor: Colors.blue.shade600,
+
                         trackHeight: 4.0,
+
                         thumbShape: const RoundSliderThumbShape(
                           enabledThumbRadius: 8.0,
                         ),
                       ),
+
                       child: Slider(
                         value: drawingStrokeWidth,
+
                         min: 1.0,
+
                         max: 20.0,
+
                         divisions: 19,
+
                         onChanged: (value) {
                           setState(() {
                             drawingStrokeWidth = value;
@@ -4733,40 +6613,58 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               ),
             ),
           ),
+
           // Font favorites (only for textPath)
           if (selectedDrawingTool == DrawingTool.textPath)
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 6.w),
+
               child: GestureDetector(
                 onTap: _showTextPathFontFavorites,
+
                 child: Container(
                   width: 190.w,
+
                   decoration: BoxDecoration(
                     color: Colors.white,
+
                     borderRadius: BorderRadius.circular(10.r),
+
                     border: Border.all(color: Colors.grey.shade300, width: 1.5),
                   ),
+
                   child: Center(
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
+
                       children: [
                         Icon(
                           Icons.favorite_rounded,
+
                           size: 20.sp,
+
                           color: Colors.pink,
                         ),
+
                         SizedBox(width: 8.w),
+
                         Text(
                           _currentPathFontFamily ?? 'Fav fonts',
+
                           style: TextStyle(
                             fontSize: 12.sp,
+
                             color: Colors.grey.shade700,
                           ),
                         ),
+
                         SizedBox(width: 2.w),
+
                         Icon(
                           Icons.keyboard_arrow_down_rounded,
+
                           size: 18.sp,
+
                           color: Colors.grey.shade600,
                         ),
                       ],
@@ -4775,53 +6673,78 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                 ),
               ),
             ),
+
           // Letter spacing slider (only for textPath)
           if (selectedDrawingTool == DrawingTool.textPath)
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 6.w),
+
               child: Container(
                 width: 210.w,
+
                 decoration: BoxDecoration(
                   color: Colors.white,
+
                   borderRadius: BorderRadius.circular(10.r),
+
                   border: Border.all(color: Colors.grey.shade300, width: 1.5),
                 ),
+
                 child: Padding(
                   padding: EdgeInsets.symmetric(
                     horizontal: 10.w,
+
                     vertical: 3.h,
                   ),
+
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
+
                     crossAxisAlignment: CrossAxisAlignment.stretch,
+
                     children: [
                       Text(
                         'Letter Spacing: ${(_currentPathLetterSpacing ?? 0.0).toStringAsFixed(1)}',
+
                         style: TextStyle(
                           fontSize: 12.sp,
+
                           fontWeight: FontWeight.w500,
+
                           color: Colors.grey.shade700,
                         ),
+
                         textAlign: TextAlign.center,
                       ),
+
                       SliderTheme(
                         data: SliderTheme.of(context).copyWith(
                           activeTrackColor: Colors.blue.shade400,
+
                           inactiveTrackColor: Colors.blue.shade100,
+
                           thumbColor: Colors.blue.shade600,
+
                           trackHeight: 4.0,
+
                           thumbShape: const RoundSliderThumbShape(
                             enabledThumbRadius: 8.0,
                           ),
                         ),
+
                         child: Slider(
                           value: (_currentPathLetterSpacing ?? 0.0).clamp(
                             -5.0,
+
                             20.0,
                           ),
+
                           min: -5.0,
+
                           max: 20.0,
+
                           divisions: 25,
+
                           onChanged: (value) {
                             setState(() {
                               _currentPathLetterSpacing = value;
@@ -4834,47 +6757,69 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                 ),
               ),
             ),
+
           // Opacity slider item
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 6.w),
+
             child: Container(
               width: 210.w,
+
               decoration: BoxDecoration(
                 color: Colors.white,
+
                 borderRadius: BorderRadius.circular(10.r),
+
                 border: Border.all(color: Colors.grey.shade300, width: 1.5),
               ),
+
               child: Padding(
                 padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 3.h),
+
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
+
                   crossAxisAlignment: CrossAxisAlignment.stretch,
+
                   children: [
                     Text(
                       'Opacity: ${(drawingOpacity * 100).toInt()}%',
+
                       style: TextStyle(
                         fontSize: 12.sp,
+
                         fontWeight: FontWeight.w500,
+
                         color: Colors.grey.shade700,
                       ),
+
                       textAlign: TextAlign.center,
                     ),
 
                     SliderTheme(
                       data: SliderTheme.of(context).copyWith(
                         activeTrackColor: Colors.blue.shade400,
+
                         inactiveTrackColor: Colors.blue.shade100,
+
                         thumbColor: Colors.blue.shade600,
+
                         trackHeight: 4.0,
+
                         thumbShape: const RoundSliderThumbShape(
                           enabledThumbRadius: 8.0,
                         ),
                       ),
+
                       child: Slider(
                         value: drawingOpacity,
+
                         min: 0.1,
+
                         max: 1.0,
+
                         divisions: 9,
+
                         onChanged: (value) {
                           setState(() {
                             drawingOpacity = value;
@@ -4894,83 +6839,113 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   void _showTextPathFontFavorites() {
     final liked = FontFavorites.instance.likedFamilies;
+
     showModalBottomSheet(
       context: context,
+
       backgroundColor: Colors.white,
+
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16.r)),
       ),
+
       builder: (context) {
         return SizedBox(
           height: 340.h,
+
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+
             children: [
               Padding(
                 padding: EdgeInsets.all(16.w),
+
                 child: Row(
                   children: [
                     Icon(Icons.favorite_rounded, color: Colors.pink),
+
                     SizedBox(width: 8.w),
+
                     Text(
                       'Choose favorite font',
+
                       style: TextStyle(
                         fontSize: 16.sp,
+
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ],
                 ),
               ),
+
               Divider(height: 1, color: Colors.grey.shade200),
+
               Expanded(
                 child: liked.isEmpty
                     ? Center(
                         child: Padding(
                           padding: EdgeInsets.all(16.w),
+
                           child: Text(
                             'No favorite fonts yet. Browse fonts and tap heart to add.',
+
                             style: TextStyle(color: Colors.grey[600]),
+
                             textAlign: TextAlign.center,
                           ),
                         ),
                       )
                     : ListView.separated(
                         itemCount: liked.length,
+
                         separatorBuilder: (_, __) =>
                             Divider(height: 1, color: Colors.grey.shade100),
+
                         itemBuilder: (context, index) {
                           final family = liked[index];
+
                           final bool _isGoogleFont = GoogleFonts.asMap()
                               .containsKey(family);
+
                           return ListTile(
                             title: Text(
                               family,
+
                               style: _isGoogleFont
                                   ? GoogleFonts.getFont(family)
                                   : TextStyle(fontFamily: family),
                             ),
+
                             subtitle: Text(
                               'The quick brown fox jumps over the lazy dog',
+
                               style: _isGoogleFont
                                   ? GoogleFonts.getFont(family)
                                   : TextStyle(fontFamily: family),
                             ),
+
                             onTap: () async {
                               // Preload Google Font so Paragraph can render it immediately
+
                               String resolvedFamily = family;
+
                               if (_isGoogleFont) {
                                 final ts = GoogleFonts.getFont(family);
+
                                 try {
                                   await GoogleFonts.pendingFonts([ts]);
                                 } catch (_) {
                                   // ignore loading errors; fallback to default
                                 }
+
                                 resolvedFamily = ts.fontFamily ?? family;
                               }
+
                               setState(() {
                                 _currentPathFontFamily = resolvedFamily;
                               });
+
                               Navigator.of(context).pop();
                             },
                           );
@@ -4995,52 +6970,74 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               onTap: () {
                 setState(() {
                   showDrawingControls = true;
+
                   drawingMode = DrawingMode.disabled;
                 });
               },
+
               child: Container(
                 padding: EdgeInsets.all(6.w),
+
                 decoration: BoxDecoration(
                   color: Colors.grey.shade100,
+
                   borderRadius: BorderRadius.circular(6.r),
+
                   border: Border.all(color: Colors.grey.shade300),
                 ),
+
                 child: Icon(
                   Icons.settings,
+
                   size: 14.sp,
+
                   color: Colors.grey.shade600,
                 ),
               ),
             ),
+
             SizedBox(width: 8.w),
+
             // Current settings display
             Expanded(
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+
                 children: [
                   _buildSettingDisplay(
                     'Color',
+
                     Container(
                       width: 20.w,
+
                       height: 20.w,
+
                       decoration: BoxDecoration(
                         color: drawingColor,
+
                         borderRadius: BorderRadius.circular(4.r),
+
                         border: Border.all(color: Colors.grey.shade300),
                       ),
                     ),
                   ),
+
                   _buildSettingDisplay(
                     'Size',
+
                     Text(
                       '${drawingStrokeWidth.toInt()}',
+
                       style: TextStyle(fontSize: 10.sp),
                     ),
                   ),
+
                   _buildSettingDisplay(
                     'Opacity',
+
                     Text(
                       '${(drawingOpacity * 100).toInt()}%',
+
                       style: TextStyle(fontSize: 10.sp),
                     ),
                   ),
@@ -5049,10 +7046,13 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             ),
           ],
         ),
+
         SizedBox(height: 4.h),
+
         // Erase + Stop & Save row
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
+
           children: [
             // Erase toggle button
             ElevatedButton.icon(
@@ -5063,46 +7063,67 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
                   if (isEraserActive) {
                     // Toggle off: restore previous non-eraser tool, default to brush
+
                     selectedDrawingTool =
                         _previousNonEraserTool ?? DrawingTool.brush;
                   } else {
                     // Toggle on: remember current tool if not eraser
+
                     if (selectedDrawingTool != DrawingTool.eraser) {
                       _previousNonEraserTool = selectedDrawingTool;
                     }
+
                     selectedDrawingTool = DrawingTool.eraser;
+
                     drawingMode = DrawingMode.enabled;
                   }
                 });
               },
+
               icon: Icon(Icons.auto_fix_off, size: 12.sp),
+
               label: Text('Erase', style: TextStyle(fontSize: 9.sp)),
+
               style: ElevatedButton.styleFrom(
                 backgroundColor: selectedDrawingTool == DrawingTool.eraser
                     ? Colors.orange.shade700
                     : Colors.grey.shade600,
+
                 foregroundColor: Colors.white,
+
                 padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+
                 minimumSize: Size(0, 28.h),
               ),
             ),
+
             SizedBox(width: 8.w),
+
             // Stop Drawing button
             ElevatedButton.icon(
               onPressed: () {
                 _saveCurrentDrawing();
+
                 setState(() {
                   drawingMode = DrawingMode.disabled;
+
                   showDrawingToolSelection = true;
+
                   showDrawingControls = false;
                 });
               },
+
               icon: Icon(Icons.stop, size: 12.sp),
+
               label: Text('Stop & Save', style: TextStyle(fontSize: 9.sp)),
+
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red.shade600,
+
                 foregroundColor: Colors.white,
+
                 padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+
                 minimumSize: Size(0, 28.h),
               ),
             ),
@@ -5117,9 +7138,12 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       children: [
         Text(
           label,
+
           style: TextStyle(fontSize: 8.sp, color: Colors.grey.shade600),
         ),
+
         SizedBox(height: 2.h),
+
         value,
       ],
     );
@@ -5127,57 +7151,83 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   void _saveCurrentDrawing() {
     // If there's an in-progress stroke, commit it first
+
     if (currentDrawingPoints.isNotEmpty) {
       drawingLayers.add(
         DrawingLayer(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
+
           tool: selectedDrawingTool,
+
           points: List<Offset>.from(currentDrawingPoints),
+
           color: drawingColor,
+
           strokeWidth: drawingStrokeWidth,
+
           isDotted:
               selectedDrawingTool == DrawingTool.dottedLine ||
               selectedDrawingTool == DrawingTool.dottedArrow,
+
           opacity: drawingOpacity,
+
           createdAt: DateTime.now(),
+
           text: selectedDrawingTool == DrawingTool.textPath
               ? _currentPathText
               : null,
+
           fontSize: selectedDrawingTool == DrawingTool.textPath
               ? drawingStrokeWidth
               : null,
+
           fontFamily: selectedDrawingTool == DrawingTool.textPath
               ? _currentPathFontFamily
               : null,
         ),
       );
+
       currentDrawingPoints.clear();
     }
 
     if (drawingLayers.isEmpty) return;
 
     // Calculate bounding box over all strokes
+
     final List<Offset> allPoints = drawingLayers
         .expand((l) => l.points)
         .toList();
+
     final bounds = _calculateDrawingBounds(allPoints);
 
     // Serialize strokes relative to top-left bounds
+
     final strokes = drawingLayers
         .map(
           (l) => {
             'tool': l.tool.name,
+
             'points': l.points.map((p) => p - bounds.topLeft).toList(),
+
             'color': HiveColor.fromColor(l.color),
+
             'strokeWidth': l.strokeWidth,
+
             'isDotted': l.isDotted,
+
             'opacity': l.opacity,
+
             if (l.tool == DrawingTool.textPath) ...{
               'text': l.text ?? '',
+
               'fontSize': l.fontSize ?? l.strokeWidth,
+
               'fontFamily': l.fontFamily,
+
               'fontWeight': l.fontWeight,
+
               'fontStyle': l.fontStyle,
+
               'letterSpacing': l.letterSpacing ?? 0.0,
             },
           },
@@ -5186,34 +7236,52 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
     final drawingItem = CanvasItem(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
+
       type: CanvasItemType.drawing,
+
       position: bounds.topLeft,
+
       scale: 1.0,
+
       rotation: 0.0,
+
       opacity: 1.0,
+
       layerIndex: canvasItems.length,
+
       isVisible: true,
+
       isLocked: false,
+
       properties: {
         'strokes': strokes,
+
         'width': bounds.width,
+
         'height': bounds.height,
       },
+
       createdAt: DateTime.now(),
+
       lastModified: DateTime.now(),
     );
 
     setState(() {
       canvasItems.add(drawingItem);
+
       _selectItem(drawingItem);
+
       drawingLayers.clear();
+
       showDrawingControls = true;
     });
 
     // Record undo action and persist immediately
+
     _addAction(
       CanvasAction(type: 'add', item: drawingItem, timestamp: DateTime.now()),
     );
+
     _saveProject();
   }
 
@@ -5221,30 +7289,43 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     if (points.isEmpty) return Rect.zero;
 
     double minX = points.first.dx;
+
     double maxX = points.first.dx;
+
     double minY = points.first.dy;
+
     double maxY = points.first.dy;
 
     for (final point in points) {
       minX = math.min(minX, point.dx);
+
       maxX = math.max(maxX, point.dx);
+
       minY = math.min(minY, point.dy);
+
       maxY = math.max(maxY, point.dy);
     }
 
     // Add some padding
+
     const padding = 10.0;
+
     return Rect.fromLTRB(
       minX - padding,
+
       minY - padding,
+
       maxX + padding,
+
       maxY + padding,
     );
   }
 
   // Drawing control helper methods
+
   void _showDrawingColorPicker() {
     // Allow opening even when no drawing item is selected; fall back to current drawingColor
+
     final bool hasSelectedDrawing =
         selectedItem != null && selectedItem!.type == CanvasItemType.drawing;
 
@@ -5255,30 +7336,38 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
     showDialog(
       context: context,
+
       builder: (context) {
         return AlertDialog(
           title: Text('Choose Drawing Color'),
+
           content: SingleChildScrollView(
             child: ColorPicker(
               pickerColor: currentColor,
+
               onColorChanged: (color) {
                 setState(() {
                   // Always update the live drawing color used for new strokes
+
                   drawingColor = color;
 
                   // If a drawing item is selected, also update its stored color and strokes
+
                   if (hasSelectedDrawing) {
                     selectedItem!.properties['color'] = HiveColor.fromColor(
                       color,
                     );
+
                     final List<Map<String, dynamic>>? strokes =
                         (selectedItem!.properties['strokes'] as List<dynamic>?)
                             ?.map((e) => e as Map<String, dynamic>)
                             .toList();
+
                     if (strokes != null) {
                       for (final stroke in strokes) {
                         stroke['color'] = HiveColor.fromColor(color);
                       }
+
                       selectedItem!.properties['strokes'] = strokes;
                     }
                   }
@@ -5286,9 +7375,11 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               },
             ),
           ),
+
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
+
               child: Text('Done'),
             ),
           ],
@@ -5300,7 +7391,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   void _clearAllDrawings() {
     setState(() {
       drawingLayers.clear();
+
       currentDrawingPoints.clear();
+
       isDrawing = false;
     });
   }
@@ -5317,40 +7410,53 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     return Expanded(
       child: InteractiveViewer(
         minScale: 0.5,
+
         maxScale: 3.0,
+
         onInteractionUpdate: (details) {
           setState(() {
             canvasZoom = details.scale;
           });
         },
+
         child: Container(
           margin: EdgeInsets.all(20.w),
+
           decoration: BoxDecoration(
             color: _currentProject!.canvasBackgroundColor.toColor(),
+
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.08),
+
                 blurRadius: 32,
+
                 offset: const Offset(0, 12),
               ),
             ],
           ),
+
           child: ClipRRect(
             child: RepaintBoundary(
               key: _canvasRepaintKey,
+
               child: Stack(
                 children: [
                   // Background grid and canvas items
                   Positioned.fill(
                     child: GestureDetector(
                       onTap: _deselectItem,
+
                       child: Container(
                         color: Colors.white,
+
                         child: CustomPaint(
                           painter: CanvasGridPainter(
                             showGrid: snapToGrid,
+
                             gridSize: 20.0,
                           ),
+
                           child: Stack(
                             children: [
                               // Canvas items (saved drawings, images, etc.)
@@ -5360,9 +7466,11 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                                     (a, b) =>
                                         a.layerIndex.compareTo(b.layerIndex),
                                   );
+
                                 final visibleItems = items
                                     .where((it) => it.isVisible)
                                     .toList();
+
                                 return visibleItems
                                     .map((it) => _buildCanvasItem(it))
                                     .toList();
@@ -5373,24 +7481,36 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                       ),
                     ),
                   ),
+
                   // Drawing layer on top of everything
                   if (drawingMode == DrawingMode.enabled)
                     Positioned.fill(
                       child: GestureDetector(
                         onPanStart: _onDrawingStart,
+
                         onPanUpdate: _onDrawingUpdate,
+
                         onPanEnd: _onDrawingEnd,
+
                         child: RepaintBoundary(
                           child: CustomPaint(
                             painter: DrawingPainter(
                               layers: drawingLayers,
+
                               currentPoints: currentDrawingPoints,
+
                               currentTool: selectedDrawingTool,
+
                               currentColor: drawingColor,
+
                               currentStrokeWidth: drawingStrokeWidth,
+
                               currentOpacity: drawingOpacity,
+
                               currentPathText: _currentPathText,
+
                               currentPathFontFamily: _currentPathFontFamily,
+
                               currentPathLetterSpacing:
                                   _currentPathLetterSpacing,
                             ),
@@ -5409,53 +7529,76 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   Widget _buildCanvasItem(CanvasItem item) {
     final isSelected = selectedItem == item;
+
     return Positioned(
       left: item.position.dx,
+
       top: item.position.dy,
+
       child: Transform.rotate(
         angle: item.rotation,
+
         child: Transform.scale(
           scale: item.scale,
+
           child: GestureDetector(
             behavior: HitTestBehavior.translucent,
+
             onTap: () {
               if (!item.isLocked) {
                 _selectItem(item);
               }
             },
+
             onPanStart: (_) {
               if (!item.isLocked && selectedItem == item) {
                 _preDragState = item.copyWith();
               }
             },
+
             onPanUpdate: (details) {
               if (!item.isLocked && selectedItem == item) {
                 setState(() {
                   // Convert drag delta from the rotated/scaled child's local space
+
                   // into canvas space so dragging matches finger direction
+
                   final double angle = item.rotation;
+
                   final double cosA = math.cos(angle);
+
                   final double sinA = math.sin(angle);
+
                   final Offset localDelta = details.delta;
+
                   final Offset rotatedDelta = Offset(
                     localDelta.dx * cosA - localDelta.dy * sinA,
+
                     localDelta.dx * sinA + localDelta.dy * cosA,
                   );
+
                   // Compensate for the current scale so movement feels consistent
+
                   final Offset canvasDelta =
                       rotatedDelta / (item.scale == 0 ? 1 : item.scale);
+
                   Offset newPosition = item.position + canvasDelta;
+
                   if (snapToGrid) {
                     const double gridSize = 20.0;
+
                     newPosition = Offset(
                       (newPosition.dx / gridSize).round() * gridSize,
+
                       (newPosition.dy / gridSize).round() * gridSize,
                     );
                   }
+
                   item.position = newPosition;
                 });
               }
             },
+
             onPanEnd: (_) {
               if (!item.isLocked &&
                   selectedItem == item &&
@@ -5463,16 +7606,22 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                 _addAction(
                   CanvasAction(
                     type: 'modify',
+
                     item: item.copyWith(),
+
                     previousState: _preDragState,
+
                     timestamp: DateTime.now(),
                   ),
                 );
+
                 _preDragState = null;
               }
             },
+
             child: Stack(
               clipBehavior: Clip.none,
+
               children: [
                 Container(
                   decoration: BoxDecoration(
@@ -5489,14 +7638,18 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                           : (isSelected
                                 ? Colors.blue.shade400
                                 : Colors.transparent),
+
                       width: 2,
                     ),
                   ),
+
                   child: Opacity(
                     opacity: item.opacity.clamp(0.0, 1.0),
+
                     child: _buildItemContent(item),
                   ),
                 ),
+
                 // Add custom selection border for quadrilaterals
                 if (isSelected &&
                     item.type == CanvasItemType.shape &&
@@ -5513,40 +7666,61 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   Widget _buildCustomSelectionBorder(CanvasItem item) {
     final double topSide = (item.properties['topSide'] as double?) ?? 100.0;
+
     final double rightSide = (item.properties['rightSide'] as double?) ?? 100.0;
+
     final double bottomSide =
         (item.properties['bottomSide'] as double?) ?? 100.0;
+
     final double leftSide = (item.properties['leftSide'] as double?) ?? 100.0;
 
     // Calculate the actual bounds of the quadrilateral
+
     final double maxWidth = math.max(leftSide, rightSide);
+
     final double maxHeight = math.max(topSide, bottomSide);
 
     // Calculate corner positions exactly like the shape painter does
+
     final double centerX = maxWidth / 2;
+
     final double centerY = maxHeight / 2;
 
     final double halfTopSide = topSide / 2;
+
     final double halfBottomSide = bottomSide / 2;
+
     final double halfLeftSide = leftSide / 2;
+
     final double halfRightSide = rightSide / 2;
 
     // Calculate corner positions (matching _createCustomRectanglePath)
+
     final double topLeftX = (centerX - halfTopSide).w;
+
     final double topLeftY = (centerY - halfLeftSide).h;
+
     final double topRightX = (centerX + halfTopSide).w;
+
     final double topRightY = (centerY - halfRightSide).h;
+
     final double bottomLeftX = (centerX - halfBottomSide).w;
+
     final double bottomLeftY = (centerY + halfLeftSide).h;
+
     final double bottomRightX = (centerX + halfBottomSide).w;
+
     final double bottomRightY = (centerY + halfRightSide).h;
 
     return Positioned.fill(
       child: CustomPaint(
         painter: _SelectionBorderPainter(
           topLeft: Offset(topLeftX, topLeftY),
+
           topRight: Offset(topRightX, topRightY),
+
           bottomLeft: Offset(bottomLeftX, bottomLeftY),
+
           bottomRight: Offset(bottomRightX, bottomRightY),
         ),
       ),
@@ -5559,10 +7733,13 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         decoration: BoxDecoration(
           border: Border.all(
             color: Colors.blue.shade400.withOpacity(0.6),
+
             width: 2,
           ),
+
           borderRadius: BorderRadius.circular(8.r),
         ),
+
         child: Stack(
           children: [..._buildCornerHandles(item), _buildRotationHandle(item)],
         ),
@@ -5572,6 +7749,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   List<Widget> _buildCornerHandles(CanvasItem item) {
     // Check if this is a shape with individual side controls
+
     final bool isShapeWithSides =
         item.type == CanvasItemType.shape &&
         ((item.properties['shape'] as String?) == 'rectangle' ||
@@ -5579,107 +7757,158 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
     if (isShapeWithSides) {
       // Calculate dynamic positioning based on actual shape dimensions
+
       final double topSide = (item.properties['topSide'] as double?) ?? 100.0;
+
       final double rightSide =
           (item.properties['rightSide'] as double?) ?? 100.0;
+
       final double bottomSide =
           (item.properties['bottomSide'] as double?) ?? 100.0;
+
       final double leftSide = (item.properties['leftSide'] as double?) ?? 100.0;
 
       // Calculate the actual bounds of the quadrilateral
+
       final double maxWidth = math.max(leftSide, rightSide);
+
       final double maxHeight = math.max(topSide, bottomSide);
 
       // Calculate corner positions exactly like the shape painter does
+
       final double centerX = maxWidth / 2;
+
       final double centerY = maxHeight / 2;
 
       final double halfTopSide = topSide / 2;
+
       final double halfBottomSide = bottomSide / 2;
+
       final double halfLeftSide = leftSide / 2;
+
       final double halfRightSide = rightSide / 2;
 
       // Calculate corner positions (matching _createCustomRectanglePath)
+
       // Apply the same scaling as the container (.w and .h)
+
       final double topLeftX = (centerX - halfTopSide).w;
+
       final double topLeftY = (centerY - halfLeftSide).h;
+
       final double topRightX = (centerX + halfTopSide).w;
+
       final double topRightY = (centerY - halfRightSide).h;
+
       final double bottomLeftX = (centerX - halfBottomSide).w;
+
       final double bottomLeftY = (centerY + halfLeftSide).h;
+
       final double bottomRightX = (centerX + halfBottomSide).w;
+
       final double bottomRightY = (centerY + halfRightSide).h;
 
       return [
         // Top-left corner - positioned at actual quadrilateral corner
         Positioned(
           top: topLeftY - 6.h,
+
           left: topLeftX - 6.w,
+
           child: _buildResizeHandle(
             item,
+
             (details) => _handleShapeCornerResize(item, details, 'topLeft'),
           ),
         ),
+
         // Top-right corner - positioned at actual quadrilateral corner
         Positioned(
           top: topRightY - 6.h,
+
           left: topRightX - 6.w,
+
           child: _buildResizeHandle(
             item,
+
             (details) => _handleShapeCornerResize(item, details, 'topRight'),
           ),
         ),
+
         // Bottom-left corner - positioned at actual quadrilateral corner
         Positioned(
           top: bottomLeftY - 6.h,
+
           left: bottomLeftX - 6.w,
+
           child: _buildResizeHandle(
             item,
+
             (details) => _handleShapeCornerResize(item, details, 'bottomLeft'),
           ),
         ),
+
         // Bottom-right corner - positioned at actual quadrilateral corner
         Positioned(
           top: bottomRightY - 6.h,
+
           left: bottomRightX - 6.w,
+
           child: _buildResizeHandle(
             item,
+
             (details) => _handleShapeCornerResize(item, details, 'bottomRight'),
           ),
         ),
       ];
     } else {
       // Default corner handles for other items
+
       return [
         Positioned(
           top: -6.h,
+
           left: -6.w,
+
           child: _buildResizeHandle(
             item,
+
             (details) => _handleResizeUpdate(item, details, scaleSign: -1),
           ),
         ),
+
         Positioned(
           top: -6.h,
+
           right: -6.w,
+
           child: _buildResizeHandle(
             item,
+
             (details) => _handleResizeUpdate(item, details, scaleSign: 1),
           ),
         ),
+
         Positioned(
           bottom: -6.h,
+
           left: -6.w,
+
           child: _buildResizeHandle(
             item,
+
             (details) => _handleResizeUpdate(item, details, scaleSign: 1),
           ),
         ),
+
         Positioned(
           bottom: -6.h,
+
           right: -6.w,
+
           child: _buildResizeHandle(
             item,
+
             (details) => _handleResizeUpdate(item, details, scaleSign: 1),
           ),
         ),
@@ -5689,37 +7918,52 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   Widget _buildResizeHandle(
     CanvasItem item,
+
     ValueChanged<DragUpdateDetails> onPanUpdate,
   ) {
     return GestureDetector(
       onPanStart: (_) {
         _preTransformState = item.copyWith();
       },
+
       onPanUpdate: onPanUpdate,
+
       onPanEnd: (_) {
         if (_preTransformState != null) {
           _addAction(
             CanvasAction(
               type: 'modify',
+
               item: item.copyWith(),
+
               previousState: _preTransformState,
+
               timestamp: DateTime.now(),
             ),
           );
+
           _preTransformState = null;
         }
       },
+
       child: Container(
         width: 12.w,
+
         height: 12.h,
+
         decoration: BoxDecoration(
           color: Colors.blue.shade400,
+
           shape: BoxShape.circle,
+
           border: Border.all(color: Colors.white, width: 2),
+
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.2),
+
               blurRadius: 4,
+
               offset: const Offset(0, 2),
             ),
           ],
@@ -5730,70 +7974,110 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   void _handleResizeUpdate(
     CanvasItem item,
+
     DragUpdateDetails details, {
+
     int scaleSign = 1,
   }) {
     setState(() {
       final double dragMagnitude =
           (details.delta.dx.abs() + details.delta.dy.abs()) / 2;
+
       final double scaleDelta = (dragMagnitude / 100.0) * scaleSign;
+
       final double newScale = (item.scale + scaleDelta).clamp(
         0.2,
+
         10.0,
       ); // Changed from 5.0 to 10.0
+
       item.scale = newScale;
     });
   }
 
   void _handleShapeCornerResize(
     CanvasItem item,
+
     DragUpdateDetails details,
+
     String corner,
   ) {
     setState(() {
       final double sensitivity =
           0.5; // Adjust sensitivity for side length changes
+
       final double deltaX = details.delta.dx * sensitivity;
+
       final double deltaY = details.delta.dy * sensitivity;
 
       // Get current side lengths
+
       double topSide = (item.properties['topSide'] as double?) ?? 100.0;
+
       double rightSide = (item.properties['rightSide'] as double?) ?? 100.0;
+
       double bottomSide = (item.properties['bottomSide'] as double?) ?? 100.0;
+
       double leftSide = (item.properties['leftSide'] as double?) ?? 100.0;
 
       // Update side lengths based on corner being dragged
+
       switch (corner) {
         case 'topLeft':
+
           // Dragging top-left affects top and left sides
+
           topSide = (topSide - deltaY).clamp(20.0, 500.0);
+
           leftSide = (leftSide - deltaX).clamp(20.0, 500.0);
+
           break;
+
         case 'topRight':
+
           // Dragging top-right affects top and right sides
+
           topSide = (topSide - deltaY).clamp(20.0, 500.0);
+
           rightSide = (rightSide + deltaX).clamp(20.0, 500.0);
+
           break;
+
         case 'bottomLeft':
+
           // Dragging bottom-left affects bottom and left sides
+
           bottomSide = (bottomSide + deltaY).clamp(20.0, 500.0);
+
           leftSide = (leftSide - deltaX).clamp(20.0, 500.0);
+
           break;
+
         case 'bottomRight':
+
           // Dragging bottom-right affects bottom and right sides
+
           bottomSide = (bottomSide + deltaY).clamp(20.0, 500.0);
+
           rightSide = (rightSide + deltaX).clamp(20.0, 500.0);
+
           break;
       }
 
       // Update the properties
+
       item.properties['topSide'] = topSide;
+
       item.properties['rightSide'] = rightSide;
+
       item.properties['bottomSide'] = bottomSide;
+
       item.properties['leftSide'] = leftSide;
 
       // Update overall width and height to match the new dimensions
+
       item.properties['width'] = math.max(leftSide, rightSide);
+
       item.properties['height'] = math.max(topSide, bottomSide);
     });
   }
@@ -5801,49 +8085,69 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   Widget _buildRotationHandle(CanvasItem item) {
     return Positioned(
       top: -30.h,
+
       left: 0,
+
       right: 0,
+
       child: Center(
         child: GestureDetector(
           onPanStart: (_) {
             _preTransformState = item.copyWith();
           },
+
           onPanUpdate: (details) {
             setState(() {
               item.rotation += details.delta.dx * 0.01;
             });
           },
+
           onPanEnd: (_) {
             if (_preTransformState != null) {
               _addAction(
                 CanvasAction(
                   type: 'modify',
+
                   item: item.copyWith(),
+
                   previousState: _preTransformState,
+
                   timestamp: DateTime.now(),
                 ),
               );
+
               _preTransformState = null;
             }
           },
+
           child: Container(
             width: 24.w,
+
             height: 24.h,
+
             decoration: BoxDecoration(
               color: Colors.green.shade400,
+
               shape: BoxShape.circle,
+
               border: Border.all(color: Colors.white, width: 2),
+
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.2),
+
                   blurRadius: 4,
+
                   offset: const Offset(0, 2),
                 ),
               ],
             ),
+
             child: Icon(
               Icons.rotate_right_rounded,
+
               color: Colors.white,
+
               size: 14.sp,
             ),
           ),
@@ -5856,21 +8160,29 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     switch (item.type) {
       case CanvasItemType.text:
         final props = item.properties;
+
         final String? fontFamily = props['fontFamily'] as String?;
+
         final bool textHasGradient = props['hasGradient'] == true;
+
         final bool textHasShadow = props['hasShadow'] == true;
+
         final double textShadowOpacity =
             (props['shadowOpacity'] as double?) ?? 0.6;
+
         final Color baseShadowColor = (props['shadowColor'] is HiveColor)
             ? (props['shadowColor'] as HiveColor).toColor()
             : (props['shadowColor'] is Color)
             ? (props['shadowColor'] as Color)
             : Colors.grey;
+
         final Color effectiveShadowColor = baseShadowColor.withOpacity(
           (baseShadowColor.opacity * textShadowOpacity).clamp(0.0, 1.0),
         );
+
         final TextStyle baseStyle = TextStyle(
           fontSize: (props['fontSize'] ?? 24.0) as double,
+
           // Force solid white text when using ShaderMask gradient so the alpha is solid
           color: textHasGradient
               ? Colors.white
@@ -5879,30 +8191,40 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               : (props['color'] is Color)
               ? (props['color'] as Color)
               : Colors.black,
+
           fontWeight: (props['fontWeight'] is FontWeight)
               ? (props['fontWeight'] as FontWeight)
               : FontWeight.values.firstWhere(
                   (e) => e.index == (props['fontWeight'] as int?),
+
                   orElse: () => FontWeight.normal,
                 ),
+
           fontStyle: (props['fontStyle'] is FontStyle)
               ? (props['fontStyle'] as FontStyle)
               : FontStyle.values.firstWhere(
                   (e) => e.index == (props['fontStyle'] as int?),
+
                   orElse: () => FontStyle.normal,
                 ),
+
           decoration: _intToTextDecoration((props['decoration'] as int?) ?? 0),
+
           decorationColor: (props['color'] is HiveColor)
               ? (props['color'] as HiveColor).toColor()
               : (props['color'] as Color?),
+
           letterSpacing: (props['letterSpacing'] as double?) ?? 0.0,
+
           shadows: textHasShadow
               ? [
                   Shadow(
                     color: effectiveShadowColor,
+
                     offset:
                         (props['shadowOffset'] as Offset?) ??
                         const Offset(2, 2),
+
                     blurRadius: (props['shadowBlur'] as double?) ?? 4.0,
                   ),
                 ]
@@ -5910,38 +8232,54 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         );
 
         Widget textWidget;
+
         if (fontFamily != null) {
           try {
             final TextStyle gfStyle = GoogleFonts.getFont(
               fontFamily,
+
               textStyle: baseStyle,
             );
+
             textWidget = Text(
               (props['text'] ?? 'Text') as String,
+
               style: gfStyle,
+
               textAlign: (props['textAlign'] as TextAlign?) ?? TextAlign.center,
             );
           } catch (_) {
             textWidget = Text(
               (props['text'] ?? 'Text') as String,
+
               style: baseStyle,
+
               textAlign: (props['textAlign'] as TextAlign?) ?? TextAlign.center,
             );
           }
         } else {
           textWidget = Text(
             (props['text'] ?? 'Text') as String,
+
             style: baseStyle,
+
             textAlign: (props['textAlign'] as TextAlign?) ?? TextAlign.center,
           );
         }
+
         if (textHasGradient) {
           final double angle = (props['gradientAngle'] as double?) ?? 0.0;
+
           final double rad = angle * math.pi / 185.0;
+
           final double cx = math.cos(rad);
+
           final double sy = math.sin(rad);
+
           final Alignment begin = Alignment(-cx, -sy);
+
           final Alignment end = Alignment(cx, sy);
+
           textWidget = ShaderMask(
             shaderCallback: (bounds) => LinearGradient(
               colors:
@@ -5950,21 +8288,29 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                       .toList() ??
                   [
                     HiveColor.fromColor(Colors.blue).toColor(),
+
                     HiveColor.fromColor(Colors.purple).toColor(),
                   ],
+
               begin: begin,
+
               end: end,
             ).createShader(bounds),
+
             child: textWidget,
           );
         }
+
         return Container(padding: EdgeInsets.all(16.w), child: textWidget);
 
       case CanvasItemType.image:
         final String? filePath = item.properties['filePath'] as String?;
+
         final double blur = (item.properties['blur'] as double?) ?? 0.0;
+
         final bool hasGradient =
             (item.properties['hasGradient'] as bool?) ?? false;
+
         final List<Color> grad =
             (item.properties['gradientColors'] as List<dynamic>?)
                 ?.map(
@@ -5974,22 +8320,30 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                 .whereType<Color>()
                 .toList() ??
             [];
+
         final bool hasShadow = (item.properties['hasShadow'] as bool?) ?? false;
+
         final Color shadowColor = (item.properties['shadowColor'] is HiveColor)
             ? (item.properties['shadowColor'] as HiveColor).toColor()
             : (item.properties['shadowColor'] is Color)
             ? (item.properties['shadowColor'] as Color)
             : Colors.black54;
+
         final Offset shadowOffset =
             (item.properties['shadowOffset'] as Offset?) ?? const Offset(4, 4);
+
         final double shadowBlur =
             (item.properties['shadowBlur'] as double?) ?? 8.0;
+
         final double shadowOpacity =
             (item.properties['shadowOpacity'] as double?) ?? 0.6;
+
         final double shadowSize =
             (item.properties['shadowSize'] as double?) ?? 0.0;
+
         final double gradientAngle =
             (item.properties['gradientAngle'] as double?) ?? 0.0;
+
         final Color tintColor = (item.properties['tint'] is HiveColor)
             ? (item.properties['tint'] as HiveColor).toColor()
             : (item.properties['tint'] is Color)
@@ -5997,43 +8351,61 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             : Colors.transparent;
 
         final double? displayW = (item.properties['displayWidth'] as double?);
+
         final double? displayH = (item.properties['displayHeight'] as double?);
 
         // Build the main image first
+
         Widget mainImage = _buildActualImage(
           filePath,
+
           item,
+
           tintColor,
+
           grad,
+
           hasGradient,
+
           gradientAngle,
         );
 
         // Apply blur to the main image if needed
+
         if (blur > 0.0) {
           final ui.ImageFilter filter = ui.ImageFilter.blur(
             sigmaX: blur,
+
             sigmaY: blur,
           );
+
           mainImage = ImageFiltered(imageFilter: filter, child: mainImage);
         }
 
         // Create shadow and main image stack
+
         Widget imageWidget = Stack(
           children: [
             // Image-shaped shadow behind the image
             if (hasShadow)
               Transform.translate(
                 offset: shadowOffset,
+
                 child: _buildImageShadow(
                   mainImage,
+
                   shadowColor.withOpacity(shadowOpacity.clamp(0.0, 1.0)),
+
                   shadowBlur,
+
                   (displayW ?? 185.0).w,
+
                   (displayH ?? 10.0).h,
+
                   shadowSize,
                 ),
               ),
+
             // Main image on top
             mainImage,
           ],
@@ -6043,35 +8415,49 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
       case CanvasItemType.sticker:
         final props = item.properties;
+
         final int iconCodePoint =
             (props['iconCodePoint'] as int?) ?? Icons.star.codePoint;
+
         final String? iconFontFamily = props['iconFontFamily'] as String?;
+
         final Color color = (props['color'] is HiveColor)
             ? (props['color'] as HiveColor).toColor()
             : Colors.yellow;
+
         final double size = (props['size'] as double?) ?? 60.0;
 
         return FittedBox(
           fit: BoxFit.contain,
+
           child: Icon(
             IconData(iconCodePoint, fontFamily: iconFontFamily),
+
             color: color,
+
             size: size,
           ),
         );
 
       case CanvasItemType.shape:
         final props = item.properties;
+
         final String shape = (props['shape'] as String?) ?? 'rectangle';
+
         final Color fillColor = (props['fillColor'] is HiveColor)
             ? (props['fillColor'] as HiveColor).toColor()
             : Colors.blue;
+
         final Color strokeColor = (props['strokeColor'] is HiveColor)
             ? (props['strokeColor'] as HiveColor).toColor()
             : Colors.black;
+
         final double strokeWidth = (props['strokeWidth'] as double?) ?? 2.0;
+
         final double cornerRadius = (props['cornerRadius'] as double?) ?? 0.0;
+
         final bool hasGradient = (props['hasGradient'] as bool?) ?? false;
+
         final List<Color> gradientColors =
             (props['gradientColors'] as List<dynamic>?)
                 ?.map(
@@ -6081,33 +8467,50 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                 .whereType<Color>()
                 .toList() ??
             [];
+
         final double gradientAngle = (props['gradientAngle'] as double?) ?? 0.0;
+
         final bool hasShadow = (props['hasShadow'] as bool?) ?? false;
+
         final HiveColor shadowColorHive = (props['shadowColor'] is HiveColor)
             ? (props['shadowColor'] as HiveColor)
             : (props['shadowColor'] is Color)
             ? HiveColor.fromColor(props['shadowColor'] as Color)
             : HiveColor.fromColor(Colors.black54);
+
         final Offset shadowOffset =
             (props['shadowOffset'] as Offset?) ?? const Offset(4, 4);
+
         final double shadowBlur = (props['shadowBlur'] as double?) ?? 8.0;
+
         final double shadowOpacity = (props['shadowOpacity'] as double?) ?? 0.6;
+
         final ui.Image? fillImage =
             props['image'] as ui.Image?; // Get the ui.Image
+
         final HiveSize? hiveSize = props['size'] as HiveSize?;
+
         final double width = (props['width'] as double?) ?? 100.0;
+
         final double height = (props['height'] as double?) ?? 100.0;
 
         // For quadrilaterals, calculate the actual bounds based on side lengths
+
         Size itemSize;
+
         if (shape == 'rectangle' || shape == 'square') {
           final double topSide = (props['topSide'] as double?) ?? 100.0;
+
           final double rightSide = (props['rightSide'] as double?) ?? 100.0;
+
           final double bottomSide = (props['bottomSide'] as double?) ?? 100.0;
+
           final double leftSide = (props['leftSide'] as double?) ?? 100.0;
 
           // Calculate the maximum bounds needed to contain the quadrilateral
+
           final double maxWidth = math.max(leftSide, rightSide);
+
           final double maxHeight = math.max(topSide, bottomSide);
 
           itemSize = Size(maxWidth.w, maxHeight.h);
@@ -6118,45 +8521,74 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         Widget shapeWidget = CustomPaint(
           painter: _ShapePainter({
             'shape': shape,
+
             'fillColor': HiveColor.fromColor(fillColor),
+
             'strokeColor': HiveColor.fromColor(strokeColor),
+
             'strokeWidth': strokeWidth,
+
             'cornerRadius': cornerRadius,
+
             'topSide': props['topSide'] as double?,
+
             'rightSide': props['rightSide'] as double?,
+
             'bottomSide': props['bottomSide'] as double?,
+
             'leftSide': props['leftSide'] as double?,
+
             'topLeftRadius': props['topLeftRadius'] as double?,
+
             'topRightRadius': props['topRightRadius'] as double?,
+
             'bottomLeftRadius': props['bottomLeftRadius'] as double?,
+
             'bottomRightRadius': props['bottomRightRadius'] as double?,
+
             'topRadius': props['topRadius'] as double?,
+
             'hasGradient':
                 hasGradient &&
                 fillImage == null, // Disable gradient if image is present
+
             'gradientColors': gradientColors
                 .map((color) => HiveColor.fromColor(color))
                 .toList(),
+
             'gradientAngle': gradientAngle,
+
             'hasShadow': hasShadow,
+
             'shadowColor': shadowColorHive,
+
             'shadowOffset': shadowOffset,
+
             'shadowBlur': shadowBlur,
+
             'shadowOpacity': shadowOpacity,
+
             'image': fillImage, // Pass the ui.Image to the painter
           }),
+
           size: itemSize,
         );
 
         return SizedBox(
           width: itemSize.width,
+
           height: itemSize.height,
+
           child: FittedBox(fit: BoxFit.contain, child: shapeWidget),
         );
+
       case CanvasItemType.drawing:
         final props = item.properties;
+
         final double width = (props['width'] as double?) ?? 100.0;
+
         final double height = (props['height'] as double?) ?? 100.0;
+
         final List<Map<String, dynamic>>? strokes =
             (props['strokes'] as List<dynamic>?)
                 ?.map((e) => e as Map<String, dynamic>)
@@ -6170,14 +8602,18 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
           final Widget painted = SizedBox(
             width: width,
+
             height: height,
+
             child: CustomPaint(
               painter: _MultiStrokeDrawingPainter(
                 strokes: (props['strokes'] as List<dynamic>)
                     .map((e) => e as Map<String, dynamic>)
                     .map((s) {
                       // Normalize: if tool is stored as String, map it back to enum for painter
+
                       final dynamic toolRaw = s['tool'];
+
                       if (toolRaw is String) {
                         try {
                           s['tool'] = DrawingTool.values.firstWhere(
@@ -6185,6 +8621,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                           );
                         } catch (_) {}
                       }
+
                       return s;
                     })
                     .toList(),
@@ -6194,72 +8631,101 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
           if (!canErase) {
             // Not in eraser mode → let parent gesture handle moving/transforming
+
             return painted;
           }
 
           return GestureDetector(
             onPanStart: (details) {
               if (selectedItem?.id != item.id) return;
+
               setState(() {
                 final Offset p = details.localPosition;
+
                 props['strokes'] = [
                   ...strokes,
+
                   {
                     'tool': DrawingTool.eraser,
+
                     'points': <Offset>[p],
+
                     'color': HiveColor.fromColor(Colors.transparent),
+
                     'strokeWidth': (props['strokeWidth'] as double?) ?? 12.0,
+
                     'isDotted': false,
+
                     'opacity': 1.0,
                   },
                 ];
               });
             },
+
             onPanUpdate: (details) {
               if (selectedItem?.id != item.id) return;
+
               setState(() {
                 final List<Map<String, dynamic>> list =
                     (props['strokes'] as List<dynamic>)
                         .map((e) => e as Map<String, dynamic>)
                         .toList();
+
                 if (list.isEmpty) return;
+
                 final last = list.last;
+
                 if ((last['tool'] as DrawingTool?) == DrawingTool.eraser) {
                   final List<Offset> points = (last['points'] as List<dynamic>)
                       .map((e) => e as Offset)
                       .toList();
+
                   points.add(details.localPosition);
+
                   last['points'] = points;
+
                   props['strokes'] = list;
                 }
               });
             },
+
             child: painted,
           );
         } else {
           // Backward compatibility for single-stroke drawings
+
           final DrawingTool tool =
               props['tool'] as DrawingTool? ?? DrawingTool.brush;
+
           final List<Offset> points =
               (props['points'] as List<dynamic>?)
                   ?.map((p) => p as Offset)
                   .toList() ??
               [];
+
           final Color color = (props['color'] is HiveColor)
               ? (props['color'] as HiveColor).toColor()
               : Colors.black;
+
           final double strokeWidth = (props['strokeWidth'] as double?) ?? 2.0;
+
           final bool isDotted = (props['isDotted'] as bool?) ?? false;
 
           return SizedBox(
             width: width,
+
             height: height,
+
             child: CustomPaint(
               painter: _DrawingItemPainter(
                 tool: tool,
+
                 points: points,
+
                 color: color,
+
                 strokeWidth: strokeWidth,
+
                 isDotted: isDotted,
               ),
             ),
@@ -6270,14 +8736,21 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   Widget _buildActualImage(
     String? filePath,
+
     CanvasItem item,
+
     Color tintColor,
+
     List<Color> grad,
+
     bool hasGradient,
+
     double gradientAngle,
   ) {
     final String? imageUrl = item.properties['imageUrl'] as String?;
+
     final double? displayW = (item.properties['displayWidth'] as double?);
+
     final double? displayH = (item.properties['displayHeight'] as double?);
 
     Widget imageWidget;
@@ -6287,61 +8760,88 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     } else if (imageUrl != null) {
       imageWidget = CachedNetworkImage(
         imageUrl: imageUrl,
+
         fit: BoxFit.contain,
+
         placeholder: (context, url) =>
             const Center(child: CircularProgressIndicator()),
+
         errorWidget: (context, url, error) => const Icon(Icons.error),
       );
     } else {
       imageWidget = Icon(
         (item.properties['icon'] as IconData?) ?? Icons.image,
+
         size: 90.sp,
+
         color:
             (item.properties['color'] as HiveColor?)?.toColor() ?? Colors.blue,
       );
     }
 
     if (hasGradient) {
-      final double rad = gradientAngle * math.pi / 185.0;
-      final double cx = math.cos(rad);
-      final double sy = math.sin(rad);
-      final Alignment begin = Alignment(-cx, -sy);
-      final Alignment end = Alignment(cx, sy);
+      // For images, if Color B is transparent, only use Color A (no gradient)
+      if (grad.length >= 2 && grad.last == Colors.transparent) {
+        // Use only Color A as a solid color tint
+        imageWidget = ColorFiltered(
+          colorFilter: ColorFilter.mode(grad.first, BlendMode.srcIn),
+          child: imageWidget,
+        );
+      } else {
+        // Use normal gradient
+        final double rad = gradientAngle * math.pi / 185.0;
 
-      // Check if any gradient color is transparent
-      final bool hasTransparent = grad.any(
-        (color) => color == Colors.transparent,
-      );
+        final double cx = math.cos(rad);
 
-      imageWidget = ShaderMask(
-        shaderCallback: (bounds) => LinearGradient(
-          colors: grad,
-          begin: begin,
-          end: end,
-        ).createShader(bounds),
-        blendMode: hasTransparent ? BlendMode.srcATop : BlendMode.srcIn,
-        child: imageWidget,
-      );
+        final double sy = math.sin(rad);
+
+        final Alignment begin = Alignment(-cx, -sy);
+
+        final Alignment end = Alignment(cx, sy);
+
+        // Check if any gradient color is transparent
+        final bool hasTransparent = grad.any(
+          (color) => color == Colors.transparent,
+        );
+
+        imageWidget = ShaderMask(
+          shaderCallback: (bounds) => LinearGradient(
+            colors: grad,
+
+            begin: begin,
+
+            end: end,
+          ).createShader(bounds),
+
+          blendMode: hasTransparent ? BlendMode.srcATop : BlendMode.srcIn,
+          child: imageWidget,
+        );
+      }
     } else {
       imageWidget = ColorFiltered(
         colorFilter: ColorFilter.mode(tintColor, BlendMode.overlay),
+
         child: imageWidget,
       );
     }
 
     return SizedBox(
       width: (displayW ?? 185.0).w,
+
       height: (displayH ?? 185.0).h,
+
       child: imageWidget,
     );
   }
 
   BoxDecoration _buildShapeDecoration(Map<String, dynamic> props) {
     final String shape = (props['shape'] as String?) ?? 'rectangle';
+
     return BoxDecoration(
       color: (props['hasGradient'] == true)
           ? null
           : (props['fillColor'] as Color? ?? Colors.blue),
+
       gradient: (props['hasGradient'] == true)
           ? LinearGradient(
               colors:
@@ -6349,42 +8849,59 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                   [Colors.blue, Colors.purple],
             )
           : null,
+
       border: Border.all(
         color: (props['strokeColor'] as Color?) ?? Colors.black,
+
         width: (props['strokeWidth'] as double?) ?? 2.0,
       ),
+
       borderRadius: shape == 'rectangle'
           ? BorderRadius.circular((props['cornerRadius'] as double?) ?? 12.0)
           : null,
+
       shape: shape == 'circle' ? BoxShape.circle : BoxShape.rectangle,
     );
   }
 
   Widget _buildControlButton(
     IconData icon,
+
     VoidCallback onTap,
+
     Color color,
+
     String tooltip,
   ) {
     return Tooltip(
       message: tooltip,
+
       preferBelow: false,
+
       child: GestureDetector(
         onTap: onTap,
+
         child: Container(
           padding: EdgeInsets.all(12.w),
+
           decoration: BoxDecoration(
             color: color.withOpacity(0.15),
+
             borderRadius: BorderRadius.circular(20.r),
+
             border: Border.all(color: color.withOpacity(0.3), width: 1),
+
             boxShadow: [
               BoxShadow(
                 color: color.withOpacity(0.1),
+
                 blurRadius: 8,
+
                 offset: const Offset(0, 2),
               ),
             ],
           ),
+
           child: Icon(icon, size: 20.sp, color: color),
         ),
       ),
@@ -6393,76 +8910,108 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   Widget _buildBottomSheet() {
     if (!showBottomSheet || selectedItem == null) return const SizedBox();
+
     return AnimatedBuilder(
       animation: _bottomSheetAnimation,
+
       builder: (context, child) {
         return Transform.translate(
           offset: Offset(0, (1 - _bottomSheetAnimation.value) * 320.h),
+
           child: Container(
             height: 320.h,
+
             decoration: BoxDecoration(
               color: Colors.white,
+
               borderRadius: BorderRadius.only(
                 topLeft: Radius.circular(32.r),
+
                 topRight: Radius.circular(32.r),
               ),
+
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.12),
+
                   blurRadius: 32,
+
                   offset: const Offset(0, -12),
                 ),
               ],
             ),
+
             child: Column(
               children: [
                 Container(
                   width: 60.w,
+
                   height: 6.h,
+
                   margin: EdgeInsets.symmetric(vertical: 16.h),
+
                   decoration: BoxDecoration(
                     color: Colors.grey[300],
+
                     borderRadius: BorderRadius.circular(3.r),
                   ),
                 ),
+
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 24.w),
+
                   child: Row(
                     children: [
                       Container(
                         padding: EdgeInsets.all(12.w),
+
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
                               Colors.blue.shade400,
+
                               Colors.blue.shade600,
                             ],
                           ),
+
                           borderRadius: BorderRadius.circular(16.r),
                         ),
+
                         child: Icon(
                           _getItemTypeIcon(selectedItem!.type),
+
                           color: Colors.white,
+
                           size: 24.sp,
                         ),
                       ),
+
                       SizedBox(width: 16.w),
+
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
+
                         children: [
                           Text(
                             '${selectedItem!.type.name.toUpperCase()} PROPERTIES',
+
                             style: TextStyle(
                               fontSize: 16.sp,
+
                               fontWeight: FontWeight.bold,
+
                               color: Colors.grey[800],
+
                               letterSpacing: 0.5,
                             ),
                           ),
+
                           Text(
                             'Customize your ${selectedItem!.type.name}',
+
                             style: TextStyle(
                               fontSize: 12.sp,
+
                               color: Colors.grey[600],
                             ),
                           ),
@@ -6471,7 +9020,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                     ],
                   ),
                 ),
+
                 SizedBox(height: 20.h),
+
                 Expanded(child: _buildBottomSheetContent()),
               ],
             ),
@@ -6485,12 +9036,16 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     switch (type) {
       case CanvasItemType.text:
         return Icons.text_fields_rounded;
+
       case CanvasItemType.image:
         return Icons.image_rounded;
+
       case CanvasItemType.sticker:
         return Icons.emoji_emotions_rounded;
+
       case CanvasItemType.shape:
         return Icons.category_rounded;
+
       case CanvasItemType.drawing:
         return Icons.brush;
     }
@@ -6498,17 +9053,25 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   Widget _buildBottomSheetContent() {
     if (selectedItem == null) return const SizedBox();
+
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 24.w),
+
       child: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+
           children: [
             _buildCommonOptions(),
+
             SizedBox(height: 24.h),
+
             Divider(color: Colors.grey[200], thickness: 1),
+
             SizedBox(height: 24.h),
+
             _buildTypeSpecificOptions(),
+
             SizedBox(height: 20.h),
           ],
         ),
@@ -6519,42 +9082,68 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   Widget _buildCommonOptions() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+
       children: [
         Text(
           'GENERAL',
+
           style: TextStyle(
             fontSize: 12.sp,
+
             fontWeight: FontWeight.bold,
+
             color: Colors.grey[600],
+
             letterSpacing: 1,
           ),
         ),
+
         SizedBox(height: 16.h),
+
         _buildSliderOption(
           'Opacity',
+
           selectedItem!.opacity,
+
           0.1,
+
           1.0,
+
           (value) => setState(() => selectedItem!.opacity = value),
+
           Icons.opacity_rounded,
         ),
+
         SizedBox(height: 16.h),
+
         _buildSliderOption(
           'Scale',
+
           selectedItem!.scale,
+
           0.3,
+
           10.0,
+
           (value) => setState(() => selectedItem!.scale = value),
+
           Icons.zoom_out_map_rounded,
         ),
+
         SizedBox(height: 16.h),
+
         _buildSliderOption(
           'Rotation',
+
           selectedItem!.rotation * 185 / 3.14159,
+
           -185,
+
           185,
+
           (value) =>
               setState(() => selectedItem!.rotation = value * 3.14159 / 185),
+
           Icons.rotate_right_rounded,
         ),
       ],
@@ -6564,17 +9153,24 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   Widget _buildTypeSpecificOptions() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+
       children: [
         Text(
           '${selectedItem!.type.name.toUpperCase()} OPTIONS',
+
           style: TextStyle(
             fontSize: 12.sp,
+
             fontWeight: FontWeight.bold,
+
             color: Colors.grey[600],
+
             letterSpacing: 1,
           ),
         ),
+
         SizedBox(height: 16.h),
+
         _buildSpecificOptionsContent(),
       ],
     );
@@ -6584,12 +9180,16 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     switch (selectedItem!.type) {
       case CanvasItemType.text:
         return _buildTextOptions();
+
       case CanvasItemType.image:
         return _buildImageOptions();
+
       case CanvasItemType.sticker:
         return _buildStickerOptions();
+
       case CanvasItemType.shape:
         return _buildShapeOptions();
+
       case CanvasItemType.drawing:
         return _buildDrawingOptions();
     }
@@ -6601,21 +9201,28 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     }
 
     final props = selectedItem!.properties;
+
     final Color currentColor =
         (props['color'] as HiveColor?)?.toColor() ?? Colors.black;
+
     final double strokeWidth = (props['strokeWidth'] as double?) ?? 2.0;
+
     final DrawingTool tool =
         (props['tool'] as DrawingTool?) ?? DrawingTool.brush;
 
     return Container(
       padding: EdgeInsets.all(16.w),
+
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+
         children: [
           Text(
             'Drawing Properties',
+
             style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold),
           ),
+
           SizedBox(height: 16.h),
 
           // Color picker
@@ -6623,17 +9230,25 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             children: [
               Text(
                 'Color:',
+
                 style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w500),
               ),
+
               SizedBox(width: 16.w),
+
               GestureDetector(
                 onTap: _showDrawingColorPicker,
+
                 child: Container(
                   width: 40.w,
+
                   height: 40.h,
+
                   decoration: BoxDecoration(
                     color: currentColor,
+
                     borderRadius: BorderRadius.circular(8.r),
+
                     border: Border.all(color: Colors.grey.shade300, width: 2),
                   ),
                 ),
@@ -6648,33 +9263,44 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             children: [
               Text(
                 'Stroke Width:',
+
                 style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w500),
               ),
+
               SizedBox(width: 16.w),
+
               Expanded(
                 child: Slider(
                   value: strokeWidth,
+
                   min: 1.0,
+
                   max: 20.0,
+
                   divisions: 19,
+
                   onChanged: (value) {
                     setState(() {
                       selectedItem!.properties['strokeWidth'] = value;
+
                       final List<Map<String, dynamic>>? strokes =
                           (selectedItem!.properties['strokes']
                                   as List<dynamic>?)
                               ?.map((e) => e as Map<String, dynamic>)
                               .toList();
+
                       if (strokes != null) {
                         for (final stroke in strokes) {
                           stroke['strokeWidth'] = value;
                         }
+
                         selectedItem!.properties['strokes'] = strokes;
                       }
                     });
                   },
                 ),
               ),
+
               Text('${strokeWidth.toInt()}', style: TextStyle(fontSize: 12.sp)),
             ],
           ),
@@ -6686,20 +9312,29 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             children: [
               Text(
                 'Tool:',
+
                 style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w500),
               ),
+
               SizedBox(width: 16.w),
+
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+
                 decoration: BoxDecoration(
                   color: Colors.grey.shade100,
+
                   borderRadius: BorderRadius.circular(8.r),
+
                   border: Border.all(color: Colors.grey.shade300),
                 ),
+
                 child: Text(
                   _getDrawingToolName(tool),
+
                   style: TextStyle(
                     fontSize: 12.sp,
+
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -6715,24 +9350,34 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     switch (tool) {
       case DrawingTool.brush:
         return 'Brush';
+
       case DrawingTool.pencil:
         return 'Pencil';
+
       case DrawingTool.eraser:
         return 'Eraser';
+
       case DrawingTool.rectangle:
         return 'Rectangle';
+
       case DrawingTool.circle:
         return 'Circle';
+
       case DrawingTool.triangle:
         return 'Triangle';
+
       case DrawingTool.line:
         return 'Line';
+
       case DrawingTool.arrow:
         return 'Arrow';
+
       case DrawingTool.dottedLine:
         return 'Dotted Line';
+
       case DrawingTool.dottedArrow:
         return 'Dotted Arrow';
+
       case DrawingTool.textPath:
         return 'Text Path';
     }
@@ -6740,56 +9385,89 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   Widget _buildTextOptions() {
     final props = selectedItem!.properties;
+
     final controller = TextEditingController(
       text: props['text'] as String? ?? '',
     );
+
     return Column(
       children: [
         Container(
           decoration: BoxDecoration(
             color: Colors.grey[50],
+
             borderRadius: BorderRadius.circular(16.r),
+
             border: Border.all(color: Colors.grey.shade200),
           ),
+
           child: TextField(
             decoration: InputDecoration(
               labelText: 'Text Content',
+
               labelStyle: TextStyle(color: Colors.grey[600]),
+
               border: InputBorder.none,
+
               contentPadding: EdgeInsets.symmetric(
                 horizontal: 20.w,
+
                 vertical: 16.h,
               ),
             ),
+
             onChanged: (value) => setState(() => props['text'] = value),
+
             controller: controller,
           ),
         ),
+
         SizedBox(height: 20.h),
+
         _buildSliderOption(
           'Font Size',
+
           (props['fontSize'] as double?) ?? 24.0,
+
           10.0,
+
           72.0,
+
           (value) => setState(() => props['fontSize'] = value),
+
           Icons.format_size_rounded,
         ),
+
         SizedBox(height: 16.h),
+
         _buildSliderOption(
           'Letter Spacing',
+
           (props['letterSpacing'] as double?) ?? 0.0,
+
           -2.0,
+
           5.0,
+
           (value) => setState(() => props['letterSpacing'] = value),
+
           Icons.space_bar_rounded,
         ),
+
         SizedBox(height: 20.h),
+
         _buildFontSelectionSection(props),
+
         SizedBox(height: 20.h),
+
         _buildColorSection(props),
+
         SizedBox(height: 20.h),
+
         _buildTextStyleOptions(props),
+
         SizedBox(height: 20.h),
+
         _buildTextEffectsOptions(props),
       ],
     );
@@ -6799,15 +9477,22 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     return Column(
       children: [
         _buildColorOption('Text Color', 'color', props),
+
         SizedBox(height: 16.h),
+
         _buildToggleOption(
           'Gradient',
+
           (props['hasGradient'] as bool?) ?? false,
+
           Icons.gradient_rounded,
+
           (value) => setState(() => props['hasGradient'] = value),
         ),
+
         if (props['hasGradient'] == true) ...[
           SizedBox(height: 16.h),
+
           _buildGradientPicker(props),
         ],
       ],
@@ -6818,27 +9503,36 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     final List<Color> grad =
         (props['gradientColors'] as List<Color>?) ??
         [Colors.blue, Colors.purple];
+
     return Row(
       children: [
         Text(
           'Gradient Colors',
+
           style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w500),
         ),
+
         const Spacer(),
+
         Row(
           children: [
             GestureDetector(
               onTap: () => _showColorPicker('gradientColor1', isGradient: true),
+
               child: Container(
                 width: 32.w,
+
                 height: 32.h,
+
                 decoration: BoxDecoration(
                   color: grad.first == Colors.transparent
                       ? Colors.white
                       : grad.first,
                   borderRadius: BorderRadius.circular(8.r),
+
                   border: Border.all(color: Colors.grey.shade300, width: 2),
                 ),
+
                 child: grad.first == Colors.transparent
                     ? Stack(
                         children: [
@@ -6864,25 +9558,36 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                     : null,
               ),
             ),
+
             SizedBox(width: 8.w),
+
             Icon(
               Icons.arrow_forward_rounded,
+
               size: 16.sp,
+
               color: Colors.grey[600],
             ),
+
             SizedBox(width: 8.w),
+
             GestureDetector(
               onTap: () => _showColorPicker('gradientColor2', isGradient: true),
+
               child: Container(
                 width: 32.w,
+
                 height: 32.h,
+
                 decoration: BoxDecoration(
                   color: grad.last == Colors.transparent
                       ? Colors.white
                       : grad.last,
                   borderRadius: BorderRadius.circular(8.r),
+
                   border: Border.all(color: Colors.grey.shade300, width: 2),
                 ),
+
                 child: grad.last == Colors.transparent
                     ? Stack(
                         children: [
@@ -6908,43 +9613,64 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                     : null,
               ),
             ),
+
             SizedBox(width: 12.w),
+
             Row(
               children: [
                 Icon(
                   Icons.rotate_right_rounded,
+
                   size: 16.sp,
+
                   color: Colors.grey[600],
                 ),
+
                 SizedBox(width: 6.w),
+
                 Text(
                   'Angle',
+
                   style: TextStyle(
                     fontSize: 12.sp,
+
                     color: Colors.grey[700],
+
                     fontWeight: FontWeight.w600,
                   ),
                 ),
+
                 SizedBox(width: 8.w),
+
                 SizedBox(
                   width: 185.w,
+
                   child: SliderTheme(
                     data: SliderTheme.of(context).copyWith(
                       trackHeight: 3.0,
+
                       thumbShape: const RoundSliderThumbShape(
                         enabledThumbRadius: 8.0,
                       ),
+
                       activeTrackColor: Colors.blue.shade400,
+
                       inactiveTrackColor: Colors.blue.shade100,
+
                       thumbColor: Colors.blue.shade600,
                     ),
+
                     child: Slider(
                       value: ((props['gradientAngle'] as double?) ?? 0.0).clamp(
                         -185.0,
+
                         185.0,
                       ),
+
                       min: -185.0,
+
                       max: 185.0,
+
                       onChanged: (v) =>
                           setState(() => props['gradientAngle'] = v),
                     ),
@@ -6963,68 +9689,110 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       children: [
         _buildToggleOption(
           'Shadow',
+
           (props['hasShadow'] as bool?) ?? false,
+
           CupertinoIcons.moon_stars,
+
           (value) => setState(() => props['hasShadow'] = value),
         ),
+
         if (props['hasShadow'] == true) ...[
           SizedBox(height: 16.h),
+
           _buildColorOption('Shadow Color', 'shadowColor', props),
+
           SizedBox(height: 16.h),
+
           _buildSliderOption(
             'Shadow Blur',
+
             (props['shadowBlur'] as double?) ?? 4.0,
+
             0.0,
+
             20.0,
+
             (value) => setState(() => props['shadowBlur'] = value),
+
             Icons.blur_on_rounded,
           ),
+
           SizedBox(height: 16.h),
+
           _buildSliderOption(
             'Shadow Opacity',
+
             (props['shadowOpacity'] as double?) ?? 0.6,
+
             0.0,
+
             1.0,
+
             (value) => setState(() => props['shadowOpacity'] = value),
+
             Icons.opacity_rounded,
           ),
+
           SizedBox(height: 16.h),
+
           _buildSliderOption(
             'Shadow Offset X',
+
             (props['shadowOffset'] as Offset?)?.dx ?? 2.0,
+
             -50.0,
+
             50.0,
+
             (value) {
               setState(() {
                 final Offset cur =
                     (props['shadowOffset'] as Offset?) ?? const Offset(2, 2);
+
                 props['shadowOffset'] = Offset(value, cur.dy);
               });
             },
+
             Icons.swap_horiz_rounded,
           ),
+
           SizedBox(height: 16.h),
+
           _buildSliderOption(
             'Shadow Offset Y',
+
             (props['shadowOffset'] as Offset?)?.dy ?? 2.0,
+
             -50.0,
+
             50.0,
+
             (value) {
               setState(() {
                 final Offset cur =
                     (props['shadowOffset'] as Offset?) ?? const Offset(2, 2);
+
                 props['shadowOffset'] = Offset(cur.dx, value);
               });
             },
+
             Icons.swap_vert_rounded,
           ),
+
           SizedBox(height: 16.h),
+
           _buildSliderOption(
             'Shadow Size',
+
             (props['shadowSize'] as double?) ?? 0.0,
+
             0.0,
+
             100.0,
+
             (value) => setState(() => props['shadowSize'] = value),
+
             Icons.zoom_out_map_rounded,
           ),
         ],
@@ -7038,8 +9806,11 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         Expanded(
           child: _buildToggleButton(
             'Bold',
+
             props['fontWeight'] == FontWeight.bold,
+
             Icons.format_bold_rounded,
+
             () => setState(() {
               props['fontWeight'] = (props['fontWeight'] == FontWeight.bold)
                   ? FontWeight.normal
@@ -7047,12 +9818,17 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             }),
           ),
         ),
+
         SizedBox(width: 12.w),
+
         Expanded(
           child: _buildToggleButton(
             'Italic',
+
             props['fontStyle'] == FontStyle.italic,
+
             Icons.format_italic_rounded,
+
             () => setState(() {
               props['fontStyle'] = (props['fontStyle'] == FontStyle.italic)
                   ? FontStyle.normal
@@ -7060,12 +9836,17 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             }),
           ),
         ),
+
         SizedBox(width: 12.w),
+
         Expanded(
           child: _buildToggleButton(
             'Underline',
+
             props['decoration'] == TextDecoration.underline,
+
             Icons.format_underlined_rounded,
+
             () => setState(() {
               props['decoration'] =
                   (props['decoration'] == TextDecoration.underline)
@@ -7083,72 +9864,104 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+
       children: [
         Row(
           children: [
             Icon(
               Icons.font_download_rounded,
+
               size: 20.sp,
+
               color: Colors.grey[600],
             ),
+
             SizedBox(width: 8.w),
+
             Text(
               'Font Family',
+
               style: TextStyle(
                 fontSize: 16.sp,
+
                 fontWeight: FontWeight.bold,
+
                 color: Colors.grey[800],
               ),
             ),
           ],
         ),
+
         SizedBox(height: 12.h),
+
         GestureDetector(
           onTap: _showFontSelectionDialog,
+
           child: Container(
             width: double.infinity,
+
             padding: EdgeInsets.all(16.w),
+
             decoration: BoxDecoration(
               color: Colors.grey[50],
+
               borderRadius: BorderRadius.circular(12.r),
+
               border: Border.all(color: Colors.grey.shade200),
             ),
+
             child: Row(
               children: [
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+
                     children: [
                       Text(
                         currentFont,
+
                         style: TextStyle(
                           fontSize: 16.sp,
+
                           fontWeight: FontWeight.w600,
+
                           color: Colors.grey[800],
+
                           fontFamily: currentFont,
                         ),
                       ),
+
                       SizedBox(height: 4.h),
+
                       Text(
                         'The quick brown fox jumps',
+
                         style: TextStyle(
                           fontSize: 12.sp,
+
                           color: Colors.grey[600],
+
                           fontFamily: currentFont,
                         ),
                       ),
                     ],
                   ),
                 ),
+
                 Container(
                   padding: EdgeInsets.all(8.w),
+
                   decoration: BoxDecoration(
                     color: Colors.blue.shade50,
+
                     borderRadius: BorderRadius.circular(8.r),
                   ),
+
                   child: Icon(
                     Icons.keyboard_arrow_right_rounded,
+
                     color: Colors.blue.shade600,
+
                     size: 20.sp,
                   ),
                 ),
@@ -7162,38 +9975,52 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   Widget _buildToggleButton(
     String label,
+
     bool isActive,
+
     IconData icon,
+
     VoidCallback onTap,
   ) {
     return GestureDetector(
       onTap: onTap,
+
       child: Container(
         padding: EdgeInsets.symmetric(vertical: 16.h),
+
         decoration: BoxDecoration(
           gradient: isActive
               ? LinearGradient(
                   colors: [Colors.blue.shade400, Colors.blue.shade600],
                 )
               : null,
+
           color: isActive ? null : Colors.grey[50],
+
           borderRadius: BorderRadius.circular(16.r),
+
           border: Border.all(
             color: isActive ? Colors.transparent : Colors.grey.shade200,
           ),
+
           boxShadow: isActive
               ? [
                   BoxShadow(
                     color: Colors.blue.withOpacity(0.3),
+
                     blurRadius: 8,
+
                     offset: const Offset(0, 4),
                   ),
                 ]
               : null,
         ),
+
         child: Icon(
           icon,
+
           color: isActive ? Colors.white : Colors.grey.shade600,
+
           size: 22.sp,
         ),
       ),
@@ -7202,22 +10029,32 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   Widget _buildToggleOption(
     String label,
+
     bool value,
+
     IconData icon,
+
     ValueChanged<bool> onChanged,
   ) {
     return Row(
       children: [
         Icon(icon, size: 20.sp, color: Colors.grey[600]),
+
         SizedBox(width: 12.w),
+
         Text(
           label,
+
           style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w500),
         ),
+
         const Spacer(),
+
         Switch.adaptive(
           value: value,
+
           onChanged: onChanged,
+
           activeColor: Colors.blue.shade400,
         ),
       ],
@@ -7226,120 +10063,199 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   Widget _buildImageOptions() {
     final props = selectedItem!.properties;
+
     return Column(
       children: [
         _buildOptionButton(
           'Edit Image',
+
           Icons.edit_rounded,
+
           Colors.purple.shade400,
+
           _editSelectedImage,
         ),
+
         SizedBox(height: 20.h),
+
         _buildOptionButton(
           'Remove Background',
+
           Icons.auto_fix_high_rounded,
+
           Colors.orange.shade400,
+
           _removeBackground,
         ),
+
         SizedBox(height: 16.h),
+
         _buildOptionButton(
           'Add Stroke',
+
           Icons.border_outer_rounded,
+
           Colors.purple.shade400,
+
           _showStrokeSettingsDialog,
         ),
+
         SizedBox(height: 20.h),
+
         _buildColorOption('Tint Color', 'tint', props),
+
         SizedBox(height: 16.h),
+
         _buildSliderOption(
           'Blur',
+
           (props['blur'] as double?) ?? 0.0,
+
           0.0,
+
           10.0,
+
           (value) => setState(() => props['blur'] = value),
+
           Icons.blur_on_rounded,
         ),
+
         SizedBox(height: 20.h),
+
         _buildOptionButton(
           'Replace Image',
+
           Icons.photo_library_rounded,
+
           Colors.blue.shade400,
+
           () {
             _pickImage(replace: true);
           },
         ),
+
         SizedBox(height: 20.h),
+
         _buildToggleOption(
           'Gradient',
+
           (props['hasGradient'] as bool?) ?? false,
+
           Icons.gradient_rounded,
+
           (value) => setState(() => props['hasGradient'] = value),
         ),
+
         if (props['hasGradient'] == true) ...[
           SizedBox(height: 16.h),
+
           _buildGradientPicker(props),
         ],
+
         SizedBox(height: 16.h),
+
         _buildSliderOption(
           'Shadow Opacity',
+
           (props['shadowOpacity'] as double?) ?? 0.6,
+
           0.0,
+
           1.0,
+
           (value) => setState(() => props['shadowOpacity'] = value),
+
           Icons.opacity_rounded,
         ),
+
         SizedBox(height: 20.h),
+
         _buildToggleOption(
           'Shadow',
+
           (props['hasShadow'] as bool?) ?? false,
+
           CupertinoIcons.moon_stars,
+
           (value) => setState(() => props['hasShadow'] = value),
         ),
+
         if (props['hasShadow'] == true) ...[
           SizedBox(height: 16.h),
+
           _buildColorOption('Shadow Color', 'shadowColor', props),
+
           SizedBox(height: 16.h),
+
           _buildSliderOption(
             'Shadow Blur',
+
             (props['shadowBlur'] as double?) ?? 8.0,
+
             0.0,
+
             40.0,
+
             (value) => setState(() => props['shadowBlur'] = value),
+
             Icons.blur_on_rounded,
           ),
+
           SizedBox(height: 16.h),
+
           _buildSliderOption(
             'Shadow Offset X',
+
             (props['shadowOffset'] as Offset?)?.dx ?? 4.0,
+
             -100.0,
+
             100.0,
+
             (v) => setState(() {
               final cur =
                   (props['shadowOffset'] as Offset?) ?? const Offset(4, 4);
+
               props['shadowOffset'] = Offset(v, cur.dy);
             }),
+
             Icons.swap_horiz_rounded,
           ),
+
           SizedBox(height: 16.h),
+
           _buildSliderOption(
             'Shadow Offset Y',
+
             (props['shadowOffset'] as Offset?)?.dy ?? 4.0,
+
             -100.0,
+
             100.0,
+
             (v) => setState(() {
               final cur =
                   (props['shadowOffset'] as Offset?) ?? const Offset(4, 4);
+
               props['shadowOffset'] = Offset(cur.dx, v);
             }),
+
             Icons.swap_vert_rounded,
           ),
+
           SizedBox(height: 16.h),
+
           _buildSliderOption(
             'Shadow Size',
+
             (props['shadowSize'] as double?) ?? 0.0,
+
             0.0,
+
             100.0,
+
             (v) => setState(() => props['shadowSize'] = v),
+
             Icons.zoom_out_map_rounded,
           ),
         ],
@@ -7349,14 +10265,20 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   Widget _buildStickerOptions() {
     final props = selectedItem!.properties;
+
     return Column(
       children: [
         _buildColorOption('Sticker Color', 'color', props),
+
         SizedBox(height: 20.h),
+
         _buildOptionButton(
           'Change Sticker',
+
           Icons.emoji_emotions_rounded,
+
           Colors.orange.shade400,
+
           () {},
         ),
       ],
@@ -7365,330 +10287,522 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   Widget _buildShapeOptions() {
     final props = selectedItem!.properties;
+
     return Column(
       children: [
         _buildColorOption('Fill Color', 'fillColor', props),
+
         SizedBox(height: 16.h),
+
         _buildColorOption('Stroke Color', 'strokeColor', props),
+
         SizedBox(height: 16.h),
+
         _buildSliderOption(
           'Stroke Width',
+
           (props['strokeWidth'] as double?) ?? 2.0,
+
           0.0,
+
           10.0,
+
           (v) => setState(() => props['strokeWidth'] = v),
+
           Icons.line_weight_rounded,
         ),
+
         SizedBox(height: 16.h),
+
         _buildSliderOption(
           'Width',
+
           (props['width'] as double?) ?? 100.0,
+
           20.0,
+
           500.0,
+
           (v) => setState(() => props['width'] = v),
+
           Icons.width_full_rounded,
         ),
+
         SizedBox(height: 16.h),
+
         _buildSliderOption(
           'Height',
+
           (props['height'] as double?) ?? 100.0,
+
           20.0,
+
           500.0,
+
           (v) => setState(() => props['height'] = v),
+
           Icons.height_rounded,
         ),
+
         SizedBox(height: 16.h),
+
         // Individual side length controls for rectangle/square shapes
         if ((props['shape'] as String?) == 'rectangle' ||
             (props['shape'] as String?) == 'square') ...[
           Text(
             'Individual Side Lengths',
+
             style: TextStyle(
               fontSize: 16.sp,
+
               fontWeight: FontWeight.w600,
+
               color: Colors.grey[700],
             ),
           ),
+
           SizedBox(height: 12.h),
+
           Row(
             children: [
               Expanded(
                 child: _buildSliderOption(
                   'Top Side',
+
                   (props['topSide'] as double?) ?? 100.0,
+
                   20.0,
+
                   500.0,
+
                   (v) => setState(() => props['topSide'] = v),
+
                   Icons.keyboard_arrow_up_rounded,
                 ),
               ),
+
               SizedBox(width: 8.w),
+
               Expanded(
                 child: _buildSliderOption(
                   'Right Side',
+
                   (props['rightSide'] as double?) ?? 100.0,
+
                   20.0,
+
                   500.0,
+
                   (v) => setState(() => props['rightSide'] = v),
+
                   Icons.keyboard_arrow_right_rounded,
                 ),
               ),
             ],
           ),
+
           SizedBox(height: 12.h),
+
           Row(
             children: [
               Expanded(
                 child: _buildSliderOption(
                   'Bottom Side',
+
                   (props['bottomSide'] as double?) ?? 100.0,
+
                   20.0,
+
                   500.0,
+
                   (v) => setState(() => props['bottomSide'] = v),
+
                   Icons.keyboard_arrow_down_rounded,
                 ),
               ),
+
               SizedBox(width: 8.w),
+
               Expanded(
                 child: _buildSliderOption(
                   'Left Side',
+
                   (props['leftSide'] as double?) ?? 100.0,
+
                   20.0,
+
                   500.0,
+
                   (v) => setState(() => props['leftSide'] = v),
+
                   Icons.keyboard_arrow_left_rounded,
                 ),
               ),
             ],
           ),
+
           SizedBox(height: 20.h),
         ],
+
         _buildSliderOption(
           'Corner Radius',
+
           (props['cornerRadius'] as double?) ?? 12.0,
+
           0.0,
+
           50.0,
+
           (v) => setState(() {
             props['cornerRadius'] = v;
+
             // Clear individual corner radius values when using uniform radius
+
             props.remove('topRadius');
+
             props.remove('bottomRightRadius');
+
             props.remove('bottomLeftRadius');
+
             props.remove('topLeftRadius');
+
             props.remove('topRightRadius');
           }),
+
           Icons.rounded_corner_rounded,
         ),
+
         SizedBox(height: 16.h),
+
         // Individual corner radius controls for rectangle/square shapes
         if ((props['shape'] as String?) == 'rectangle' ||
             (props['shape'] as String?) == 'square') ...[
           Text(
             'Individual Corner Radius',
+
             style: TextStyle(
               fontSize: 16.sp,
+
               fontWeight: FontWeight.w600,
+
               color: Colors.grey[700],
             ),
           ),
+
           SizedBox(height: 12.h),
+
           Row(
             children: [
               Expanded(
                 child: _buildSliderOption(
                   'Top Left',
+
                   (props['topLeftRadius'] as double?) ?? 0.0,
+
                   0.0,
+
                   50.0,
+
                   (v) => setState(() => props['topLeftRadius'] = v),
+
                   Icons.crop_square_rounded,
                 ),
               ),
+
               SizedBox(width: 8.w),
+
               Expanded(
                 child: _buildSliderOption(
                   'Top Right',
+
                   (props['topRightRadius'] as double?) ?? 0.0,
+
                   0.0,
+
                   50.0,
+
                   (v) => setState(() => props['topRightRadius'] = v),
+
                   Icons.crop_square_rounded,
                 ),
               ),
             ],
           ),
+
           SizedBox(height: 12.h),
+
           Row(
             children: [
               Expanded(
                 child: _buildSliderOption(
                   'Bottom Left',
+
                   (props['bottomLeftRadius'] as double?) ?? 0.0,
+
                   0.0,
+
                   50.0,
+
                   (v) => setState(() => props['bottomLeftRadius'] = v),
+
                   Icons.crop_square_rounded,
                 ),
               ),
+
               SizedBox(width: 8.w),
+
               Expanded(
                 child: _buildSliderOption(
                   'Bottom Right',
+
                   (props['bottomRightRadius'] as double?) ?? 0.0,
+
                   0.0,
+
                   50.0,
+
                   (v) => setState(() => props['bottomRightRadius'] = v),
+
                   Icons.crop_square_rounded,
                 ),
               ),
             ],
           ),
+
           SizedBox(height: 20.h),
         ],
+
         // Individual corner radius controls for triangle shapes
         if ((props['shape'] as String?) == 'triangle') ...[
           Text(
             'Triangle Corner Radius',
+
             style: TextStyle(
               fontSize: 16.sp,
+
               fontWeight: FontWeight.w600,
+
               color: Colors.grey[700],
             ),
           ),
+
           SizedBox(height: 12.h),
+
           Row(
             children: [
               Expanded(
                 child: _buildSliderOption(
                   'Top Corner',
+
                   (props['topRadius'] as double?) ?? 0.0,
+
                   0.0,
+
                   50.0,
+
                   (v) => setState(() => props['topRadius'] = v),
+
                   Icons.keyboard_arrow_up_rounded,
                 ),
               ),
+
               SizedBox(width: 8.w),
+
               Expanded(
                 child: _buildSliderOption(
                   'Bottom Right',
+
                   (props['bottomRightRadius'] as double?) ?? 0.0,
+
                   0.0,
+
                   50.0,
+
                   (v) => setState(() => props['bottomRightRadius'] = v),
+
                   Icons.crop_square_rounded,
                 ),
               ),
             ],
           ),
+
           SizedBox(height: 12.h),
+
           Row(
             children: [
               Expanded(
                 child: _buildSliderOption(
                   'Bottom Left',
+
                   (props['bottomLeftRadius'] as double?) ?? 0.0,
+
                   0.0,
+
                   50.0,
+
                   (v) => setState(() => props['bottomLeftRadius'] = v),
+
                   Icons.crop_square_rounded,
                 ),
               ),
+
               SizedBox(width: 8.w),
+
               Expanded(
                 child: Container(), // Empty space for alignment
               ),
             ],
           ),
+
           SizedBox(height: 20.h),
         ],
+
         _buildToggleOption(
           'Gradient Fill',
+
           (props['hasGradient'] as bool?) ?? false,
+
           Icons.gradient_rounded,
+
           (value) => setState(() => props['hasGradient'] = value),
         ),
+
         SizedBox(height: 16.h),
+
         _buildOptionButton(
           'Pick Image Inside Shape',
+
           Icons.photo_library_rounded,
+
           Colors.blue.shade400,
+
           _pickShapeImage,
         ),
+
         if (props['image'] != null) ...[
           SizedBox(height: 12.h),
+
           _buildOptionButton(
             'Clear Image',
+
             Icons.delete_sweep_rounded,
+
             Colors.red.shade400,
+
             () => setState(() => props['image'] = null),
           ),
         ],
+
         if (props['hasGradient'] == true) ...[
           SizedBox(height: 16.h),
+
           _buildGradientPicker(props),
         ],
+
         SizedBox(height: 16.h),
+
         _buildToggleOption(
           'Shadow',
+
           (props['hasShadow'] as bool?) ?? false,
+
           CupertinoIcons.moon_stars,
+
           (value) => setState(() => props['hasShadow'] = value),
         ),
+
         if (props['hasShadow'] == true) ...[
           SizedBox(height: 16.h),
+
           _buildColorOption('Shadow Color', 'shadowColor', props),
+
           SizedBox(height: 16.h),
+
           _buildSliderOption(
             'Shadow Blur',
+
             (props['shadowBlur'] as double?) ?? 8.0,
+
             0.0,
+
             40.0,
+
             (v) => setState(() => props['shadowBlur'] = v),
+
             Icons.blur_on_rounded,
           ),
+
           SizedBox(height: 16.h),
+
           _buildSliderOption(
             'Shadow Opacity',
+
             (props['shadowOpacity'] as double?) ?? 0.6,
+
             0.0,
+
             1.0,
+
             (v) => setState(() => props['shadowOpacity'] = v),
+
             Icons.opacity_rounded,
           ),
+
           SizedBox(height: 16.h),
+
           _buildSliderOption(
             'Shadow Offset X',
+
             (props['shadowOffset'] as Offset?)?.dx ?? 4.0,
+
             -100.0,
+
             100.0,
+
             (v) => setState(() {
               final Offset cur =
                   (props['shadowOffset'] as Offset?) ?? const Offset(4, 4);
+
               props['shadowOffset'] = Offset(v, cur.dy);
             }),
+
             Icons.swap_horiz_rounded,
           ),
+
           SizedBox(height: 16.h),
+
           _buildSliderOption(
             'Shadow Offset Y',
+
             (props['shadowOffset'] as Offset?)?.dy ?? 4.0,
+
             -100.0,
+
             100.0,
+
             (v) => setState(() {
               final Offset cur =
                   (props['shadowOffset'] as Offset?) ?? const Offset(4, 4);
+
               props['shadowOffset'] = Offset(cur.dx, v);
             }),
+
             Icons.swap_vert_rounded,
           ),
+
           SizedBox(height: 16.h),
+
           _buildSliderOption(
             'Shadow Size',
+
             (props['shadowSize'] as double?) ?? 0.0,
+
             0.0,
+
             100.0,
+
             (v) => setState(() => props['shadowSize'] = v),
+
             Icons.zoom_out_map_rounded,
           ),
         ],
@@ -7698,35 +10812,50 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   Widget _buildColorOption(
     String label,
+
     String property,
+
     Map<String, dynamic> props,
   ) {
     return Row(
       children: [
         Icon(Icons.palette_rounded, size: 20.sp, color: Colors.grey[600]),
+
         SizedBox(width: 12.w),
+
         Text(
           label,
+
           style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w500),
         ),
+
         const Spacer(),
+
         GestureDetector(
           onTap: () => _showColorPicker(property),
+
           child: Container(
             width: 44.w,
+
             height: 44.h,
+
             decoration: BoxDecoration(
               color: (props[property] is HiveColor)
                   ? (props[property] as HiveColor).toColor()
                   : (props[property] is int)
                   ? HiveColor(props[property] as int).toColor()
                   : (props[property] as Color?) ?? Colors.blue,
+
               borderRadius: BorderRadius.circular(12.r),
+
               border: Border.all(color: Colors.grey.shade300, width: 2),
+
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.1),
+
                   blurRadius: 8,
+
                   offset: const Offset(0, 2),
                 ),
               ],
@@ -7739,51 +10868,74 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   Widget _buildOptionButton(
     String label,
+
     IconData icon,
+
     Color color,
+
     VoidCallback onTap,
   ) {
     return GestureDetector(
       onTap: onTap,
+
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
+
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
           ),
+
           borderRadius: BorderRadius.circular(16.r),
+
           border: Border.all(color: color.withOpacity(0.3)),
+
           boxShadow: [
             BoxShadow(
               color: color.withOpacity(0.1),
+
               blurRadius: 8,
+
               offset: const Offset(0, 2),
             ),
           ],
         ),
+
         child: Row(
           children: [
             Container(
               padding: EdgeInsets.all(8.w),
+
               decoration: BoxDecoration(
                 color: color.withOpacity(0.15),
+
                 borderRadius: BorderRadius.circular(12.r),
               ),
+
               child: Icon(icon, size: 20.sp, color: color),
             ),
+
             SizedBox(width: 16.w),
+
             Text(
               label,
+
               style: TextStyle(
                 fontSize: 16.sp,
+
                 fontWeight: FontWeight.w600,
+
                 color: color.withOpacity(0.8),
               ),
             ),
+
             const Spacer(),
+
             Icon(
               Icons.arrow_forward_ios_rounded,
+
               size: 16.sp,
+
               color: color.withOpacity(0.6),
             ),
           ],
@@ -7794,64 +10946,98 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   Widget _buildSliderOption(
     String label,
+
     double value,
+
     double min,
+
     double max,
+
     ValueChanged<double> onChanged,
+
     IconData icon,
   ) {
     final clamped = value.clamp(min, max);
+
     return Container(
       padding: EdgeInsets.all(16.w),
+
       decoration: BoxDecoration(
         color: Colors.grey[50],
+
         borderRadius: BorderRadius.circular(16.r),
+
         border: Border.all(color: Colors.grey.shade200),
       ),
+
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+
         children: [
           Row(
             children: [
               Icon(icon, size: 20.sp, color: Colors.grey[600]),
+
               SizedBox(width: 12.w),
+
               Text(
                 label,
+
                 style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w500),
               ),
+
               const Spacer(),
+
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+
                 decoration: BoxDecoration(
                   color: Colors.blue[50],
+
                   borderRadius: BorderRadius.circular(12.r),
+
                   border: Border.all(color: Colors.blue.shade200),
                 ),
+
                 child: Text(
                   clamped.toStringAsFixed(1),
+
                   style: TextStyle(
                     fontSize: 14.sp,
+
                     color: Colors.blue.shade700,
+
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
             ],
           ),
+
           SizedBox(height: 12.h),
+
           SliderTheme(
             data: SliderTheme.of(context).copyWith(
               activeTrackColor: Colors.blue.shade400,
+
               inactiveTrackColor: Colors.blue.shade100,
+
               thumbColor: Colors.blue.shade600,
+
               overlayColor: Colors.blue.withOpacity(0.1),
+
               trackHeight: 6.0,
+
               thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 12.0),
             ),
+
             child: Slider(
               value: clamped,
+
               min: min,
+
               max: max,
+
               onChanged: onChanged,
             ),
           ),
@@ -7864,16 +11050,27 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     final predefinedColors = <Color>[
       Colors.transparent, // Add transparent as first option
       Colors.black,
+
       Colors.white,
+
       Colors.redAccent,
+
       Colors.blueAccent,
+
       Colors.greenAccent,
+
       Colors.orangeAccent,
+
       Colors.purpleAccent,
+
       Colors.tealAccent,
+
       Colors.pinkAccent,
+
       Colors.indigoAccent,
+
       Colors.amberAccent,
+
       Colors.cyanAccent,
     ];
 
@@ -7883,117 +11080,168 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
     showModalBottomSheet(
       context: context,
+
       backgroundColor: Colors.transparent,
+
       isScrollControlled: true,
+
       builder: (context) => StatefulBuilder(
         builder: (BuildContext context, StateSetter setState) {
           return Container(
             height: 280.h,
+
             decoration: BoxDecoration(
               color: Colors.white,
+
               borderRadius: BorderRadius.only(
                 topLeft: Radius.circular(32.r),
+
                 topRight: Radius.circular(32.r),
               ),
+
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.1),
+
                   blurRadius: 20,
+
                   offset: const Offset(0, -8),
                 ),
               ],
             ),
+
             child: Column(
               children: [
                 Container(
                   width: 60.w,
+
                   height: 6.h,
+
                   margin: EdgeInsets.symmetric(vertical: 16.h),
+
                   decoration: BoxDecoration(
                     color: Colors.grey[300],
+
                     borderRadius: BorderRadius.circular(3.r),
                   ),
                 ),
+
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: 24.w),
+
                   child: Row(
                     children: [
                       Icon(
                         Icons.palette_rounded,
+
                         color: Colors.blue.shade400,
+
                         size: 24.sp,
                       ),
+
                       SizedBox(width: 12.w),
+
                       Text(
                         'Choose Color',
+
                         style: TextStyle(
                           fontSize: 20.sp,
+
                           fontWeight: FontWeight.bold,
+
                           color: Colors.grey[800],
                         ),
                       ),
+
                       SizedBox(width: 12.w),
+
                       Container(
                         width: 48.w,
+
                         height: 48.h,
+
                         decoration: BoxDecoration(
                           color: _selectedColorInPicker,
+
                           shape: BoxShape.circle,
+
                           border: Border.all(
                             color: Colors.grey.shade300,
+
                             width: 2,
                           ),
                         ),
                       ),
+
                       const Spacer(),
+
                       IconButton(
                         icon: Icon(
                           Icons.add_circle,
+
                           color: Colors.green,
+
                           size: 24.sp,
                         ),
+
                         onPressed: () async {
                           // Show advanced color picker in a new modal bottom sheet
+
                           final pickedColor = await showColorPickerBottomSheet(
                             context: context,
+
                             initialColor: _selectedColorInPicker,
+
                             onPreview: (color) {
                               if (selectedItem == null) return;
+
                               // Live update without committing to history
+
                               setState(() {
                                 if (isGradient) {
                                   final List<Color> currentGradient =
                                       _getDisplayGradientColors();
+
                                   final Color first = currentGradient.first;
+
                                   final Color last = currentGradient.last;
+
                                   final Map<String, dynamic> newProperties =
                                       Map.from(selectedItem!.properties);
+
                                   if (property == 'gradientColor1') {
                                     newProperties['gradientColors'] = [
                                       HiveColor.fromColor(color),
+
                                       HiveColor.fromColor(last),
                                     ];
                                   } else if (property == 'gradientColor2') {
                                     newProperties['gradientColors'] = [
                                       HiveColor.fromColor(first),
+
                                       HiveColor.fromColor(color),
                                     ];
                                   } else {
                                     // Fallback: replace first color
+
                                     newProperties['gradientColors'] = [
                                       HiveColor.fromColor(color),
+
                                       HiveColor.fromColor(last),
                                     ];
                                   }
+
                                   selectedItem = selectedItem!.copyWith(
                                     properties: newProperties,
                                   );
                                 } else {
                                   final Map<String, dynamic> newProperties =
                                       Map.from(selectedItem!.properties);
+
                                   newProperties[property] = HiveColor.fromColor(
                                     color,
                                   );
+
                                   selectedItem = selectedItem!.copyWith(
                                     properties: newProperties,
                                   );
@@ -8004,19 +11252,25 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
                           if (pickedColor != null) {
                             // Update state and save
+
                             setState(() {
                               _selectedColorInPicker = pickedColor;
+
                               if (!recentColors.contains(pickedColor)) {
                                 recentColors.add(
                                   pickedColor,
                                 ); // or however you manage recentColors
                               }
                             });
+
                             _selectColor(
                               property,
+
                               pickedColor,
+
                               isGradient: isGradient,
                             );
+
                             Navigator.pop(
                               context,
                             ); // Close the original bottom sheet
@@ -8026,66 +11280,95 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                     ],
                   ),
                 ),
+
                 SizedBox(height: 24.h),
+
                 if (recentColors.isNotEmpty) ...[
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 24.w),
+
                     child: Align(
                       alignment: Alignment.centerLeft,
+
                       child: Text(
                         'RECENT',
+
                         style: TextStyle(
                           fontSize: 12.sp,
+
                           fontWeight: FontWeight.bold,
+
                           color: Colors.grey[600],
+
                           letterSpacing: 1,
                         ),
                       ),
                     ),
                   ),
+
                   SizedBox(height: 12.h),
+
                   SizedBox(
                     height: 50.h,
+
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
+
                       padding: EdgeInsets.symmetric(horizontal: 24.w),
+
                       itemCount: recentColors.length,
+
                       itemBuilder: (context, index) {
                         final color = recentColors[index];
+
                         return Padding(
                           padding: EdgeInsets.only(right: 12.w),
+
                           child: GestureDetector(
                             onTap: () {
                               setState(() {
                                 _selectedColorInPicker = color;
                               });
+
                               _selectColor(
                                 property,
+
                                 color,
+
                                 isGradient: isGradient,
                               );
+
                               Navigator.pop(context);
                             },
+
                             child: Container(
                               width: 50.h,
+
                               height: 50.h,
+
                               decoration: BoxDecoration(
                                 color: color == Colors.transparent
                                     ? Colors.white
                                     : color,
                                 borderRadius: BorderRadius.circular(12.r),
+
                                 border: Border.all(
                                   color: Colors.grey.shade300,
+
                                   width: 2,
                                 ),
+
                                 boxShadow: [
                                   BoxShadow(
                                     color: Colors.black.withOpacity(0.1),
+
                                     blurRadius: 4,
+
                                     offset: const Offset(0, 2),
                                   ),
                                 ],
                               ),
+
                               child: color == Colors.transparent
                                   ? Stack(
                                       children: [
@@ -8116,62 +11399,84 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                       },
                     ),
                   ),
+
                   SizedBox(height: 20.h),
                 ],
+
                 Expanded(
                   child: Padding(
                     padding: EdgeInsets.symmetric(horizontal: 24.w),
+
                     child: BlockPicker(
                       pickerColor: _selectedColorInPicker,
+
                       onColorChanged: (color) {
                         setState(() {
                           _selectedColorInPicker = color;
                         });
                       },
+
                       availableColors: predefinedColors,
+
                       layoutBuilder: (context, colors, child) {
                         return GridView.builder(
                           gridDelegate:
                               SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: 6,
+
                                 crossAxisSpacing: 16.w,
+
                                 mainAxisSpacing: 16.h,
                               ),
+
                           itemCount: colors.length,
+
                           itemBuilder: (context, index) {
                             return child(colors[index]);
                           },
                         );
                       },
+
                       itemBuilder: (color, isCurrentColor, changeColor) {
                         return GestureDetector(
                           onTap: () {
                             changeColor();
+
                             _selectColor(
                               property,
+
                               color,
+
                               isGradient: isGradient,
                             );
+
                             Navigator.pop(context);
                           },
+
                           child: Container(
                             decoration: BoxDecoration(
                               color: color == Colors.transparent
                                   ? Colors.white
                                   : color,
                               borderRadius: BorderRadius.circular(16.r),
+
                               border: Border.all(
                                 color: Colors.grey.shade300,
+
                                 width: 2,
                               ),
+
                               boxShadow: [
                                 BoxShadow(
                                   color: Colors.black.withOpacity(0.1),
+
                                   blurRadius: 8,
+
                                   offset: const Offset(0, 4),
                                 ),
                               ],
                             ),
+
                             child: color == Colors.transparent
                                 ? Stack(
                                     children: [
@@ -8203,6 +11508,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                     ),
                   ),
                 ),
+
                 SizedBox(height: 20.h),
               ],
             ),
@@ -8214,69 +11520,98 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   Future<Color?> showColorPickerBottomSheet({
     required BuildContext context,
+
     required Color initialColor,
+
     ValueChanged<Color>? onPreview,
   }) async {
     Color currentColor = initialColor;
 
     return await showModalBottomSheet<Color>(
       context: context,
+
       isScrollControlled: true,
+
       backgroundColor: Colors.transparent,
+
       builder: (context) {
         return FractionallySizedBox(
           heightFactor: 0.8,
+
           child: Container(
             decoration: BoxDecoration(
               color: Colors.white,
+
               borderRadius: BorderRadius.only(
                 topLeft: Radius.circular(32),
+
                 topRight: Radius.circular(32),
               ),
             ),
+
             child: Padding(
               padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+
               child: Column(
                 children: [
                   // Drag handle
                   Container(
                     width: 60,
+
                     height: 6,
+
                     decoration: BoxDecoration(
                       color: Colors.grey[300],
+
                       borderRadius: BorderRadius.circular(3),
                     ),
                   ),
+
                   SizedBox(height: 20),
+
                   Text(
                     'Pick a Color',
+
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
+
                   SizedBox(height: 20),
+
                   // Advanced Color Picker
                   Expanded(
                     child: ColorPicker(
                       pickerColor: currentColor,
+
                       onColorChanged: (Color color) {
                         currentColor = color;
+
                         if (onPreview != null) {
                           onPreview(color);
                         }
                       },
+
                       colorPickerWidth: 300,
+
                       pickerAreaHeightPercent: 0.7,
+
                       showLabel: true,
+
                       displayThumbColor: true,
+
                       paletteType: PaletteType.hsv,
                     ),
                   ),
+
                   SizedBox(height: 20),
+
                   ElevatedButton(
                     onPressed: () {
                       Navigator.pop(context, currentColor);
                     },
+
                     child: Text('Select'),
                   ),
+
                   SizedBox(height: 10),
                 ],
               ),
@@ -8292,59 +11627,91 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       final XFile? picked = await _imagePicker.pickImage(
         source: ImageSource.gallery,
       );
+
       if (picked == null) return;
+
       // Decode intrinsic dimensions to preserve original aspect ratio
+
       final File file = File(picked.path);
+
       final Uint8List bytes = await file.readAsBytes();
+
       final ui.Image decoded = await decodeImageFromList(bytes);
+
       final double intrinsicW = decoded.width.toDouble();
+
       final double intrinsicH = decoded.height.toDouble();
+
       // Set an initial displayed size that fits within a reasonable box while keeping ratio
+
       const double maxEdge = 240.0; // logical px baseline before user scaling
+
       double displayW = intrinsicW;
+
       double displayH = intrinsicH;
+
       if (intrinsicW > intrinsicH && intrinsicW > maxEdge) {
         displayW = maxEdge;
+
         displayH = maxEdge * (intrinsicH / intrinsicW);
       } else if (intrinsicH >= intrinsicW && intrinsicH > maxEdge) {
         displayH = maxEdge;
+
         displayW = maxEdge * (intrinsicW / intrinsicH);
       }
+
       if (replace &&
           selectedItem != null &&
           selectedItem!.type == CanvasItemType.image) {
         final previous = selectedItem!.copyWith();
+
         setState(() {
           selectedItem!.properties['filePath'] = picked.path;
+
           selectedItem!.properties['intrinsicWidth'] = intrinsicW;
+
           selectedItem!.properties['intrinsicHeight'] = intrinsicH;
+
           selectedItem!.properties['displayWidth'] = displayW;
+
           selectedItem!.properties['displayHeight'] = displayH;
         });
+
         _addAction(
           CanvasAction(
             type: 'modify',
+
             item: selectedItem,
+
             previousState: previous,
+
             timestamp: DateTime.now(),
           ),
         );
       } else {
         _addCanvasItem(
           CanvasItemType.image,
+
           properties: {
             'filePath': picked.path,
+
             'tint': Colors.transparent,
+
             'blur': 0.0,
+
             'intrinsicWidth': intrinsicW,
+
             'intrinsicHeight': intrinsicH,
+
             'displayWidth': displayW,
+
             'displayHeight': displayH,
           },
         );
       }
     } catch (e) {
       if (!mounted) return;
+
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Failed to pick image')));
@@ -8356,40 +11723,54 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       final XFile? picked = await _imagePicker.pickImage(
         source: ImageSource.gallery,
       );
+
       if (picked == null ||
           selectedItem == null ||
           selectedItem?.type != CanvasItemType.shape)
         return;
 
       final Uint8List bytes = await File(picked.path).readAsBytes();
+
       final ui.Codec codec = await ui.instantiateImageCodec(bytes);
+
       final ui.FrameInfo frame = await codec.getNextFrame();
+
       final ui.Image image = frame.image;
 
       final previous = selectedItem!.copyWith();
+
       setState(() {
         // Store both the ui.Image object and the file path
+
         selectedItem!.properties['image'] = image;
+
         selectedItem!.properties['imagePath'] = picked.path;
+
         // Disable gradient when using image fill
+
         selectedItem!.properties['hasGradient'] = false;
       });
 
       _addAction(
         CanvasAction(
           type: 'modify',
+
           item: selectedItem,
+
           previousState: previous,
+
           timestamp: DateTime.now(),
         ),
       );
 
       // Trigger auto-save if enabled
+
       if (userPreferences.autoSave) {
         _saveProject();
       }
     } catch (e) {
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Failed to load image for shape')),
       );
@@ -8398,7 +11779,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   void _selectColor(String property, Color color, {bool isGradient = false}) {
     if (selectedItem == null) return;
+
     final previous = selectedItem!.copyWith();
+
     setState(() {
       if (selectedItem != null) {
         if (isGradient) {
@@ -8407,47 +11790,63 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                   ?.map((e) => (e as HiveColor).toColor())
                   .toList() ??
               [Colors.blue, Colors.purple];
+
           final Map<String, dynamic> newProperties = Map.from(
             selectedItem!.properties,
           );
+
           if (property == 'gradientColor1') {
             newProperties['gradientColors'] = [
               HiveColor.fromColor(color),
+
               HiveColor.fromColor(currentGradient.last),
             ];
           } else if (property == 'gradientColor2') {
             newProperties['gradientColors'] = [
               HiveColor.fromColor(currentGradient.first),
+
               HiveColor.fromColor(color),
             ];
           }
+
           selectedItem = selectedItem!.copyWith(properties: newProperties);
         } else {
           final Map<String, dynamic> newProperties = Map.from(
             selectedItem!.properties,
           );
+
           newProperties[property] = HiveColor.fromColor(color);
+
           selectedItem = selectedItem!.copyWith(properties: newProperties);
         }
+
         if (!recentColors.contains(color)) {
           recentColors.insert(0, color);
+
           if (recentColors.length > 8) {
             recentColors.removeLast();
           }
+
           userPreferences.recentColors = recentColors
               .map((e) => HiveColor.fromColor(e))
               .toList();
+
           _userPreferencesBox.put('user_prefs_id', userPreferences);
         }
       }
     });
+
     // Add to action history for undo/redo
+
     if (selectedItem != null) {
       _addAction(
         CanvasAction(
           type: 'modify',
+
           item: selectedItem,
+
           previousState: previous,
+
           timestamp: DateTime.now(),
         ),
       );
@@ -8457,13 +11856,21 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   Widget _buildActionBar() {
     return ActionBar(
       canUndo: currentActionIndex >= 0,
+
       canRedo: currentActionIndex < actionHistory.length - 1,
+
       onUndo: _undo,
+
       onRedo: _redo,
+
       snapToGrid: snapToGrid,
+
       onToggleGrid: (v) => setState(() => snapToGrid = v),
+
       hasItems: canvasItems.isNotEmpty,
+
       onShowLayers: _showLayerPanel,
+
       onExport: _exportPoster,
     );
   }
@@ -8471,65 +11878,94 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   void _showLayerPanel() {
     showModalBottomSheet(
       context: context,
+
       backgroundColor: Colors.transparent,
+
       isScrollControlled: true,
+
       builder: (context) => Container(
         height: 400.h,
+
         decoration: BoxDecoration(
           color: Colors.white,
+
           borderRadius: BorderRadius.only(
             topLeft: Radius.circular(32.r),
+
             topRight: Radius.circular(32.r),
           ),
+
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.1),
+
               blurRadius: 20,
+
               offset: const Offset(0, -8),
             ),
           ],
         ),
+
         child: Column(
           children: [
             Container(
               width: 60.w,
+
               height: 6.h,
+
               margin: EdgeInsets.symmetric(vertical: 16.h),
+
               decoration: BoxDecoration(
                 color: Colors.grey[300],
+
                 borderRadius: BorderRadius.circular(3.r),
               ),
             ),
+
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 24.w),
+
               child: Row(
                 children: [
                   Icon(
                     Icons.layers_rounded,
+
                     color: Colors.blue.shade400,
+
                     size: 24.sp,
                   ),
+
                   SizedBox(width: 12.w),
+
                   Text(
                     'Layers',
+
                     style: TextStyle(
                       fontSize: 20.sp,
+
                       fontWeight: FontWeight.bold,
+
                       color: Colors.grey[800],
                     ),
                   ),
+
                   const Spacer(),
+
                   Text(
                     '${canvasItems.length} items',
+
                     style: TextStyle(fontSize: 14.sp, color: Colors.grey[600]),
                   ),
                 ],
               ),
             ),
+
             SizedBox(height: 20.h),
+
             Expanded(
               child: Padding(
                 padding: EdgeInsets.symmetric(horizontal: 24.w),
+
                 child: _buildReorderableLayersList(),
               ),
             ),
@@ -8541,109 +11977,152 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   Widget _buildReorderableLayersList() {
     // Top-most first list
+
     final List<CanvasItem> layersTopFirst = [...canvasItems]
       ..sort((a, b) => b.layerIndex.compareTo(a.layerIndex));
 
     return ReorderableListView.builder(
       proxyDecorator: (child, index, animation) =>
           Material(color: Colors.transparent, child: child),
+
       itemCount: layersTopFirst.length,
+
       onReorder: (oldIndex, newIndex) {
         setState(() {
           if (newIndex > oldIndex) newIndex -= 1;
+
           final item = layersTopFirst.removeAt(oldIndex);
+
           layersTopFirst.insert(newIndex, item);
+
           // After reordering, recompute layerIndex where index 0 is top-most
+
           final int n = layersTopFirst.length;
+
           for (int i = 0; i < n; i++) {
             layersTopFirst[i].layerIndex = n - 1 - i;
           }
+
           // Update the original canvasItems list with the new layer indices
+
           for (final item in layersTopFirst) {
             final originalIndex = canvasItems.indexWhere(
               (it) => it.id == item.id,
             );
+
             if (originalIndex != -1) {
               canvasItems[originalIndex].layerIndex = item.layerIndex;
             }
           }
         });
       },
+
       itemBuilder: (context, index) {
         final item = layersTopFirst[index];
+
         final isSelected = selectedItem == item;
+
         return Container(
           key: ValueKey(item.id),
+
           margin: EdgeInsets.only(bottom: 12.h),
+
           padding: EdgeInsets.all(16.w),
+
           decoration: BoxDecoration(
             gradient: isSelected
                 ? LinearGradient(
                     colors: [Colors.blue.shade50!, Colors.blue.shade100!],
                   )
                 : null,
+
             color: isSelected ? null : Colors.grey[50],
+
             borderRadius: BorderRadius.circular(16.r),
+
             border: Border.all(
               color: isSelected ? Colors.blue.shade200 : Colors.grey.shade200,
+
               width: isSelected ? 2 : 1,
             ),
           ),
+
           child: Row(
             children: [
               Icon(
                 _getItemTypeIcon(item.type),
+
                 color: isSelected ? Colors.blue.shade400 : Colors.grey.shade600,
+
                 size: 24.sp,
               ),
+
               SizedBox(width: 16.w),
+
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+
                   children: [
                     Text(
                       '${item.type.name.toUpperCase()} Layer',
+
                       style: TextStyle(
                         fontSize: 14.sp,
+
                         fontWeight: FontWeight.w600,
+
                         color: isSelected
                             ? Colors.blue.shade700
                             : Colors.grey[800],
                       ),
                     ),
+
                     Text(
                       'Layer ${item.layerIndex + 1}',
+
                       style: TextStyle(
                         fontSize: 12.sp,
+
                         color: Colors.grey[600],
                       ),
                     ),
                   ],
                 ),
               ),
+
               Row(
                 mainAxisSize: MainAxisSize.min,
+
                 children: [
                   IconButton(
                     onPressed: () => setState(() {
                       item.isVisible = !item.isVisible;
                     }),
+
                     icon: Icon(
                       item.isVisible
                           ? Icons.visibility_rounded
                           : Icons.visibility_off_rounded,
+
                       color: Colors.grey[600],
+
                       size: 20.sp,
                     ),
                   ),
+
                   IconButton(
                     onPressed: () {
                       _selectItem(item);
+
                       Navigator.pop(context);
                     },
+
                     icon: Icon(
                       Icons.edit_rounded,
+
                       color: Colors.blue.shade400,
+
                       size: 20.sp,
                     ),
                   ),
@@ -8661,42 +12140,62 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       final boundary =
           _canvasRepaintKey.currentContext?.findRenderObject()
               as RenderRepaintBoundary?;
+
       if (boundary == null) return;
+
       final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
+
       final ByteData? byteData = await image.toByteData(
         format: ui.ImageByteFormat.png,
       );
+
       if (byteData == null) return;
+
       final Uint8List pngBytes = byteData.buffer.asUint8List();
+
       final Directory tempDir = await getTemporaryDirectory();
+
       final String filePath =
           '${tempDir.path}/poster_${DateTime.now().millisecondsSinceEpoch}.png';
+
       final File file = File(filePath);
+
       await file.writeAsBytes(pngBytes);
+
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
             children: [
               const Icon(Icons.download_done_rounded, color: Colors.white),
+
               SizedBox(width: 12.w),
+
               Text(
                 'Poster exported. Sharing...',
+
                 style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w500),
               ),
             ],
           ),
+
           backgroundColor: Colors.green.shade400,
+
           behavior: SnackBarBehavior.floating,
+
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12.r),
           ),
+
           margin: EdgeInsets.all(16.w),
         ),
       );
+
       await Share.shareXFiles([XFile(file.path)], text: 'My poster');
     } catch (e) {
       if (!mounted) return;
+
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Export failed')));
@@ -8706,22 +12205,30 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   Future<void> _navigateToPixabayImages() async {
     final PixabayImage? selectedImage = await Navigator.push(
       context,
+
       MaterialPageRoute(builder: (context) => PixabayImagesPage()),
     );
 
     if (selectedImage != null) {
       _addCanvasItem(
         CanvasItemType.image,
+
         properties: {
           'imageUrl':
               selectedImage.webformatURL, // Use imageUrl for network images
+
           'tint': Colors.transparent,
+
           'blur': 0.0,
+
           'intrinsicWidth': selectedImage.views
               .toDouble(), // Using views as a placeholder for intrinsic width
+
           'intrinsicHeight': selectedImage.downloads
               .toDouble(), // Using downloads as a placeholder for intrinsic height
+
           'displayWidth': 240.0,
+
           'displayHeight':
               240.0 * (selectedImage.downloads / selectedImage.views),
         },
@@ -8732,12 +12239,16 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   List<Color> _getDisplayGradientColors() {
     final dynamic rawGradientColors =
         selectedItem!.properties['gradientColors'];
+
     if (rawGradientColors is List) {
       final List<Color> convertedColors = rawGradientColors
           .map((e) {
             if (e is HiveColor) return e.toColor();
+
             if (e is Color) return e;
+
             if (e is int) return HiveColor(e).toColor();
+
             return Colors.transparent;
           })
           .whereType<Color>()
@@ -8747,9 +12258,11 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         if (convertedColors.length == 1) {
           return [convertedColors.first, convertedColors.first];
         }
+
         return convertedColors;
       }
     }
+
     return [Colors.lightBlue, Colors.blueAccent];
   }
 
@@ -8759,16 +12272,20 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
     try {
       final String? filePath = selectedItem!.properties['filePath'] as String?;
+
       final String? imageUrl = selectedItem!.properties['imageUrl'] as String?;
 
       Uint8List? imageBytes;
 
       // Get image bytes based on source
+
       if (filePath != null) {
         imageBytes = await File(filePath).readAsBytes();
       } else if (imageUrl != null) {
         // For network images, download first
+
         final response = await http.get(Uri.parse(imageUrl));
+
         if (response.statusCode == 200) {
           imageBytes = response.bodyBytes;
         }
@@ -8778,112 +12295,159 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Could not load image for editing')),
         );
+
         return;
       }
 
       // Navigate to image editor with white background theme
+
       final Uint8List? editedBytes = await Navigator.push(
         context,
+
         MaterialPageRoute(
           builder: (context) => Theme(
             data: ThemeData.light().copyWith(
               // Set scaffold background to white
               scaffoldBackgroundColor: Colors.white,
+
               // Set app bar background to white
               appBarTheme: const AppBarTheme(
                 backgroundColor: Colors.white,
+
                 foregroundColor: Colors.black,
+
                 elevation: 0,
               ),
+
               // Set bottom sheet background to white
               bottomSheetTheme: const BottomSheetThemeData(
                 backgroundColor: Colors.white,
               ),
+
               // Set dialog background to white
               dialogTheme: const DialogThemeData(backgroundColor: Colors.white),
+
               // Set card background to white
               cardTheme: const CardThemeData(color: Colors.white),
+
               // Set color scheme with white surfaces
               colorScheme: ColorScheme.fromSeed(
                 seedColor: Colors.blue,
+
                 brightness: Brightness.light,
+
                 surface: Colors.white,
+
                 background: Colors.white,
               ),
             ),
+
             child: ImageEditor(image: imageBytes!),
           ),
         ),
       );
 
       // If user edited and saved the image
+
       if (editedBytes != null) {
         // Save edited image to temporary file
+
         final Directory tempDir = await getTemporaryDirectory();
+
         final String editedFilePath =
             '${tempDir.path}/edited_image_${DateTime.now().millisecondsSinceEpoch}.png';
+
         final File editedFile = File(editedFilePath);
+
         await editedFile.writeAsBytes(editedBytes);
 
         // Get new image dimensions
+
         final ui.Image decoded = await decodeImageFromList(editedBytes);
+
         final double intrinsicW = decoded.width.toDouble();
+
         final double intrinsicH = decoded.height.toDouble();
 
         // Calculate display size maintaining aspect ratio
+
         const double maxEdge = 240.0;
+
         double displayW = intrinsicW;
+
         double displayH = intrinsicH;
+
         if (intrinsicW > intrinsicH && intrinsicW > maxEdge) {
           displayW = maxEdge;
+
           displayH = maxEdge * (intrinsicH / intrinsicW);
         } else if (intrinsicH >= intrinsicW && intrinsicH > maxEdge) {
           displayH = maxEdge;
+
           displayW = maxEdge * (intrinsicW / intrinsicH);
         }
 
         // Update the canvas item with edited image
+
         final previous = selectedItem!.copyWith();
+
         setState(() {
           selectedItem!.properties['filePath'] = editedFilePath;
+
           selectedItem!.properties['imageUrl'] =
               null; // Clear network URL since we now have local file
+
           selectedItem!.properties['intrinsicWidth'] = intrinsicW;
+
           selectedItem!.properties['intrinsicHeight'] = intrinsicH;
+
           selectedItem!.properties['displayWidth'] = displayW;
+
           selectedItem!.properties['displayHeight'] = displayH;
         });
 
         _addAction(
           CanvasAction(
             type: 'modify',
+
             item: selectedItem,
+
             previousState: previous,
+
             timestamp: DateTime.now(),
           ),
         );
 
         // Show success message
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
               children: [
                 const Icon(Icons.check_circle, color: Colors.white),
+
                 SizedBox(width: 12.w),
+
                 Text(
                   'Image edited successfully!',
+
                   style: TextStyle(
                     fontSize: 16.sp,
+
                     fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
             ),
+
             backgroundColor: Colors.green.shade400,
+
             behavior: SnackBarBehavior.floating,
+
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12.r),
             ),
+
             margin: EdgeInsets.all(16.w),
           ),
         );
@@ -8902,23 +12466,30 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
     try {
       // Show loading indicator
+
       showDialog(
         context: context,
+
         barrierDismissible: false,
+
         builder: (context) => const Center(child: CircularProgressIndicator()),
       );
 
       final String? filePath = selectedItem!.properties['filePath'] as String?;
+
       final String? imageUrl = selectedItem!.properties['imageUrl'] as String?;
 
       Uint8List? imageBytes;
 
       // Get image bytes based on source
+
       if (filePath != null) {
         imageBytes = await File(filePath).readAsBytes();
       } else if (imageUrl != null) {
         // For network images, download first
+
         final response = await http.get(Uri.parse(imageUrl));
+
         if (response.statusCode == 200) {
           imageBytes = response.bodyBytes;
         }
@@ -8926,73 +12497,102 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
       if (imageBytes == null) {
         Navigator.pop(context); // Close loading dialog
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Could not load image for background removal'),
           ),
         );
+
         return;
       }
 
       // Remove background
+
       ui.Image resultImage = await BackgroundRemover.instance.removeBg(
         imageBytes,
       );
 
       // Convert ui.Image back to Uint8List
+
       final ByteData? byteData = await resultImage.toByteData(
         format: ui.ImageByteFormat.png,
       );
+
       if (byteData == null) {
         Navigator.pop(context); // Close loading dialog
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Failed to process image')),
         );
+
         return;
       }
 
       final Uint8List processedBytes = byteData.buffer.asUint8List();
 
       // Save processed image to temporary file
+
       final Directory tempDir = await getTemporaryDirectory();
+
       final String processedFilePath =
           '${tempDir.path}/bg_removed_${DateTime.now().millisecondsSinceEpoch}.png';
+
       final File processedFile = File(processedFilePath);
+
       await processedFile.writeAsBytes(processedBytes);
 
       // Get new image dimensions
+
       final double intrinsicW = resultImage.width.toDouble();
+
       final double intrinsicH = resultImage.height.toDouble();
 
       // Calculate display size maintaining aspect ratio
+
       const double maxEdge = 240.0;
+
       double displayW = intrinsicW;
+
       double displayH = intrinsicH;
+
       if (intrinsicW > intrinsicH && intrinsicW > maxEdge) {
         displayW = maxEdge;
+
         displayH = maxEdge * (intrinsicH / intrinsicW);
       } else if (intrinsicH >= intrinsicW && intrinsicH > maxEdge) {
         displayH = maxEdge;
+
         displayW = maxEdge * (intrinsicW / intrinsicH);
       }
 
       // Update the canvas item with processed image
+
       final previous = selectedItem!.copyWith();
+
       setState(() {
         selectedItem!.properties['filePath'] = processedFilePath;
+
         selectedItem!.properties['imageUrl'] =
             null; // Clear network URL since we now have local file
+
         selectedItem!.properties['intrinsicWidth'] = intrinsicW;
+
         selectedItem!.properties['intrinsicHeight'] = intrinsicH;
+
         selectedItem!.properties['displayWidth'] = displayW;
+
         selectedItem!.properties['displayHeight'] = displayH;
       });
 
       _addAction(
         CanvasAction(
           type: 'modify',
+
           item: selectedItem,
+
           previousState: previous,
+
           timestamp: DateTime.now(),
         ),
       );
@@ -9000,28 +12600,37 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       Navigator.pop(context); // Close loading dialog
 
       // Show success message
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
             children: [
               const Icon(Icons.check_circle, color: Colors.white),
+
               SizedBox(width: 12.w),
+
               Text(
                 'Background removed successfully!',
+
                 style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w500),
               ),
             ],
           ),
+
           backgroundColor: Colors.green.shade400,
+
           behavior: SnackBarBehavior.floating,
+
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12.r),
           ),
+
           margin: EdgeInsets.all(16.w),
         ),
       );
     } catch (e) {
       Navigator.pop(context); // Close loading dialog
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to remove background: $e')),
       );
@@ -9030,26 +12639,38 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   Widget _buildImageShadow(
     Widget image,
+
     Color shadowColor,
+
     double blurRadius,
+
     double width,
+
     double height,
+
     double shadowSize,
   ) {
     // Calculate the scaled dimensions for shadow size
+
     final double shadowWidth = width * (1.0 + shadowSize / 100.0);
+
     final double shadowHeight = height * (1.0 + shadowSize / 100.0);
 
     return SizedBox(
       width: shadowWidth,
+
       height: shadowHeight,
+
       child: ImageFiltered(
         imageFilter: ui.ImageFilter.blur(
           sigmaX: blurRadius,
+
           sigmaY: blurRadius,
         ),
+
         child: ColorFiltered(
           colorFilter: ColorFilter.mode(shadowColor, BlendMode.srcATop),
+
           child: Transform.scale(scale: 1.0 + shadowSize / 100.0, child: image),
         ),
       ),
@@ -9057,29 +12678,39 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   }
 
   /// Applies stroke effect to the selected image using distance transform (like Photoshop)
+
   Future<void> _applyStrokeToSelectedImage({
     int strokeWidth = 10,
+
     Color strokeColor = Colors.black,
+
     int threshold = 0,
   }) async {
     if (selectedItem == null || selectedItem!.type != CanvasItemType.image) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select an image first')),
       );
+
       return;
     }
 
     // Show loading dialog
+
     showDialog(
       context: context,
+
       barrierDismissible: false,
+
       builder: (context) => AlertDialog(
         content: Row(
           children: [
             const CircularProgressIndicator(),
+
             SizedBox(width: 16.w),
+
             Text(
               'Applying stroke effect...',
+
               style: TextStyle(fontSize: 16.sp),
             ),
           ],
@@ -9089,25 +12720,34 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
     try {
       // Store previous state for undo
+
       final CanvasItem previous = CanvasItem(
         id: selectedItem!.id,
+
         type: selectedItem!.type,
+
         properties: Map<String, dynamic>.from(selectedItem!.properties),
+
         createdAt: selectedItem!.createdAt,
+
         lastModified: selectedItem!.lastModified,
       );
 
       // Get image bytes
+
       Uint8List? imageBytes;
 
       // Check if it's a local file or network image
+
       if (selectedItem!.properties['filePath'] != null) {
         final File imageFile = File(selectedItem!.properties['filePath']);
+
         imageBytes = await imageFile.readAsBytes();
       } else if (selectedItem!.properties['imageUrl'] != null) {
         final response = await http.get(
           Uri.parse(selectedItem!.properties['imageUrl']),
         );
+
         if (response.statusCode == 200) {
           imageBytes = response.bodyBytes;
         }
@@ -9115,57 +12755,81 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
       if (imageBytes == null) {
         Navigator.pop(context); // Close loading dialog
+
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Failed to load image')));
+
         return;
       }
 
       // Apply stroke effect using distance transform processor
+
       final ui.Image strokedImage =
           await ImageStrokeProcessor.addStrokeToImageFromBytes(
             imageBytes,
+
             strokeWidth: strokeWidth,
+
             strokeColor: ui.Color(strokeColor.value),
+
             threshold: threshold,
           );
 
       // Convert back to bytes
+
       final Uint8List strokedBytes = await ImageStrokeProcessor.imageToBytes(
         strokedImage,
       );
 
       // Save processed image to temporary file
+
       final Directory tempDir = await getTemporaryDirectory();
+
       final String strokedFilePath =
           '${tempDir.path}/stroked_${DateTime.now().millisecondsSinceEpoch}.png';
+
       final File strokedFile = File(strokedFilePath);
+
       await strokedFile.writeAsBytes(strokedBytes);
 
       // Update canvas item properties
+
       final double intrinsicW = strokedImage.width.toDouble();
+
       final double intrinsicH = strokedImage.height.toDouble();
 
       // Maintain aspect ratio for display
+
       final double aspectRatio = intrinsicH / intrinsicW;
+
       final double currentDisplayWidth =
           selectedItem!.properties['displayWidth'] ?? 240.0;
+
       final double newDisplayHeight = currentDisplayWidth * aspectRatio;
 
       setState(() {
         selectedItem!.properties['filePath'] = strokedFilePath;
+
         selectedItem!.properties['imageUrl'] = null; // Clear network URL
+
         selectedItem!.properties['intrinsicWidth'] = intrinsicW;
+
         selectedItem!.properties['intrinsicHeight'] = intrinsicH;
+
         selectedItem!.properties['displayWidth'] = currentDisplayWidth;
+
         selectedItem!.properties['displayHeight'] = newDisplayHeight;
       });
 
       _addAction(
         CanvasAction(
           type: 'modify',
+
           item: selectedItem,
+
           previousState: previous,
+
           timestamp: DateTime.now(),
         ),
       );
@@ -9173,28 +12837,37 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       Navigator.pop(context); // Close loading dialog
 
       // Show success message
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
             children: [
               const Icon(Icons.check_circle, color: Colors.white),
+
               SizedBox(width: 12.w),
+
               Text(
                 'Stroke effect applied successfully!',
+
                 style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w500),
               ),
             ],
           ),
+
           backgroundColor: Colors.green.shade400,
+
           behavior: SnackBarBehavior.floating,
+
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12.r),
           ),
+
           margin: EdgeInsets.all(16.w),
         ),
       );
     } catch (e) {
       Navigator.pop(context); // Close loading dialog
+
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Failed to apply stroke: $e')));
@@ -9202,68 +12875,92 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   }
 
   /// Shows dialog to customize stroke settings
+
   void _showStrokeSettingsDialog() {
     if (selectedItem == null || selectedItem!.type != CanvasItemType.image) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select an image first')),
       );
+
       return;
     }
 
     int strokeWidth = 10;
+
     Color strokeColor = Colors.black;
+
     int threshold = 0;
 
     showDialog(
       context: context,
+
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: const Text('Stroke Settings'),
+
           content: Column(
             mainAxisSize: MainAxisSize.min,
+
             children: [
               // Stroke width slider
               Text('Stroke Width: $strokeWidth'),
+
               Slider(
                 value: strokeWidth.toDouble(),
+
                 min: 1,
+
                 max: 50,
+
                 divisions: 49,
+
                 onChanged: (value) {
                   setDialogState(() {
                     strokeWidth = value.round();
                   });
                 },
               ),
+
               SizedBox(height: 16.h),
 
               // Threshold slider
               Text('Threshold: $threshold'),
+
               Slider(
                 value: threshold.toDouble(),
+
                 min: 0,
+
                 max: 255,
+
                 divisions: 255,
+
                 onChanged: (value) {
                   setDialogState(() {
                     threshold = value.round();
                   });
                 },
               ),
+
               SizedBox(height: 16.h),
 
               // Stroke color picker
               const Text('Stroke Color:'),
+
               SizedBox(height: 8.h),
+
               GestureDetector(
                 onTap: () {
                   showDialog(
                     context: context,
+
                     builder: (context) => AlertDialog(
                       title: const Text('Pick Stroke Color'),
+
                       content: SingleChildScrollView(
                         child: ColorPicker(
                           pickerColor: strokeColor,
+
                           onColorChanged: (color) {
                             setDialogState(() {
                               strokeColor = color;
@@ -9271,41 +12968,55 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                           },
                         ),
                       ),
+
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(context),
+
                           child: const Text('Done'),
                         ),
                       ],
                     ),
                   );
                 },
+
                 child: Container(
                   width: 50,
+
                   height: 50,
+
                   decoration: BoxDecoration(
                     color: strokeColor,
+
                     border: Border.all(color: Colors.grey),
+
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
               ),
             ],
           ),
+
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
+
               child: const Text('Cancel'),
             ),
+
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(context);
+
                 _applyStrokeToSelectedImage(
                   strokeWidth: strokeWidth,
+
                   strokeColor: strokeColor,
+
                   threshold: threshold,
                 );
               },
+
               child: const Text('Apply Stroke'),
             ),
           ],
@@ -9318,34 +13029,45 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
+
       appBar: AppBar(
         title: Text(_currentProject?.name ?? 'Poster Maker'),
+
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
+
             onPressed: () {
               Navigator.push(
                 context,
+
                 MaterialPageRoute(builder: (context) => const SettingsScreen()),
               ).then((_) {
                 // Reload user preferences when returning from settings
+
                 userPreferences =
                     _userPreferencesBox.get('user_prefs_id') ??
                     UserPreferences();
+
                 _initializeAutoSave();
+
                 // Trigger canvas redraw to show any pending drawings
+
                 setState(() {});
               });
             },
           ),
+
           IconButton(icon: const Icon(Icons.save), onPressed: _saveProject),
         ],
       ),
+
       body: SafeArea(
         child: Column(
           children: [_buildActionBar(), _buildCanvas(), _buildTopToolbar()],
         ),
       ),
+
       bottomSheet: const SizedBox.shrink(),
     );
   }
