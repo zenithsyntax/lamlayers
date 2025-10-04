@@ -1069,17 +1069,21 @@ class _ShapePainter extends CustomPainter {
   }
 
   Path _rectanglePath(Rect rect, double cornerRadius) {
-    // Check if individual side lengths are available
+    // Check if individual side lengths are available and different from default
     final double? topSide = props['topSide'] as double?;
     final double? rightSide = props['rightSide'] as double?;
     final double? bottomSide = props['bottomSide'] as double?;
     final double? leftSide = props['leftSide'] as double?;
 
-    // If individual side lengths are provided, create custom rectangle
-    if (topSide != null ||
-        rightSide != null ||
-        bottomSide != null ||
-        leftSide != null) {
+    // Only use custom rectangle path if side lengths are explicitly set and different from default
+    // This prevents unnecessary use of custom path for regular squares/rectangles
+    final bool hasCustomSides =
+        (topSide != null && topSide != rect.width) ||
+        (rightSide != null && rightSide != rect.height) ||
+        (bottomSide != null && bottomSide != rect.width) ||
+        (leftSide != null && leftSide != rect.height);
+
+    if (hasCustomSides) {
       return _createCustomRectanglePath(
         rect,
         topSide ?? rect.width,
@@ -1162,13 +1166,15 @@ class _ShapePainter extends CustomPainter {
       centerY + halfRightSide,
     );
 
-    // Create a quadrilateral path
-    path.moveTo(topLeft.dx, topLeft.dy);
-
-    // Add rounded corners if corner radius is specified
+    // Create a quadrilateral path with proper rounded corners
     if (cornerRadius > 0) {
-      // Top side
+      // Start from top-left corner, accounting for corner radius
+      path.moveTo(topLeft.dx + cornerRadius, topLeft.dy);
+
+      // Top side to top-right corner
       path.lineTo(topRight.dx - cornerRadius, topRight.dy);
+
+      // Top-right rounded corner
       path.quadraticBezierTo(
         topRight.dx,
         topRight.dy,
@@ -1176,8 +1182,10 @@ class _ShapePainter extends CustomPainter {
         topRight.dy + cornerRadius,
       );
 
-      // Right side
+      // Right side to bottom-right corner
       path.lineTo(bottomRight.dx, bottomRight.dy - cornerRadius);
+
+      // Bottom-right rounded corner
       path.quadraticBezierTo(
         bottomRight.dx,
         bottomRight.dy,
@@ -1185,8 +1193,10 @@ class _ShapePainter extends CustomPainter {
         bottomRight.dy,
       );
 
-      // Bottom side
+      // Bottom side to bottom-left corner
       path.lineTo(bottomLeft.dx + cornerRadius, bottomLeft.dy);
+
+      // Bottom-left rounded corner
       path.quadraticBezierTo(
         bottomLeft.dx,
         bottomLeft.dy,
@@ -1194,16 +1204,21 @@ class _ShapePainter extends CustomPainter {
         bottomLeft.dy - cornerRadius,
       );
 
-      // Left side
+      // Left side to top-left corner
       path.lineTo(topLeft.dx, topLeft.dy + cornerRadius);
+
+      // Top-left rounded corner
       path.quadraticBezierTo(
         topLeft.dx,
         topLeft.dy,
         topLeft.dx + cornerRadius,
         topLeft.dy,
       );
+
+      path.close(); // Close the path
     } else {
       // No rounded corners - create sharp quadrilateral
+      path.moveTo(topLeft.dx, topLeft.dy);
       path.lineTo(topRight.dx, topRight.dy);
       path.lineTo(bottomRight.dx, bottomRight.dy);
       path.lineTo(bottomLeft.dx, bottomLeft.dy);
