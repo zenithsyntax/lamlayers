@@ -5256,18 +5256,10 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               key: _canvasRepaintKey,
               child: Stack(
                 children: [
+                  // Background grid and canvas items
                   Positioned.fill(
                     child: GestureDetector(
                       onTap: _deselectItem,
-                      onPanStart: drawingMode == DrawingMode.enabled
-                          ? _onDrawingStart
-                          : null,
-                      onPanUpdate: drawingMode == DrawingMode.enabled
-                          ? _onDrawingUpdate
-                          : null,
-                      onPanEnd: drawingMode == DrawingMode.enabled
-                          ? _onDrawingEnd
-                          : null,
                       child: Container(
                         color: Colors.white,
                         child: CustomPaint(
@@ -5275,39 +5267,53 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                             showGrid: snapToGrid,
                             gridSize: 20.0,
                           ),
-                          child: (drawingMode == DrawingMode.enabled)
-                              ? RepaintBoundary(
-                                  child: CustomPaint(
-                                    painter: DrawingPainter(
-                                      layers: drawingLayers,
-                                      currentPoints: currentDrawingPoints,
-                                      currentTool: selectedDrawingTool,
-                                      currentColor: drawingColor,
-                                      currentStrokeWidth: drawingStrokeWidth,
-                                      currentOpacity: drawingOpacity,
-                                      currentPathText: _currentPathText,
-                                      currentPathFontFamily:
-                                          _currentPathFontFamily,
-                                      currentPathLetterSpacing:
-                                          _currentPathLetterSpacing,
-                                    ),
-                                  ),
-                                )
-                              : const SizedBox.shrink(),
+                          child: Stack(
+                            children: [
+                              // Canvas items (saved drawings, images, etc.)
+                              ...(() {
+                                final items = [...canvasItems]
+                                  ..sort(
+                                    (a, b) =>
+                                        a.layerIndex.compareTo(b.layerIndex),
+                                  );
+                                final visibleItems = items
+                                    .where((it) => it.isVisible)
+                                    .toList();
+                                return visibleItems
+                                    .map((it) => _buildCanvasItem(it))
+                                    .toList();
+                              })(),
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ),
-                  ...(() {
-                    final items = [...canvasItems]
-                      ..sort((a, b) => a.layerIndex.compareTo(b.layerIndex));
-                    final visibleItems = items
-                        .where((it) => it.isVisible)
-                        .toList();
-                    return visibleItems
-                        .map((it) => _buildCanvasItem(it))
-                        .toList();
-                  })(),
+                  // Drawing layer on top of everything
+                  if (drawingMode == DrawingMode.enabled)
+                    Positioned.fill(
+                      child: GestureDetector(
+                        onPanStart: _onDrawingStart,
+                        onPanUpdate: _onDrawingUpdate,
+                        onPanEnd: _onDrawingEnd,
+                        child: RepaintBoundary(
+                          child: CustomPaint(
+                            painter: DrawingPainter(
+                              layers: drawingLayers,
+                              currentPoints: currentDrawingPoints,
+                              currentTool: selectedDrawingTool,
+                              currentColor: drawingColor,
+                              currentStrokeWidth: drawingStrokeWidth,
+                              currentOpacity: drawingOpacity,
+                              currentPathText: _currentPathText,
+                              currentPathFontFamily: _currentPathFontFamily,
+                              currentPathLetterSpacing:
+                                  _currentPathLetterSpacing,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
