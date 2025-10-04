@@ -1234,10 +1234,15 @@ class _ShapePainter extends CustomPainter {
     final double? bottomRightRadius = props['bottomRightRadius'] as double?;
     final double? bottomLeftRadius = props['bottomLeftRadius'] as double?;
 
-    // If individual corner radius values are provided, use them
-    if (topRadius != null ||
-        bottomRightRadius != null ||
-        bottomLeftRadius != null) {
+    // Check if we should use individual corner radius values
+    // Only use individual radii if at least one has been explicitly set to a non-zero value
+    // and we're not using the uniform corner radius slider
+    final bool useIndividualRadii =
+        (topRadius != null && topRadius > 0) ||
+        (bottomRightRadius != null && bottomRightRadius > 0) ||
+        (bottomLeftRadius != null && bottomLeftRadius > 0);
+
+    if (useIndividualRadii) {
       final List<Offset> points = [
         Offset(rect.center.dx, rect.top),
         Offset(rect.right, rect.bottom),
@@ -2784,7 +2789,15 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             (selectedItem!.properties['cornerRadius'] as double?) ?? 12.0,
             0.0,
             50.0,
-            (v) => setState(() => selectedItem!.properties['cornerRadius'] = v),
+            (v) => setState(() {
+              selectedItem!.properties['cornerRadius'] = v;
+              // Clear individual corner radius values when using uniform radius
+              selectedItem!.properties.remove('topRadius');
+              selectedItem!.properties.remove('bottomRightRadius');
+              selectedItem!.properties.remove('bottomLeftRadius');
+              selectedItem!.properties.remove('topLeftRadius');
+              selectedItem!.properties.remove('topRightRadius');
+            }),
             Icons.rounded_corner_rounded,
           ),
           // Add individual side controls for quadrilaterals
@@ -7343,7 +7356,15 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           (props['cornerRadius'] as double?) ?? 12.0,
           0.0,
           50.0,
-          (v) => setState(() => props['cornerRadius'] = v),
+          (v) => setState(() {
+            props['cornerRadius'] = v;
+            // Clear individual corner radius values when using uniform radius
+            props.remove('topRadius');
+            props.remove('bottomRightRadius');
+            props.remove('bottomLeftRadius');
+            props.remove('topLeftRadius');
+            props.remove('topRightRadius');
+          }),
           Icons.rounded_corner_rounded,
         ),
         SizedBox(height: 16.h),
