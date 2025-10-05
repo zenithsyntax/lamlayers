@@ -27,6 +27,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../models/canvas_models.dart';
+import '../widgets/enhanced_slider.dart';
 
 import '../widgets/canvas_grid_painter.dart';
 
@@ -4530,96 +4531,15 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
     IconData icon,
   ) {
-    final clamped = value.clamp(min, max);
-
-    return Column(
-      children: [
-        Container(
-          width: 220.w,
-
-          margin: EdgeInsets.only(right: 12.w),
-
-          padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
-
-          decoration: BoxDecoration(
-            color: Colors.grey[50],
-
-            borderRadius: BorderRadius.circular(14.r),
-
-            border: Border.all(color: Colors.grey.shade200),
-          ),
-
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-
-            children: [
-              Row(
-                children: [
-                  Icon(icon, size: 16.sp, color: Colors.grey[600]),
-
-                  SizedBox(width: 8.w),
-
-                  Text(
-                    label,
-
-                    style: TextStyle(
-                      fontSize: 12.sp,
-
-                      color: Colors.grey[700],
-
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-
-                  const Spacer(),
-
-                  Text(
-                    clamped.toStringAsFixed(1),
-
-                    style: TextStyle(
-                      fontSize: 12.sp,
-
-                      color: Colors.blue.shade700,
-
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-
-              SliderTheme(
-                data: SliderTheme.of(context).copyWith(
-                  activeTrackColor: Colors.blue.shade400,
-
-                  inactiveTrackColor: Colors.blue.shade100,
-
-                  thumbColor: Colors.blue.shade600,
-
-                  overlayColor: Colors.blue.withOpacity(0.05),
-
-                  trackHeight: 4.0,
-
-                  thumbShape: const RoundSliderThumbShape(
-                    enabledThumbRadius: 10.0,
-                  ),
-                ),
-
-                child: Slider(
-                  value: clamped,
-
-                  min: min,
-
-                  max: max,
-
-                  onChanged: onChanged,
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        SizedBox(height: 10.h),
-      ],
+    return EnhancedSlider(
+      label: label,
+      value: value,
+      min: min,
+      max: max,
+      onChanged: onChanged,
+      icon: icon,
+      isMini: true,
+      step: 0.05, // 5% of the range
     );
   }
 
@@ -6540,78 +6460,19 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           ),
 
           // Size slider item
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 6.w),
-
-            child: Container(
-              width: 210.w,
-
-              decoration: BoxDecoration(
-                color: Colors.white,
-
-                borderRadius: BorderRadius.circular(10.r),
-
-                border: Border.all(color: Colors.grey.shade300, width: 1.5),
-              ),
-
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 0.w),
-
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-
-                  children: [
-                    Text(
-                      selectedDrawingTool == DrawingTool.textPath
-                          ? 'Font: ${drawingStrokeWidth.toInt()}'
-                          : 'Size: ${drawingStrokeWidth.toInt()}',
-
-                      style: TextStyle(
-                        fontSize: 12.sp,
-
-                        fontWeight: FontWeight.w500,
-
-                        color: Colors.grey.shade700,
-                      ),
-
-                      textAlign: TextAlign.center,
-                    ),
-
-                    SliderTheme(
-                      data: SliderTheme.of(context).copyWith(
-                        activeTrackColor: Colors.blue.shade400,
-
-                        inactiveTrackColor: Colors.blue.shade100,
-
-                        thumbColor: Colors.blue.shade600,
-
-                        trackHeight: 4.0,
-
-                        thumbShape: const RoundSliderThumbShape(
-                          enabledThumbRadius: 8.0,
-                        ),
-                      ),
-
-                      child: Slider(
-                        value: drawingStrokeWidth,
-
-                        min: 1.0,
-
-                        max: 20.0,
-
-                        divisions: 19,
-
-                        onChanged: (value) {
-                          setState(() {
-                            drawingStrokeWidth = value;
-                          });
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+          EnhancedDrawingSlider(
+            label: selectedDrawingTool == DrawingTool.textPath
+                ? 'Font: ${drawingStrokeWidth.toInt()}'
+                : 'Size: ${drawingStrokeWidth.toInt()}',
+            value: drawingStrokeWidth,
+            min: 1.0,
+            max: 20.0,
+            divisions: 19,
+            onChanged: (value) {
+              setState(() {
+                drawingStrokeWidth = value;
+              });
+            },
           ),
 
           // Font favorites (only for textPath)
@@ -6676,161 +6537,31 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
           // Letter spacing slider (only for textPath)
           if (selectedDrawingTool == DrawingTool.textPath)
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 6.w),
-
-              child: Container(
-                width: 210.w,
-
-                decoration: BoxDecoration(
-                  color: Colors.white,
-
-                  borderRadius: BorderRadius.circular(10.r),
-
-                  border: Border.all(color: Colors.grey.shade300, width: 1.5),
-                ),
-
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 10.w,
-
-                    vertical: 3.h,
-                  ),
-
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-
-                    children: [
-                      Text(
-                        'Letter Spacing: ${(_currentPathLetterSpacing ?? 0.0).toStringAsFixed(1)}',
-
-                        style: TextStyle(
-                          fontSize: 12.sp,
-
-                          fontWeight: FontWeight.w500,
-
-                          color: Colors.grey.shade700,
-                        ),
-
-                        textAlign: TextAlign.center,
-                      ),
-
-                      SliderTheme(
-                        data: SliderTheme.of(context).copyWith(
-                          activeTrackColor: Colors.blue.shade400,
-
-                          inactiveTrackColor: Colors.blue.shade100,
-
-                          thumbColor: Colors.blue.shade600,
-
-                          trackHeight: 4.0,
-
-                          thumbShape: const RoundSliderThumbShape(
-                            enabledThumbRadius: 8.0,
-                          ),
-                        ),
-
-                        child: Slider(
-                          value: (_currentPathLetterSpacing ?? 0.0).clamp(
-                            -5.0,
-
-                            20.0,
-                          ),
-
-                          min: -5.0,
-
-                          max: 20.0,
-
-                          divisions: 25,
-
-                          onChanged: (value) {
-                            setState(() {
-                              _currentPathLetterSpacing = value;
-                            });
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+            EnhancedDrawingSlider(
+              label: 'Letter Spacing',
+              value: _currentPathLetterSpacing ?? 0.0,
+              min: -5.0,
+              max: 20.0,
+              divisions: 25,
+              onChanged: (value) {
+                setState(() {
+                  _currentPathLetterSpacing = value;
+                });
+              },
             ),
 
           // Opacity slider item
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 6.w),
-
-            child: Container(
-              width: 210.w,
-
-              decoration: BoxDecoration(
-                color: Colors.white,
-
-                borderRadius: BorderRadius.circular(10.r),
-
-                border: Border.all(color: Colors.grey.shade300, width: 1.5),
-              ),
-
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 3.h),
-
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-
-                  children: [
-                    Text(
-                      'Opacity: ${(drawingOpacity * 100).toInt()}%',
-
-                      style: TextStyle(
-                        fontSize: 12.sp,
-
-                        fontWeight: FontWeight.w500,
-
-                        color: Colors.grey.shade700,
-                      ),
-
-                      textAlign: TextAlign.center,
-                    ),
-
-                    SliderTheme(
-                      data: SliderTheme.of(context).copyWith(
-                        activeTrackColor: Colors.blue.shade400,
-
-                        inactiveTrackColor: Colors.blue.shade100,
-
-                        thumbColor: Colors.blue.shade600,
-
-                        trackHeight: 4.0,
-
-                        thumbShape: const RoundSliderThumbShape(
-                          enabledThumbRadius: 8.0,
-                        ),
-                      ),
-
-                      child: Slider(
-                        value: drawingOpacity,
-
-                        min: 0.1,
-
-                        max: 1.0,
-
-                        divisions: 9,
-
-                        onChanged: (value) {
-                          setState(() {
-                            drawingOpacity = value;
-                          });
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+          EnhancedDrawingSlider(
+            label: 'Opacity: ${(drawingOpacity * 100).toInt()}%',
+            value: drawingOpacity,
+            min: 0.1,
+            max: 1.0,
+            divisions: 9,
+            onChanged: (value) {
+              setState(() {
+                drawingOpacity = value;
+              });
+            },
           ),
         ],
       ),
@@ -10957,92 +10688,15 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
     IconData icon,
   ) {
-    final clamped = value.clamp(min, max);
-
-    return Container(
-      padding: EdgeInsets.all(16.w),
-
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-
-        borderRadius: BorderRadius.circular(16.r),
-
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 20.sp, color: Colors.grey[600]),
-
-              SizedBox(width: 12.w),
-
-              Text(
-                label,
-
-                style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w500),
-              ),
-
-              const Spacer(),
-
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-
-                decoration: BoxDecoration(
-                  color: Colors.blue[50],
-
-                  borderRadius: BorderRadius.circular(12.r),
-
-                  border: Border.all(color: Colors.blue.shade200),
-                ),
-
-                child: Text(
-                  clamped.toStringAsFixed(1),
-
-                  style: TextStyle(
-                    fontSize: 14.sp,
-
-                    color: Colors.blue.shade700,
-
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          SizedBox(height: 12.h),
-
-          SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              activeTrackColor: Colors.blue.shade400,
-
-              inactiveTrackColor: Colors.blue.shade100,
-
-              thumbColor: Colors.blue.shade600,
-
-              overlayColor: Colors.blue.withOpacity(0.1),
-
-              trackHeight: 6.0,
-
-              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 12.0),
-            ),
-
-            child: Slider(
-              value: clamped,
-
-              min: min,
-
-              max: max,
-
-              onChanged: onChanged,
-            ),
-          ),
-        ],
-      ),
+    return EnhancedSlider(
+      label: label,
+      value: value,
+      min: min,
+      max: max,
+      onChanged: onChanged,
+      icon: icon,
+      isMini: false,
+      step: 0.05, // 5% of the range
     );
   }
 
