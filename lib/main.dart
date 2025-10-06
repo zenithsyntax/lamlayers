@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:lamlayers/screens/hive_model.dart';
-import 'package:lamlayers/screens/home_screen.dart';
+import 'package:lamlayers/screens/home_page.dart';
 import 'package:path_provider/path_provider.dart';
 
 void main() async {
@@ -58,9 +58,7 @@ class MyApp extends StatelessWidget {
         ),
         home: child,
       ),
-      child: const HomeScreen(),
+      child: const HomePage(),
     );
   }
 }
-
-

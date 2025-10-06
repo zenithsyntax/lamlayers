@@ -3,14 +3,14 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:lamlayers/screens/hive_model.dart';
 import 'package:lamlayers/screens/poster_maker_screen.dart';
 
-class HomeScreen extends StatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+class MyDesignsScreen extends StatefulWidget {
+  const MyDesignsScreen({Key? key}) : super(key: key);
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  State<MyDesignsScreen> createState() => _MyDesignsScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _MyDesignsScreenState extends State<MyDesignsScreen> {
   late Box<PosterProject> _projectBox;
 
   @override
