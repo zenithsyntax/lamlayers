@@ -7290,28 +7290,16 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             onPanUpdate: (details) {
               if (!item.isLocked && selectedItem == item) {
                 setState(() {
-                  // Convert drag delta from the rotated/scaled child's local space
-
-                  // into canvas space so dragging matches finger direction
-
-                  final double angle = item.rotation;
-
-                  final double cosA = math.cos(angle);
-
-                  final double sinA = math.sin(angle);
-
-                  final Offset localDelta = details.delta;
-
-                  final Offset rotatedDelta = Offset(
-                    localDelta.dx * cosA - localDelta.dy * sinA,
-
-                    localDelta.dx * sinA + localDelta.dy * cosA,
-                  );
-
-                  // Compensate for the current scale so movement feels consistent
-
+                  // Normalize by canvas zoom and amplify by item scale so large items
+                  // don't feel sluggish to move.
+                  final double zoomAdjusted = canvasZoom == 0
+                      ? 1.0
+                      : canvasZoom;
+                  final double scaleAmplify = (item.scale <= 0)
+                      ? 1.0
+                      : item.scale;
                   final Offset canvasDelta =
-                      rotatedDelta / (item.scale == 0 ? 1 : item.scale);
+                      details.delta * (scaleAmplify / zoomAdjusted);
 
                   Offset newPosition = item.position + canvasDelta;
 
