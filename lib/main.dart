@@ -4,9 +4,12 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:lamlayers/screens/hive_model.dart';
 import 'package:lamlayers/screens/home_page.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Initialize Google Mobile Ads SDK
+  await MobileAds.instance.initialize();
   final appDocumentDirectory = await getApplicationDocumentsDirectory();
   await Hive.initFlutter(appDocumentDirectory.path);
 

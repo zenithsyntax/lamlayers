@@ -1,8 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:lamlayers/screens/google_font_screen.dart';
 import 'package:lamlayers/screens/my_poster_screen.dart';
+import 'package:lamlayers/widgets/ad_banner.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -57,12 +57,11 @@ class HomePage extends StatelessWidget {
                           InkWell(
                             onTap: () {
                               Navigator.push(
-  context,
-  MaterialPageRoute(
-    builder: (context) => MyDesignsScreen(),
-  ),
-);
-
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => MyDesignsScreen(),
+                                ),
+                              );
                             },
                             child: Container(
                               height: 150.h,
@@ -81,7 +80,10 @@ class HomePage extends StatelessWidget {
                                       decoration: BoxDecoration(
                                         color: Color(0xFFFFC278),
                                         borderRadius: BorderRadius.only(
-                                          topLeft: Radius.elliptical(10.w, 50.w),
+                                          topLeft: Radius.elliptical(
+                                            10.w,
+                                            50.w,
+                                          ),
                                           bottomLeft: Radius.elliptical(
                                             50.w,
                                             40.w,
@@ -98,7 +100,7 @@ class HomePage extends StatelessWidget {
                                       ),
                                     ),
                                   ),
-                            
+
                                   Align(
                                     alignment: AlignmentGeometry.bottomLeft,
                                     child: Padding(
@@ -249,42 +251,39 @@ class HomePage extends StatelessWidget {
 
                         // Horizontal ListView
                         SizedBox(
-  height: 150.h,
-  child: ListView(
-    scrollDirection: Axis.horizontal,
-    children: [
- SizedBox(),
-    ],
-  ),
-)
-
+                          height: 150.h,
+                          child: ListView(
+                            scrollDirection: Axis.horizontal,
+                            children: [SizedBox()],
+                          ),
+                        ),
                       ],
                     ),
-                   
-
 
                     Padding(
-                        padding: EdgeInsets.only(
-                            top: 20.0.h,
-                            left: 10.h,
-                            right: 10.h,
-                          ),
+                      padding: EdgeInsets.only(
+                        top: 20.0.h,
+                        left: 10.h,
+                        right: 10.h,
+                      ),
                       child: Container(
                         height: 100.h,
                         width: double.infinity,
                         decoration: BoxDecoration(
                           color: Colors.grey[100],
-                          borderRadius: BorderRadius.circular(20)),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
                         child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Container(
                               height: 100.h,
                               width: 30.w,
                               child: RotatedBox(
-                                quarterTurns: -1, // 90 degrees clockwise
+                                quarterTurns: -1,
                                 child: Center(
                                   child: Text(
-                                    "Sponsored",
+                                    "Sponsored by",
                                     style: TextStyle(
                                       fontSize: 16.sp,
                                       fontWeight: FontWeight.bold,
@@ -294,16 +293,16 @@ class HomePage extends StatelessWidget {
                                 ),
                               ),
                             ),
-                            Container(
-                              height: 100.h,
-                              width: 320.w,
-                              color: Colors.green,
+                            SizedBox(width: 10.w),
+                            SizedBox(
+                              width: 320,
+                              height: 50,
+                              child: const AdBanner320x50(),
                             ),
                           ],
                         ),
                       ),
                     ),
-
                   ],
                 ),
               ),

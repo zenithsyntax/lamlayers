@@ -36,6 +36,7 @@ import '../widgets/action_bar.dart';
 import '../models/font_favorites.dart';
 
 import 'package:google_fonts/google_fonts.dart';
+import 'package:lamlayers/widgets/ad_banner.dart';
 
 import 'package:flutter/services.dart';
 
@@ -66,6 +67,7 @@ import 'package:lamlayers/utils/image_stroke_processor_v2.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:image_background_remover/image_background_remover.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 class PosterMakerScreen extends StatefulWidget {
   final String? projectId;
@@ -6367,7 +6369,12 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       child: ListView(
         scrollDirection: Axis.horizontal,
 
-        padding: EdgeInsets.only(left: 8.w, right: 8.w, bottom: 35.h, top: 10.h),
+        padding: EdgeInsets.only(
+          left: 8.w,
+          right: 8.w,
+          bottom: 35.h,
+          top: 10.h,
+        ),
 
         children: [
           // Back to tools
@@ -6610,7 +6617,12 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
       child: ListView(
         scrollDirection: Axis.horizontal,
-         padding: EdgeInsets.only(left: 8.w, right: 8.w, bottom: 35.h, top: 10.h),
+        padding: EdgeInsets.only(
+          left: 8.w,
+          right: 8.w,
+          bottom: 35.h,
+          top: 10.h,
+        ),
         children: [
           _chipButton(
             background: Colors.grey.shade100,
@@ -12754,11 +12766,19 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                     : _buildTabContent(),
               ),
             ],
+
+                   Container(
+          color: Colors.grey,
+          alignment: Alignment.center,
+          width: double.infinity,
+          height: 50,
+          child: const AdBanner320x50(),
+        ),
           ],
         ),
       ),
-
-      bottomSheet: const SizedBox.shrink(),
+     
+    
     );
   }
 }
@@ -12793,3 +12813,5 @@ class CheckerboardPainter extends CustomPainter {
   @override
   bool shouldRepaint(CustomPainter oldDelegate) => false;
 }
+
+// Replaced inline banner with shared AdBanner320x50 widget
