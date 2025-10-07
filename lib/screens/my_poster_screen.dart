@@ -5,7 +5,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lamlayers/screens/poster_maker_screen.dart';
 import 'package:lamlayers/screens/canvas_preset_screen.dart';
 import 'package:lamlayers/screens/hive_model.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
 class MyDesignsScreen extends StatefulWidget {
   const MyDesignsScreen({Key? key}) : super(key: key);
@@ -50,21 +51,6 @@ class _MyDesignsScreenState extends State<MyDesignsScreen> {
     }
   }
 
-  Future<void> _loadProjectFromStorage() async {
-    final result = await FilePicker.platform.pickFiles(type: FileType.image);
-    final selectedPath = result?.files.single.path;
-    if (selectedPath == null) return;
-
-    if (!mounted) return;
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) =>
-            PosterMakerScreen(initialBackgroundImagePath: selectedPath),
-      ),
-    );
-  }
-
   Widget _actionButton({
     required String title,
     required IconData icon,
@@ -75,20 +61,20 @@ class _MyDesignsScreenState extends State<MyDesignsScreen> {
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 20),
+          padding: EdgeInsets.symmetric(vertical: 20.h),
           decoration: BoxDecoration(
             color: color,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(12.r),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, color: Colors.white, size: 32),
-              const SizedBox(height: 8),
+              Icon(icon, color: Colors.white, size: 32.r),
+              SizedBox(height: 8.h),
               Text(
                 title,
                 style: GoogleFonts.poppins(
-                  fontSize: 14,
+                  fontSize: 14.sp,
                   fontWeight: FontWeight.w600,
                   color: Colors.white,
                 ),
@@ -162,12 +148,12 @@ class _MyDesignsScreenState extends State<MyDesignsScreen> {
 
   Widget _projectCard(PosterProject? project) {
     return Container(
-      width: 160,
-      margin: const EdgeInsets.only(right: 12),
+      width: 160.w,
+      margin: EdgeInsets.only(right: 12.w),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE0E0E0), width: 1),
+        borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(color: const Color(0xFFE0E0E0), width: 1.w),
       ),
       child: Stack(
         children: [
@@ -186,7 +172,7 @@ class _MyDesignsScreenState extends State<MyDesignsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  height: 140,
+                  height: 140.h,
                   decoration: BoxDecoration(
                     color: const Color(0xFFF5F5F5),
                     borderRadius: const BorderRadius.only(
@@ -195,15 +181,15 @@ class _MyDesignsScreenState extends State<MyDesignsScreen> {
                     ),
                   ),
                   child: ClipRRect(
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(12),
-                      topRight: Radius.circular(12),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(12.r),
+                      topRight: Radius.circular(12.r),
                     ),
                     child: _buildProjectPreviewImage(project),
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.all(12),
+                  padding: EdgeInsets.all(12.w),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -212,18 +198,18 @@ class _MyDesignsScreenState extends State<MyDesignsScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.poppins(
-                          fontSize: 13,
+                          fontSize: 13.sp,
                           fontWeight: FontWeight.w600,
                           color: const Color(0xFF1A1A1A),
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      SizedBox(height: 4.h),
                       Text(
                         project?.description ?? 'No description',
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.poppins(
-                          fontSize: 11,
+                          fontSize: 11.sp,
                           color: const Color(0xFF666666),
                         ),
                       ),
@@ -234,8 +220,8 @@ class _MyDesignsScreenState extends State<MyDesignsScreen> {
             ),
           ),
           Positioned(
-            right: 4,
-            top: 4,
+            right: 4.w,
+            top: 4.h,
             child: PopupMenuButton<String>(
               onSelected: (value) {
                 if (project == null) return;
@@ -262,22 +248,24 @@ class _MyDesignsScreenState extends State<MyDesignsScreen> {
     );
   }
 
-  Widget _templateCard(String title, Color color) {
+  Widget _templateCard(String title, Color color, {double? height}) {
     return Container(
-      width: 160,
-      height: 200,
-      margin: const EdgeInsets.only(right: 12),
+      height: height != null ? height.h : null,
       decoration: BoxDecoration(
         color: color,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(12.r),
       ),
       child: Center(
-        child: Text(
-          title,
-          style: GoogleFonts.poppins(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
+        child: Padding(
+          padding: EdgeInsets.all(12.w),
+          child: Text(
+            title,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
           ),
         ),
       ),
@@ -296,7 +284,7 @@ class _MyDesignsScreenState extends State<MyDesignsScreen> {
       return Center(
         child: Icon(
           Icons.image_outlined,
-          size: 48,
+          size: 48.r,
           color: const Color(0xFFBDBDBD),
         ),
       );
@@ -307,7 +295,7 @@ class _MyDesignsScreenState extends State<MyDesignsScreen> {
       return Center(
         child: Icon(
           Icons.broken_image_outlined,
-          size: 40,
+          size: 40.r,
           color: const Color(0xFFBDBDBD),
         ),
       );
@@ -322,7 +310,7 @@ class _MyDesignsScreenState extends State<MyDesignsScreen> {
         return Center(
           child: Icon(
             Icons.image_not_supported_outlined,
-            size: 40,
+            size: 40.r,
             color: const Color(0xFFBDBDBD),
           ),
         );
@@ -338,7 +326,7 @@ class _MyDesignsScreenState extends State<MyDesignsScreen> {
         title: Text(
           'My Designs',
           style: GoogleFonts.poppins(
-            fontSize: 20,
+            fontSize: 20.sp,
             fontWeight: FontWeight.w600,
             color: const Color(0xFF1A1A1A),
           ),
@@ -348,19 +336,19 @@ class _MyDesignsScreenState extends State<MyDesignsScreen> {
         elevation: 0,
         iconTheme: const IconThemeData(color: Color(0xFF1A1A1A)),
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(color: const Color(0xFFE0E0E0), height: 1),
+          preferredSize: Size.fromHeight(1.h),
+          child: Container(color: const Color(0xFFE0E0E0), height: 1.h),
         ),
       ),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 16),
+            SizedBox(height: 16.h),
 
             // Action Buttons
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              padding: EdgeInsets.symmetric(horizontal: 16.w),
               child: Row(
                 children: [
                   _actionButton(
@@ -369,57 +357,60 @@ class _MyDesignsScreenState extends State<MyDesignsScreen> {
                     onTap: _createNewProject,
                     color: const Color(0xFF42A5F5),
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: 12.w),
                   _actionButton(
                     title: 'Load from Storage',
                     icon: Icons.folder_open,
-                    onTap: _loadProjectFromStorage,
+                    onTap: () {},
                     color: const Color(0xFF66BB6A),
                   ),
                 ],
               ),
             ),
 
-            const SizedBox(height: 32),
+            SizedBox(height: 32.h),
 
             // Recent Projects Section
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              padding: EdgeInsets.symmetric(horizontal: 16.w),
               child: Text(
                 'My Recent Projects',
                 style: GoogleFonts.poppins(
-                  fontSize: 18,
+                  fontSize: 18.sp,
                   fontWeight: FontWeight.w600,
                   color: const Color(0xFF1A1A1A),
                 ),
               ),
             ),
 
-            const SizedBox(height: 12),
+            SizedBox(height: 12.h),
 
             if (!_isBoxReady)
               Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16.0),
-                padding: const EdgeInsets.all(32),
+                margin: EdgeInsets.symmetric(horizontal: 16.w),
+                padding: EdgeInsets.all(32.w),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE0E0E0), width: 1),
+                  borderRadius: BorderRadius.circular(12.r),
+                  border: Border.all(
+                    color: const Color(0xFFE0E0E0),
+                    width: 1.w,
+                  ),
                 ),
                 child: Center(
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                      SizedBox(
+                        width: 20.w,
+                        height: 20.w,
+                        child: const CircularProgressIndicator(strokeWidth: 2),
                       ),
-                      const SizedBox(width: 12),
+                      SizedBox(width: 12.w),
                       Text(
                         'Loading projects...',
                         style: GoogleFonts.poppins(
-                          fontSize: 13,
+                          fontSize: 13.sp,
                           color: const Color(0xFF666666),
                         ),
                       ),
@@ -433,14 +424,14 @@ class _MyDesignsScreenState extends State<MyDesignsScreen> {
                 builder: (context, box, _) {
                   if (box.isEmpty) {
                     return Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 16.0),
-                      padding: const EdgeInsets.all(32),
+                      margin: EdgeInsets.symmetric(horizontal: 16.w),
+                      padding: EdgeInsets.all(32.w),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(12.r),
                         border: Border.all(
                           color: const Color(0xFFE0E0E0),
-                          width: 1,
+                          width: 1.w,
                         ),
                       ),
                       child: Center(
@@ -448,23 +439,23 @@ class _MyDesignsScreenState extends State<MyDesignsScreen> {
                           children: [
                             Icon(
                               Icons.folder_outlined,
-                              size: 48,
+                              size: 48.r,
                               color: const Color(0xFFBDBDBD),
                             ),
-                            const SizedBox(height: 12),
+                            SizedBox(height: 12.h),
                             Text(
                               'No projects yet',
                               style: GoogleFonts.poppins(
-                                fontSize: 15,
+                                fontSize: 15.sp,
                                 fontWeight: FontWeight.w500,
                                 color: const Color(0xFF666666),
                               ),
                             ),
-                            const SizedBox(height: 4),
+                            SizedBox(height: 4.h),
                             Text(
                               'Create a new project to get started!',
                               style: GoogleFonts.poppins(
-                                fontSize: 12,
+                                fontSize: 12.sp,
                                 color: const Color(0xFF999999),
                               ),
                             ),
@@ -475,10 +466,10 @@ class _MyDesignsScreenState extends State<MyDesignsScreen> {
                   }
 
                   return SizedBox(
-                    height: 220,
+                    height: 220.h,
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      padding: EdgeInsets.symmetric(horizontal: 16.w),
                       itemCount: box.length,
                       itemBuilder: (context, index) {
                         final project = box.getAt(index);
@@ -489,39 +480,62 @@ class _MyDesignsScreenState extends State<MyDesignsScreen> {
                 },
               ),
 
-            const SizedBox(height: 32),
+            SizedBox(height: 32.h),
 
             // Templates Section
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              padding: EdgeInsets.symmetric(horizontal: 16.w),
               child: Text(
                 'Templates',
                 style: GoogleFonts.poppins(
-                  fontSize: 18,
+                  fontSize: 18.sp,
                   fontWeight: FontWeight.w600,
                   color: const Color(0xFF1A1A1A),
                 ),
               ),
             ),
 
-            const SizedBox(height: 12),
+            SizedBox(height: 12.h),
 
-            SizedBox(
-              height: 200,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                children: [
-                  _templateCard('Template 1', const Color(0xFF42A5F5)),
-                  _templateCard('Template 2', const Color(0xFF5C6BC0)),
-                  _templateCard('Template 3', const Color(0xFF7E57C2)),
-                  _templateCard('Template 4', const Color(0xFF26C6DA)),
-                  _templateCard('Template 5', const Color(0xFF66BB6A)),
-                ],
-              ),
+            MasonryGridView.count(
+              crossAxisCount: 2,
+              mainAxisSpacing: 12.h,
+              crossAxisSpacing: 12.w,
+              padding: EdgeInsets.symmetric(horizontal: 16.w),
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: 8,
+              itemBuilder: (context, index) {
+                final List<double> heights = [
+                  180,
+                  220,
+                  160,
+                  240,
+                  200,
+                  150,
+                  210,
+                  170,
+                ];
+                final List<Map<String, dynamic>> items = [
+                  {'title': 'Template 1', 'color': const Color(0xFF42A5F5)},
+                  {'title': 'Template 2', 'color': const Color(0xFF5C6BC0)},
+                  {'title': 'Template 3', 'color': const Color(0xFF7E57C2)},
+                  {'title': 'Template 4', 'color': const Color(0xFF26C6DA)},
+                  {'title': 'Template 5', 'color': const Color(0xFF66BB6A)},
+                  {'title': 'Template 6', 'color': const Color(0xFFFF7043)},
+                  {'title': 'Template 7', 'color': const Color(0xFFAB47BC)},
+                  {'title': 'Template 8', 'color': const Color(0xFF26A69A)},
+                ];
+                final item = items[index % items.length];
+                return _templateCard(
+                  item['title'] as String,
+                  item['color'] as Color,
+                  height: heights[index % heights.length],
+                );
+              },
             ),
 
-            const SizedBox(height: 24),
+            SizedBox(height: 24.h),
           ],
         ),
       ),
