@@ -1824,7 +1824,6 @@ class _ShapePainter extends CustomPainter {
 
     return _roundedPolygonPath(vertices, cornerRadius);
   }
-
   // Build a rounded-corner polygon path from ordered vertices
 
   Path _roundedPolygonPath(List<Offset> vertices, double radius) {
@@ -3383,25 +3382,25 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
             child: Row(
               children: [
-                Container(
-                  padding: EdgeInsets.all(10.w),
+                // Container(
+                //   padding: EdgeInsets.all(10.w),
 
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Colors.blue.shade400, Colors.blue.shade600],
-                    ),
+                //   decoration: BoxDecoration(
+                //     gradient: LinearGradient(
+                //       colors: [Colors.blue.shade400, Colors.blue.shade600],
+                //     ),
 
-                    borderRadius: BorderRadius.circular(14.r),
-                  ),
+                //     borderRadius: BorderRadius.circular(14.r),
+                //   ),
 
-                  child: Icon(
-                    _getItemTypeIcon(selectedItem!.type),
+                //   child: Icon(
+                //     _getItemTypeIcon(selectedItem!.type),
 
-                    color: Colors.white,
+                //     color: Colors.white,
 
-                    size: 20.sp,
-                  ),
-                ),
+                //     size: 20.sp,
+                //   ),
+                // ),
 
                 // SizedBox(width: 12.w),
 
@@ -3423,20 +3422,20 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                     ),
 
                     decoration: BoxDecoration(
-                      color: Colors.grey[100],
+                      color: Colors.transparent,
 
                       borderRadius: BorderRadius.circular(12.r),
 
-                      border: Border.all(color: Colors.grey.shade300),
+                      // no border
                     ),
 
                     child: Row(
                       children: [
-                        Icon(Icons.check, size: 16.sp, color: Colors.grey[700]),
-
-                        // SizedBox(width: 6.w),
-
-                        // Text('Done', style: TextStyle(fontSize: 12.sp, color: Colors.grey[700], fontWeight: FontWeight.w600)),
+                        Icon(
+                          Icons.check_rounded,
+                          size: 16.sp,
+                          color: Colors.green.shade600,
+                        ),
                       ],
                     ),
                   ),
@@ -3497,27 +3496,17 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       }
     }
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
 
-        borderRadius: BorderRadius.circular(12.r),
+      child: Row(
+        children: tabs.asMap().entries.map((entry) {
+          final int index = entry.key;
 
-        border: Border.all(color: Colors.grey.shade300),
-      ),
+          final String label = entry.value;
 
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-
-        child: Row(
-          children: tabs.asMap().entries.map((entry) {
-            final int index = entry.key;
-
-            final String label = entry.value;
-
-            return _buildSegmentButton(label, index);
-          }).toList(),
-        ),
+          return _buildSegmentButton(label, index);
+        }).toList(),
       ),
     );
   }
@@ -3525,42 +3514,47 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   Widget _buildSegmentButton(String label, int index) {
     final bool isActive = editTopbarTabIndex == index;
 
+    final Color accent = () {
+      switch (label.toLowerCase()) {
+        case 'general':
+          return const Color(0xFF2980B9); // blue
+        case 'type':
+          return const Color(0xFF27AE60); // green
+        case 'shadow':
+          return const Color(0xFF8E44AD); // purple for shadow tab
+        case 'gradient':
+          return const Color(0xFFE67E22); // orange
+        default:
+          return Colors.blueGrey;
+      }
+    }();
     return GestureDetector(
       onTap: () => setState(() => editTopbarTabIndex = index),
-
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 185),
-
+        margin: EdgeInsets.symmetric(horizontal: 4.w),
         padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
-
         decoration: BoxDecoration(
-          color: isActive ? Colors.white : Colors.transparent,
-
+          color: Colors.transparent,
           borderRadius: BorderRadius.circular(10.r),
-
-          boxShadow: isActive
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-
-                    blurRadius: 6,
-
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : null,
+          // no border
         ),
-
-        child: Text(
-          label,
-
-          style: TextStyle(
-            fontSize: 12.sp,
-
-            color: isActive ? Colors.blue.shade700 : Colors.grey.shade700,
-
-            fontWeight: FontWeight.w600,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12.sp,
+                color: isActive ? accent : Colors.grey.shade700,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            if (isActive) ...[
+              SizedBox(width: 6.w),
+              Icon(Icons.check_rounded, size: 14.sp, color: accent),
+            ],
+          ],
         ),
       ),
     );
@@ -4137,7 +4131,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             () => _showColorPicker('color'),
           ),
         ];
-
       case CanvasItemType.drawing:
 
         // Determine if this drawing has any text-path strokes
@@ -4408,7 +4401,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
               borderRadius: BorderRadius.circular(12.r),
 
-              border: Border.all(color: accent.withOpacity(0.65)),
+              // no border
             ),
 
             child: Column(
@@ -4421,8 +4414,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                   child: Text(
                     tooltip,
                     maxLines: 1,
-                    softWrap: false,
-                    overflow: TextOverflow.clip,
+                    overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
                     style: labelStyle,
                   ),
@@ -4493,9 +4485,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
               borderRadius: BorderRadius.circular(12.r),
 
-              border: Border.all(
-                color: isActive ? activeGrey : accent.withOpacity(0.65),
-              ),
+              // no border
             ),
 
             child: Column(
@@ -4704,14 +4694,14 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         height: 32.h,
 
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Colors.transparent,
 
           borderRadius: BorderRadius.circular(8.r),
 
-          border: Border.all(color: Colors.grey.shade300),
+          // no border
         ),
 
-        child: Icon(icon, size: 18.sp, color: Colors.grey[700]),
+        child: Icon(icon, size: 18.sp, color: Colors.blue.shade600),
       ),
     );
   }
@@ -4798,7 +4788,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         decoration: BoxDecoration(
           color: Colors.transparent,
           borderRadius: BorderRadius.circular(14.r),
-          border: Border.all(color: accent.withOpacity(0.65)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -4809,7 +4798,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               decoration: BoxDecoration(
                 color: isTransparent ? Colors.white : color,
                 borderRadius: BorderRadius.circular(6.r),
-                border: Border.all(color: accent.withOpacity(0.65)),
               ),
               child: isTransparent
                   ? Stack(
@@ -4863,6 +4851,17 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
     ValueChanged<String> onChanged,
   ) {
+    final List<Color> palette = const [
+      Color(0xFF2980B9), // blue
+      Color(0xFF27AE60), // green
+      Color(0xFFE67E22), // orange
+      Color(0xFF8E44AD), // purple
+      Color(0xFFE74C3C), // red
+      Color(0xFF1ABC9C), // teal
+    ];
+    final int idx = (label.hashCode.abs()) % palette.length;
+    final Color accent = palette[idx];
+
     return Container(
       width: 260.w,
 
@@ -4871,11 +4870,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
 
       decoration: BoxDecoration(
-        color: Colors.grey[50],
+        color: Colors.transparent,
 
         borderRadius: BorderRadius.circular(14.r),
-
-        border: Border.all(color: Colors.grey.shade200),
       ),
 
       child: Column(
@@ -4884,13 +4881,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         children: [
           Row(
             children: [
-              Icon(
-                Icons.text_fields_rounded,
-
-                size: 16.sp,
-
-                color: Colors.grey[600],
-              ),
+              Icon(Icons.text_fields_rounded, size: 16.sp, color: accent),
 
               SizedBox(width: 8.w),
 
@@ -4900,7 +4891,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                 style: TextStyle(
                   fontSize: 12.sp,
 
-                  color: Colors.grey[700],
+                  color: accent,
 
                   fontWeight: FontWeight.w600,
                 ),
@@ -4919,11 +4910,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
 
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Colors.transparent,
 
                 borderRadius: BorderRadius.circular(10.r),
-
-                border: Border.all(color: Colors.grey.shade300),
               ),
 
               child: Row(
@@ -4935,9 +4924,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                       style: TextStyle(
                         fontSize: 12.sp,
 
-                        color: value.isEmpty
-                            ? Colors.grey[400]
-                            : Colors.grey[800],
+                        color: value.isEmpty ? Colors.grey[400] : accent,
                       ),
 
                       maxLines: 1,
@@ -4948,13 +4935,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
                   SizedBox(width: 8.w),
 
-                  Icon(
-                    Icons.edit_rounded,
-
-                    size: 14.sp,
-
-                    color: Colors.blue.shade400,
-                  ),
+                  Icon(Icons.edit_rounded, size: 14.sp, color: accent),
                 ],
               ),
             ),
@@ -5785,11 +5766,11 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
 
       decoration: BoxDecoration(
-        color: Colors.grey[50],
+        color: Colors.transparent,
 
         borderRadius: BorderRadius.circular(14.r),
 
-        border: Border.all(color: Colors.grey.shade200),
+        // no border
       ),
 
       child: Row(

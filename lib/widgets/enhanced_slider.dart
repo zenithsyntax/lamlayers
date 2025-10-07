@@ -45,7 +45,6 @@ class EnhancedSlider extends StatelessWidget {
     double stepSize,
   ) {
     final Color accent = accentColor ?? _colorForLabel(label);
-    final Color borderColor = accent.withOpacity(0.65);
     final Color inactive = accent.withOpacity(0.2);
     return Column(
       children: [
@@ -54,9 +53,9 @@ class EnhancedSlider extends StatelessWidget {
           margin: EdgeInsets.only(right: 12.w),
           padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
           decoration: BoxDecoration(
-            color: borderOnly ? Colors.transparent : Colors.white,
+            color: Colors.transparent,
             borderRadius: BorderRadius.circular(14.r),
-            border: Border.all(color: borderColor),
+            // no border
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -99,7 +98,7 @@ class EnhancedSlider extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: Colors.transparent,
                         borderRadius: BorderRadius.circular(8.r),
-                        border: Border.all(color: borderColor),
+                        // no border
                       ),
                       child: Icon(Icons.remove, size: 16.sp, color: accent),
                     ),
@@ -139,7 +138,7 @@ class EnhancedSlider extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: Colors.transparent,
                         borderRadius: BorderRadius.circular(8.r),
-                        border: Border.all(color: borderColor),
+                        // no border
                       ),
                       child: Icon(Icons.add, size: 16.sp, color: accent),
                     ),
@@ -160,14 +159,13 @@ class EnhancedSlider extends StatelessWidget {
     double stepSize,
   ) {
     final Color accent = accentColor ?? _colorForLabel(label);
-    final Color borderColor = accent.withOpacity(0.65);
     final Color inactive = accent.withOpacity(0.2);
     return Container(
       padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
-        color: borderOnly ? Colors.transparent : Colors.white,
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: borderColor),
+        // no border
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -186,7 +184,7 @@ class EnhancedSlider extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.transparent,
                   borderRadius: BorderRadius.circular(12.r),
-                  border: Border.all(color: borderColor),
+                  // no border
                 ),
                 child: Text(
                   clamped.toStringAsFixed(1),
@@ -214,7 +212,7 @@ class EnhancedSlider extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: Colors.transparent,
                     borderRadius: BorderRadius.circular(10.r),
-                    border: Border.all(color: borderColor),
+                    // no border
                   ),
                   child: Icon(Icons.remove, size: 20.sp, color: accent),
                 ),
@@ -254,7 +252,7 @@ class EnhancedSlider extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: Colors.transparent,
                     borderRadius: BorderRadius.circular(10.r),
-                    border: Border.all(color: borderColor),
+                    // no border
                   ),
                   child: Icon(Icons.add, size: 20.sp, color: accent),
                 ),
