@@ -10,6 +10,8 @@ class EnhancedSlider extends StatelessWidget {
   final IconData icon;
   final bool isMini;
   final double step;
+  final Color? accentColor; // optional accent color per slider
+  final bool borderOnly; // when true, no filled backgrounds
 
   const EnhancedSlider({
     super.key,
@@ -21,6 +23,8 @@ class EnhancedSlider extends StatelessWidget {
     required this.icon,
     this.isMini = false,
     this.step = 0.1,
+    this.accentColor,
+    this.borderOnly = true,
   });
 
   @override
@@ -35,7 +39,14 @@ class EnhancedSlider extends StatelessWidget {
     }
   }
 
-  Widget _buildMiniSlider(BuildContext context, double clamped, double stepSize) {
+  Widget _buildMiniSlider(
+    BuildContext context,
+    double clamped,
+    double stepSize,
+  ) {
+    final Color accent = accentColor ?? _colorForLabel(label);
+    final Color borderColor = accent.withOpacity(0.65);
+    final Color inactive = accent.withOpacity(0.2);
     return Column(
       children: [
         Container(
@@ -43,22 +54,22 @@ class EnhancedSlider extends StatelessWidget {
           margin: EdgeInsets.only(right: 12.w),
           padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
           decoration: BoxDecoration(
-            color: Colors.grey[50],
+            color: borderOnly ? Colors.transparent : Colors.white,
             borderRadius: BorderRadius.circular(14.r),
-            border: Border.all(color: Colors.grey.shade200),
+            border: Border.all(color: borderColor),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  Icon(icon, size: 16.sp, color: Colors.grey[600]),
+                  Icon(icon, size: 16.sp, color: accent),
                   SizedBox(width: 8.w),
                   Text(
                     label,
                     style: TextStyle(
                       fontSize: 12.sp,
-                      color: Colors.grey[700],
+                      color: accent,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -67,7 +78,7 @@ class EnhancedSlider extends StatelessWidget {
                     clamped.toStringAsFixed(1),
                     style: TextStyle(
                       fontSize: 12.sp,
-                      color: Colors.blue.shade700,
+                      color: accent,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -86,15 +97,11 @@ class EnhancedSlider extends StatelessWidget {
                       width: 28.w,
                       height: 28.h,
                       decoration: BoxDecoration(
-                        color: Colors.grey[100],
+                        color: Colors.transparent,
                         borderRadius: BorderRadius.circular(8.r),
-                        border: Border.all(color: Colors.grey.shade300),
+                        border: Border.all(color: borderColor),
                       ),
-                      child: Icon(
-                        Icons.remove,
-                        size: 16.sp,
-                        color: Colors.grey[600],
-                      ),
+                      child: Icon(Icons.remove, size: 16.sp, color: accent),
                     ),
                   ),
                   SizedBox(width: 8.w),
@@ -102,10 +109,10 @@ class EnhancedSlider extends StatelessWidget {
                   Expanded(
                     child: SliderTheme(
                       data: SliderTheme.of(context).copyWith(
-                        activeTrackColor: Colors.blue.shade400,
-                        inactiveTrackColor: Colors.blue.shade100,
-                        thumbColor: Colors.blue.shade600,
-                        overlayColor: Colors.blue.withOpacity(0.05),
+                        activeTrackColor: accent,
+                        inactiveTrackColor: inactive,
+                        thumbColor: accent,
+                        overlayColor: accent.withOpacity(0.08),
                         trackHeight: 4.0,
                         thumbShape: const RoundSliderThumbShape(
                           enabledThumbRadius: 10.0,
@@ -130,15 +137,11 @@ class EnhancedSlider extends StatelessWidget {
                       width: 28.w,
                       height: 28.h,
                       decoration: BoxDecoration(
-                        color: Colors.grey[100],
+                        color: Colors.transparent,
                         borderRadius: BorderRadius.circular(8.r),
-                        border: Border.all(color: Colors.grey.shade300),
+                        border: Border.all(color: borderColor),
                       ),
-                      child: Icon(
-                        Icons.add,
-                        size: 16.sp,
-                        color: Colors.grey[600],
-                      ),
+                      child: Icon(Icons.add, size: 16.sp, color: accent),
                     ),
                   ),
                 ],
@@ -151,20 +154,27 @@ class EnhancedSlider extends StatelessWidget {
     );
   }
 
-  Widget _buildFullSlider(BuildContext context, double clamped, double stepSize) {
+  Widget _buildFullSlider(
+    BuildContext context,
+    double clamped,
+    double stepSize,
+  ) {
+    final Color accent = accentColor ?? _colorForLabel(label);
+    final Color borderColor = accent.withOpacity(0.65);
+    final Color inactive = accent.withOpacity(0.2);
     return Container(
       padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
+        color: borderOnly ? Colors.transparent : Colors.white,
         borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, size: 20.sp, color: Colors.grey[600]),
+              Icon(icon, size: 20.sp, color: accent),
               SizedBox(width: 12.w),
               Text(
                 label,
@@ -174,15 +184,15 @@ class EnhancedSlider extends StatelessWidget {
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
                 decoration: BoxDecoration(
-                  color: Colors.blue[50],
+                  color: Colors.transparent,
                   borderRadius: BorderRadius.circular(12.r),
-                  border: Border.all(color: Colors.blue.shade200),
+                  border: Border.all(color: borderColor),
                 ),
                 child: Text(
                   clamped.toStringAsFixed(1),
                   style: TextStyle(
                     fontSize: 14.sp,
-                    color: Colors.blue.shade700,
+                    color: accent,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -202,15 +212,11 @@ class EnhancedSlider extends StatelessWidget {
                   width: 36.w,
                   height: 36.h,
                   decoration: BoxDecoration(
-                    color: Colors.grey[100],
+                    color: Colors.transparent,
                     borderRadius: BorderRadius.circular(10.r),
-                    border: Border.all(color: Colors.grey.shade300),
+                    border: Border.all(color: borderColor),
                   ),
-                  child: Icon(
-                    Icons.remove,
-                    size: 20.sp,
-                    color: Colors.grey[600],
-                  ),
+                  child: Icon(Icons.remove, size: 20.sp, color: accent),
                 ),
               ),
               SizedBox(width: 12.w),
@@ -218,12 +224,14 @@ class EnhancedSlider extends StatelessWidget {
               Expanded(
                 child: SliderTheme(
                   data: SliderTheme.of(context).copyWith(
-                    activeTrackColor: Colors.blue.shade400,
-                    inactiveTrackColor: Colors.blue.shade100,
-                    thumbColor: Colors.blue.shade600,
-                    overlayColor: Colors.blue.withOpacity(0.1),
+                    activeTrackColor: accent,
+                    inactiveTrackColor: inactive,
+                    thumbColor: accent,
+                    overlayColor: accent.withOpacity(0.1),
                     trackHeight: 6.0,
-                    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 12.0),
+                    thumbShape: const RoundSliderThumbShape(
+                      enabledThumbRadius: 12.0,
+                    ),
                   ),
                   child: Slider(
                     value: clamped,
@@ -244,15 +252,11 @@ class EnhancedSlider extends StatelessWidget {
                   width: 36.w,
                   height: 36.h,
                   decoration: BoxDecoration(
-                    color: Colors.grey[100],
+                    color: Colors.transparent,
                     borderRadius: BorderRadius.circular(10.r),
-                    border: Border.all(color: Colors.grey.shade300),
+                    border: Border.all(color: borderColor),
                   ),
-                  child: Icon(
-                    Icons.add,
-                    size: 20.sp,
-                    color: Colors.grey[600],
-                  ),
+                  child: Icon(Icons.add, size: 20.sp, color: accent),
                 ),
               ),
             ],
@@ -260,6 +264,37 @@ class EnhancedSlider extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Color _colorForLabel(String label) {
+    // Deterministic colorful palette per label
+    switch (label.toLowerCase()) {
+      case 'opacity':
+        return const Color(0xFF8E44AD); // purple
+      case 'scale':
+        return const Color(0xFF27AE60); // green
+      case 'rotate':
+        return const Color(0xFFE67E22); // orange
+      case 'blur':
+        return const Color(0xFF3498DB); // blue
+      case 'shadow x':
+      case 'shadow y':
+      case 'shadow blur':
+        return const Color(0xFF2C3E50); // dark blue-gray
+      default:
+        final List<Color> palette = const [
+          Color(0xFFE74C3C), // red
+          Color(0xFFF1C40F), // yellow
+          Color(0xFF1ABC9C), // teal
+          Color(0xFF9B59B6), // amethyst
+          Color(0xFF16A085), // green teal
+          Color(0xFF2ECC71), // light green
+          Color(0xFF2980B9), // denim
+          Color(0xFFD35400), // pumpkin
+        ];
+        final int index = (label.hashCode.abs()) % palette.length;
+        return palette[index];
+    }
   }
 }
 

@@ -3683,7 +3683,11 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         hasShadow,
 
         () => setState(() {
-          props['hasShadow'] = !hasShadow;
+          final bool newVal = !hasShadow;
+          props['hasShadow'] = newVal;
+          if (newVal) {
+            props['hasGradient'] = false;
+          }
         }),
       ),
 
@@ -3799,10 +3803,13 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         hasGradient,
 
         () => setState(() {
-          props['hasGradient'] = !hasGradient;
+          final bool newVal = !hasGradient;
+          props['hasGradient'] = newVal;
+          if (newVal) {
+            props['hasShadow'] = false;
+          }
 
           // Initialize gradient colors if not present
-
           if (hasGradient &&
               (props['gradientColors'] == null ||
                   (props['gradientColors'] as List).isEmpty)) {
@@ -4348,7 +4355,40 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     }
   }
 
+  double _measureTextWidth(String text, TextStyle style) {
+    final TextPainter painter = TextPainter(
+      text: TextSpan(text: text, style: style),
+      maxLines: 1,
+      textDirection: TextDirection.ltr,
+      textScaleFactor: MediaQuery.of(context).textScaleFactor,
+    )..layout();
+    return painter.width;
+  }
+
   Widget _miniIconButton(String tooltip, IconData icon, VoidCallback onTap) {
+    final List<Color> palette = const [
+      Color(0xFF2980B9), // blue
+      Color(0xFFE74C3C), // red
+      Color(0xFFF1C40F), // yellow
+      Color(0xFF16A085), // teal
+      Color(0xFF9B59B6), // purple
+      Color(0xFFD35400), // orange
+      Color(0xFF2ECC71), // green
+    ];
+    final int idx = (tooltip.hashCode.abs()) % palette.length;
+    final Color accent = palette[idx];
+
+    final TextStyle labelStyle = TextStyle(
+      fontSize: 10.sp,
+      fontWeight: FontWeight.w600,
+      color: accent,
+    );
+    final double baseWidth = 60.w;
+    final double textWidth = _measureTextWidth(tooltip, labelStyle);
+    final double containerWidth = (textWidth + 12.w) > baseWidth
+        ? (textWidth + 12.w)
+        : baseWidth;
+
     return Padding(
       padding: EdgeInsets.only(right: 10.w, bottom: 35.h),
 
@@ -4359,19 +4399,123 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           onTap: onTap,
 
           child: Container(
-            width: 46.w,
+            width: containerWidth,
 
-            height: 46.h,
+            height: 60.h,
 
             decoration: BoxDecoration(
-              color: Colors.grey[50],
+              color: Colors.transparent,
 
               borderRadius: BorderRadius.circular(12.r),
 
-              border: Border.all(color: Colors.grey.shade200),
+              border: Border.all(color: accent.withOpacity(0.65)),
             ),
 
-            child: Icon(icon, size: 20.sp, color: Colors.grey[700]),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 20.sp, color: accent),
+                SizedBox(height: 4.h),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 4.w),
+                  child: Text(
+                    tooltip,
+                    maxLines: 1,
+                    softWrap: false,
+                    overflow: TextOverflow.clip,
+                    textAlign: TextAlign.center,
+                    style: labelStyle,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _miniToggleIcon(
+    String tooltip,
+
+    IconData icon,
+
+    bool isActive,
+
+    VoidCallback onTap,
+  ) {
+    final List<Color> palette = const [
+      Color(0xFF2980B9),
+      Color(0xFFE74C3C),
+      Color(0xFFF1C40F),
+      Color(0xFF16A085),
+      Color(0xFF9B59B6),
+      Color(0xFFD35400),
+      Color(0xFF2ECC71),
+    ];
+    final int idx = (tooltip.hashCode.abs()) % palette.length;
+    final Color accent = palette[idx];
+    final String dynLabel = isActive
+        ? tooltip.replaceFirst(
+            RegExp('^Enable', caseSensitive: false),
+            'Disable',
+          )
+        : tooltip;
+
+    final Color activeGrey = Colors.grey.shade600;
+    final TextStyle labelStyle = TextStyle(
+      fontSize: 10.sp,
+      fontWeight: FontWeight.w700,
+      color: isActive ? activeGrey : accent,
+    );
+    final double baseWidth = 60.w;
+    final double textWidth = _measureTextWidth(dynLabel, labelStyle);
+    final double containerWidth = (textWidth + 12.w) > baseWidth
+        ? (textWidth + 12.w)
+        : baseWidth;
+
+    return Padding(
+      padding: EdgeInsets.only(right: 10.w, bottom: 35.h),
+
+      child: Tooltip(
+        message: dynLabel,
+
+        child: GestureDetector(
+          onTap: onTap,
+
+          child: Container(
+            width: containerWidth,
+
+            height: 60.h,
+
+            decoration: BoxDecoration(
+              color: Colors.transparent,
+
+              borderRadius: BorderRadius.circular(12.r),
+
+              border: Border.all(
+                color: isActive ? activeGrey : accent.withOpacity(0.65),
+              ),
+            ),
+
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 20.sp, color: isActive ? activeGrey : accent),
+                SizedBox(height: 4.h),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 4.w),
+                  child: Text(
+                    dynLabel,
+                    maxLines: 1,
+                    softWrap: false,
+                    overflow: TextOverflow.clip,
+                    textAlign: TextAlign.center,
+                    style: labelStyle,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -4585,6 +4729,21 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
     IconData icon,
   ) {
+    // Assign distinct colors per slider label for a colorful UI
+    final List<Color> palette = const [
+      Color(0xFF8E44AD), // purple
+      Color(0xFF27AE60), // green
+      Color(0xFFE67E22), // orange
+      Color(0xFF3498DB), // blue
+      Color(0xFFE74C3C), // red
+      Color(0xFFF1C40F), // yellow
+      Color(0xFF1ABC9C), // teal
+      Color(0xFF9B59B6), // amethyst
+    ];
+    final int paletteIndex = (label.hashCode.abs()) % palette.length;
+    final Color accent = paletteIndex >= 0 && paletteIndex < palette.length
+        ? palette[paletteIndex]
+        : const Color(0xFF3498DB);
     return EnhancedSlider(
       label: label,
       value: value,
@@ -4594,6 +4753,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       icon: icon,
       isMini: true,
       step: 0.05, // 5% of the range
+      accentColor: accent,
+      borderOnly: true,
     );
   }
 
@@ -4616,78 +4777,79 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   Widget _miniColorSwatch(String label, Color color, VoidCallback onTap) {
     final bool isTransparent = color == Colors.transparent;
 
-    return Container(
-      margin: EdgeInsets.only(right: 12.w, bottom: 35.h),
+    final List<Color> palette = const [
+      Color(0xFF8E44AD), // purple
+      Color(0xFF27AE60), // green
+      Color(0xFFE67E22), // orange
+      Color(0xFF3498DB), // blue
+      Color(0xFFE74C3C), // red
+      Color(0xFFF1C40F), // yellow
+      Color(0xFF1ABC9C), // teal
+      Color(0xFF9B59B6), // amethyst
+    ];
+    final int idx = (label.hashCode.abs()) % palette.length;
+    final Color accent = palette[idx];
 
-      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
-
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-
-        borderRadius: BorderRadius.circular(14.r),
-
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-
-        children: [
-          Container(
-            width: 22.w,
-
-            height: 22.h,
-
-            decoration: BoxDecoration(
-              color: isTransparent ? Colors.white : color,
-              borderRadius: BorderRadius.circular(6.r),
-
-              border: Border.all(color: Colors.grey.shade300),
-            ),
-
-            child: isTransparent
-                ? Stack(
-                    children: [
-                      // Checkerboard pattern for transparent
-                      CustomPaint(
-                        painter: CheckerboardPainter(),
-                        size: Size(22.w, 22.h),
-                      ),
-                      // Diagonal line to indicate transparent
-                      Center(
-                        child: Container(
-                          width: 16.w,
-                          height: 2.h,
-                          decoration: BoxDecoration(
-                            color: Colors.red,
-                            borderRadius: BorderRadius.circular(1.r),
-                          ),
-                          transform: Matrix4.rotationZ(0.785398), // 45 degrees
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: EdgeInsets.only(right: 12.w, bottom: 35.h),
+        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+        decoration: BoxDecoration(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(14.r),
+          border: Border.all(color: accent.withOpacity(0.65)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 22.w,
+              height: 22.h,
+              decoration: BoxDecoration(
+                color: isTransparent ? Colors.white : color,
+                borderRadius: BorderRadius.circular(6.r),
+                border: Border.all(color: accent.withOpacity(0.65)),
+              ),
+              child: isTransparent
+                  ? Stack(
+                      children: [
+                        // Checkerboard pattern for transparent
+                        CustomPaint(
+                          painter: CheckerboardPainter(),
+                          size: Size(22.w, 22.h),
                         ),
-                      ),
-                    ],
-                  )
-                : null,
-          ),
-
-          SizedBox(width: 8.w),
-
-          Text(
-            label,
-
-            style: TextStyle(
-              fontSize: 12.sp,
-
-              color: Colors.grey[700],
-
-              fontWeight: FontWeight.w600,
+                        // Diagonal line to indicate transparent
+                        Center(
+                          child: Container(
+                            width: 16.w,
+                            height: 2.h,
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              borderRadius: BorderRadius.circular(1.r),
+                            ),
+                            transform: Matrix4.rotationZ(
+                              0.785398,
+                            ), // 45 degrees
+                          ),
+                        ),
+                      ],
+                    )
+                  : null,
             ),
-          ),
 
-          SizedBox(width: 8.w),
+            SizedBox(width: 8.w),
 
-          _miniIconButton('Pick', Icons.palette_rounded, onTap),
-        ],
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12.sp,
+                color: accent,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -4801,7 +4963,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       ),
     );
   }
-
   // Add this method to show the text editing dialog:
 
   void _showTextEditDialog(String currentText, ValueChanged<String> onChanged) {
@@ -5701,70 +5862,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _miniToggleIcon(
-    String tooltip,
-
-    IconData icon,
-
-    bool isActive,
-
-    VoidCallback onTap,
-  ) {
-    return Padding(
-      padding: EdgeInsets.only(right: 10.w, bottom: 35.h),
-
-      child: Tooltip(
-        message: tooltip,
-
-        child: GestureDetector(
-          onTap: onTap,
-
-          child: Container(
-            width: 46.w,
-
-            height: 46.h,
-
-            decoration: BoxDecoration(
-              gradient: isActive
-                  ? LinearGradient(
-                      colors: [Colors.blue.shade400, Colors.blue.shade600],
-                    )
-                  : null,
-
-              color: isActive ? null : Colors.grey[50],
-
-              borderRadius: BorderRadius.circular(12.r),
-
-              border: Border.all(
-                color: isActive ? Colors.transparent : Colors.grey.shade200,
-              ),
-
-              boxShadow: isActive
-                  ? [
-                      BoxShadow(
-                        color: Colors.blue.withOpacity(0.25),
-
-                        blurRadius: 10,
-
-                        offset: const Offset(0, 3),
-                      ),
-                    ]
-                  : null,
-            ),
-
-            child: Icon(
-              icon,
-
-              size: 20.sp,
-
-              color: isActive ? Colors.white : Colors.grey[700],
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -9329,7 +9426,24 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
           Icons.gradient_rounded,
 
-          (value) => setState(() => props['hasGradient'] = value),
+          (value) => setState(() {
+            final bool newVal = !((props['hasGradient'] as bool?) ?? false);
+            props['hasGradient'] = newVal;
+            if (newVal) {
+              props['hasShadow'] = false;
+            }
+
+            // Initialize gradient colors if not present
+            if (newVal &&
+                (props['gradientColors'] == null ||
+                    (props['gradientColors'] as List).isEmpty)) {
+              props['gradientColors'] = [
+                HiveColor.fromColor(Colors.blue),
+
+                HiveColor.fromColor(Colors.purple),
+              ];
+            }
+          }),
         ),
 
         if (props['hasGradient'] == true) ...[
@@ -9985,7 +10099,24 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
           Icons.gradient_rounded,
 
-          (value) => setState(() => props['hasGradient'] = value),
+          (value) => setState(() {
+            final bool newVal = !((props['hasGradient'] as bool?) ?? false);
+            props['hasGradient'] = newVal;
+            if (newVal) {
+              props['hasShadow'] = false;
+            }
+
+            // Initialize gradient colors if not present
+            if (newVal &&
+                (props['gradientColors'] == null ||
+                    (props['gradientColors'] as List).isEmpty)) {
+              props['gradientColors'] = [
+                HiveColor.fromColor(Colors.blue),
+
+                HiveColor.fromColor(Colors.purple),
+              ];
+            }
+          }),
         ),
 
         if (props['hasGradient'] == true) ...[
