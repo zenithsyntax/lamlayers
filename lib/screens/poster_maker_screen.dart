@@ -11498,22 +11498,13 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   Widget _buildActionBar() {
     return ActionBar(
       canUndo: currentActionIndex >= 0,
-
       canRedo: currentActionIndex < actionHistory.length - 1,
-
       onUndo: _undo,
-
       onRedo: _redo,
-
-      snapToGrid: snapToGrid,
-
-      onToggleGrid: (v) => setState(() => snapToGrid = v),
-
       hasItems: canvasItems.isNotEmpty,
-
       onShowLayers: _showLayerPanel,
-
       onExport: _exportPoster,
+      onBack: () => Navigator.pop(context),
     );
   }
 
@@ -12671,38 +12662,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
-
-      appBar: AppBar(
-        title: Text(_currentProject?.name ?? 'Poster Maker'),
-
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-
-            onPressed: () {
-              Navigator.push(
-                context,
-
-                MaterialPageRoute(builder: (context) => const SettingsScreen()),
-              ).then((_) {
-                // Reload user preferences when returning from settings
-
-                userPreferences =
-                    _userPreferencesBox.get('user_prefs_id') ??
-                    UserPreferences();
-
-                _initializeAutoSave();
-
-                // Trigger canvas redraw to show any pending drawings
-
-                setState(() {});
-              });
-            },
-          ),
-
-          IconButton(icon: const Icon(Icons.save), onPressed: _saveProject),
-        ],
-      ),
 
       body: SafeArea(
         child: Column(

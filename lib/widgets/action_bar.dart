@@ -6,11 +6,10 @@ class ActionBar extends StatelessWidget {
   final bool canRedo;
   final VoidCallback onUndo;
   final VoidCallback onRedo;
-  final bool snapToGrid;
-  final ValueChanged<bool> onToggleGrid;
   final bool hasItems;
   final VoidCallback onShowLayers;
   final VoidCallback onExport;
+  final VoidCallback? onBack;
 
   const ActionBar({
     super.key,
@@ -18,42 +17,85 @@ class ActionBar extends StatelessWidget {
     required this.canRedo,
     required this.onUndo,
     required this.onRedo,
-    required this.snapToGrid,
-    required this.onToggleGrid,
     required this.hasItems,
     required this.onShowLayers,
     required this.onExport,
+    this.onBack,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       height: 80.h,
-      padding: EdgeInsets.symmetric(horizontal: 10.w),
+      padding: EdgeInsets.symmetric(horizontal: 20.w),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 20, offset: const Offset(0, -4)),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 20,
+            offset: const Offset(0, -4),
+          ),
         ],
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _buildActionButton(context, Icons.undo_rounded, canUndo, onUndo, 'Undo'),
-          SizedBox(width: 7.w),
-          _buildActionButton(context, Icons.redo_rounded, canRedo, onRedo, 'Redo'),
-          SizedBox(width: 7.w),
-          _buildActionButton(context, Icons.grid_on_rounded, true, () => onToggleGrid(!snapToGrid), snapToGrid ? 'Grid On' : 'Grid Off', isActive: snapToGrid),
-        SizedBox(width: 7.w),
-          _buildActionButton(context, Icons.layers_rounded, hasItems, onShowLayers, 'Layers'),
-          SizedBox(width: 12.w),
-          _buildGradientButton(context, 'Export', Icons.file_download_rounded, onExport),
+          // Back button
+          if (onBack != null) ...[
+            _buildBackButton(context),
+            SizedBox(width: 8.w),
+          ],
+          // Undo button
+          _buildActionButton(
+            context,
+            Icons.undo_rounded,
+            canUndo,
+            onUndo,
+            'Undo',
+            iconColor: Colors.amber[600],
+          ),
+          SizedBox(width: 8.w),
+          // Redo button
+          _buildActionButton(
+            context,
+            Icons.redo_rounded,
+            canRedo,
+            onRedo,
+            'Redo',
+            iconColor: Colors.amber[600],
+          ),
+          SizedBox(width: 8.w),
+          // Layers button
+          _buildActionButton(
+            context,
+            Icons.layers_rounded,
+            hasItems,
+            onShowLayers,
+            'Layers',
+            iconColor: Colors.green[600],
+          ),
+          SizedBox(width: 8.w),
+          // Export button
+          _buildExportButton(
+            context,
+            'Export',
+            Icons.file_download_rounded,
+            onExport,
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildActionButton(BuildContext context, IconData icon, bool enabled, VoidCallback onTap, String tooltip, {bool isActive = false}) {
+  Widget _buildActionButton(
+    BuildContext context,
+    IconData icon,
+    bool enabled,
+    VoidCallback onTap,
+    String tooltip, {
+    Color? iconColor,
+  }) {
     return Tooltip(
       message: tooltip,
       child: GestureDetector(
@@ -61,40 +103,73 @@ class ActionBar extends StatelessWidget {
         child: Container(
           width: 48.w,
           height: 48.h,
-          decoration: BoxDecoration(
-            gradient: isActive ? LinearGradient(colors: [Colors.blue.shade400, Colors.blue.shade600]) : null,
-            color: isActive ? null : (enabled ? Colors.grey[100] : Colors.grey[50]),
-            borderRadius: BorderRadius.circular(14.r),
-            border: Border.all(color: isActive ? Colors.transparent : Colors.grey.shade200, width: 1.5),
-            boxShadow: enabled ? [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))] : null,
+          child: Icon(
+            icon,
+            color: enabled ? (iconColor ?? Colors.grey[700]) : Colors.grey[400],
+            size: 24.sp,
           ),
-          child: Icon(icon, color: isActive ? Colors.white : (enabled ? Colors.grey[700] : Colors.grey[400]), size: 22.sp),
         ),
       ),
     );
   }
 
-  Widget _buildGradientButton(BuildContext context, String label, IconData icon, VoidCallback onTap) {
+  Widget _buildBackButton(BuildContext context) {
+    return Tooltip(
+      message: 'Back',
+      child: GestureDetector(
+        onTap: onBack,
+        child: Container(
+          width: 48.w,
+          height: 48.h,
+          child: Icon(
+            Icons.arrow_back_ios_rounded,
+            color: Colors.brown[700],
+            size: 24.sp,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExportButton(
+    BuildContext context,
+    String label,
+    IconData icon,
+    VoidCallback onTap,
+  ) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 12.h),
+        padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
         decoration: BoxDecoration(
-          gradient: LinearGradient(colors: [Colors.blue.shade400, Colors.blue.shade600], begin: Alignment.topLeft, end: Alignment.bottomRight),
+          color: Colors.amber[50],
           borderRadius: BorderRadius.circular(20.r),
-          boxShadow: [BoxShadow(color: Colors.blue.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4))],
+          border: Border.all(color: Colors.amber[200]!, width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: Colors.white, size: 20.sp),
+            Icon(icon, color: Colors.amber[600], size: 20.sp),
             SizedBox(width: 8.w),
-            Text(label, style: TextStyle(color: Colors.white, fontSize: 16.sp, fontWeight: FontWeight.w600, letterSpacing: 0.3)),
+            Text(
+              label,
+              style: TextStyle(
+                color: Colors.red[600],
+                fontSize: 16.sp,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.3,
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 }
-
-

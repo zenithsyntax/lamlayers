@@ -249,23 +249,15 @@ class HomePage extends StatelessWidget {
 
                         // Horizontal ListView
                         SizedBox(
-                          height: 150.h,
-                          child: ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: 5,
-                            itemBuilder: (context, index) {
-                              return Container(
-                                margin: EdgeInsets.only(right: 5.w, left: 10.w),
-                                height: 140.h,
-                                width: 100.h,
-                                decoration: BoxDecoration(
-                                  color: Colors.green,
-                                  borderRadius: BorderRadius.circular(12.r),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
+  height: 150.h,
+  child: ListView(
+    scrollDirection: Axis.horizontal,
+    children: [
+ SizedBox(),
+    ],
+  ),
+)
+
                       ],
                     ),
                    
