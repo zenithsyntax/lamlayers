@@ -146,6 +146,13 @@ class _MyDesignsScreenState extends State<MyDesignsScreen> {
     }
   }
 
+  String _formatDate(DateTime? dateTime) {
+    if (dateTime == null) return '';
+    final d = dateTime.toLocal();
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${d.year}-${two(d.month)}-${two(d.day)}';
+  }
+
   Widget _projectCard(PosterProject? project) {
     return Container(
       width: 160.w,
@@ -205,7 +212,17 @@ class _MyDesignsScreenState extends State<MyDesignsScreen> {
                       ),
                       SizedBox(height: 4.h),
                       Text(
-                        project?.description ?? 'No description',
+                        (() {
+                          final desc = project?.description?.trim();
+                          if (desc == null || desc.isEmpty) {
+                            final created = project?.createdAt;
+                            if (created != null) {
+                              return 'Created: ${_formatDate(created)}';
+                            }
+                            return 'No description';
+                          }
+                          return desc;
+                        })(),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.poppins(
