@@ -49,6 +49,7 @@ dependencies:
   screenshot: ^3.0.0
   image_editor_plus: ^1.0.8
   image_background_remover: ^0.0.3
+  file_picker: ^8.1.4
 
 dev_dependencies:
   flutter_test:

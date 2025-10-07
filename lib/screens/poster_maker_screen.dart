@@ -1,5 +1,3 @@
-//push test 1
-
 import 'dart:io';
 
 import 'dart:typed_data';
@@ -71,8 +69,17 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 class PosterMakerScreen extends StatefulWidget {
   final String? projectId;
+  final double? initialCanvasWidth;
+  final double? initialCanvasHeight;
+  final String? initialBackgroundImagePath;
 
-  const PosterMakerScreen({super.key, this.projectId});
+  const PosterMakerScreen({
+    super.key,
+    this.projectId,
+    this.initialCanvasWidth,
+    this.initialCanvasHeight,
+    this.initialBackgroundImagePath,
+  });
 
   @override
   State<PosterMakerScreen> createState() => _PosterMakerScreenState();
@@ -2264,6 +2271,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   Timer? _autoSaveTimer;
   bool _isAutoSaving = false;
+  bool _isDisposing = false;
 
   @override
   void initState() {
@@ -2305,6 +2313,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         canvasItems: [],
 
         settings: ProjectSettings(exportSettings: ExportSettings()),
+        canvasWidth: widget.initialCanvasWidth ?? 1080,
+        canvasHeight: widget.initialCanvasHeight ?? 1920,
+        backgroundImagePath: widget.initialBackgroundImagePath,
       );
 
       _projectBox.put(_currentProject!.id, _currentProject!);
@@ -2381,7 +2392,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   @override
   void dispose() {
-    _saveProject();
+    _isDisposing = true;
+    _autoSaveTimer?.cancel();
+    _saveProject(showIndicator: false, saveThumbnail: false);
 
     _bottomSheetController.dispose();
 
@@ -2390,8 +2403,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     _itemAddController.dispose();
 
     _cancelNudgeTimers();
-
-    _autoSaveTimer?.cancel();
 
     BackgroundRemover.instance.dispose();
 
@@ -2424,7 +2435,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     }
   }
 
-  void _saveProject() {
+  void _saveProject({bool showIndicator = true, bool saveThumbnail = true}) {
     if (_currentProject != null) {
       _currentProject!.lastModified = DateTime.now();
 
@@ -2436,16 +2447,19 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
       _projectBox.put(_currentProject!.id, _currentProject!);
 
-      // Show auto-save indicator
+      if (saveThumbnail && mounted && !_isDisposing) {
+        _generateAndStoreThumbnail(_currentProject!);
+      }
 
-      if (userPreferences.autoSave) {
+      // Show auto-save indicator
+      if (showIndicator && userPreferences.autoSave && !_isDisposing) {
         _showAutoSaveIndicator();
       }
     }
   }
 
   void _showAutoSaveIndicator() {
-    if (!mounted) return;
+    if (!mounted || _isDisposing) return;
 
     // Set autosave state to show progress indicator
     setState(() {
@@ -2460,6 +2474,42 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         });
       }
     });
+  }
+
+  Future<void> _generateAndStoreThumbnail(PosterProject project) async {
+    try {
+      final boundary =
+          _canvasRepaintKey.currentContext?.findRenderObject()
+              as RenderRepaintBoundary?;
+      if (boundary == null) return;
+
+      // Low pixel ratio for light-weight thumbnail
+      final ui.Image image = await boundary.toImage(pixelRatio: 1.0);
+      final ByteData? byteData = await image.toByteData(
+        format: ui.ImageByteFormat.png,
+      );
+      if (byteData == null) return;
+
+      final Uint8List pngBytes = byteData.buffer.asUint8List();
+
+      final Directory appDir = await getApplicationDocumentsDirectory();
+      final Directory thumbsDir = Directory('${appDir.path}/thumbnails');
+      if (!thumbsDir.existsSync()) {
+        thumbsDir.createSync(recursive: true);
+      }
+
+      final String filePath = '${thumbsDir.path}/${project.id}.png';
+      final File file = File(filePath);
+      await file.writeAsBytes(pngBytes, flush: true);
+
+      // Update project with thumbnail path if changed
+      if (project.thumbnailPath != filePath) {
+        project.thumbnailPath = filePath;
+        _projectBox.put(project.id, project);
+      }
+    } catch (_) {
+      // Ignore thumbnail errors; not critical for saving
+    }
   }
 
   void _updateUserPreferences(UserPreferences newPreferences) {
@@ -7234,108 +7284,97 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           });
         },
 
-        child: Container(
-          margin: EdgeInsets.all(20.w),
+        child: Padding(
+          padding: EdgeInsets.all(20.w),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final double cw = _currentProject!.canvasWidth;
+              final double ch = _currentProject!.canvasHeight;
+              final double availW = constraints.maxWidth;
+              final double availH = constraints.maxHeight;
+              final double scale = math.min(availW / cw, availH / ch);
+              final double displayW = cw * scale;
+              final double displayH = ch * scale;
 
-          decoration: BoxDecoration(
-            color: _currentProject!.canvasBackgroundColor.toColor(),
-
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.08),
-
-                blurRadius: 32,
-
-                offset: const Offset(0, 12),
-              ),
-            ],
-          ),
-
-          child: ClipRRect(
-            child: RepaintBoundary(
-              key: _canvasRepaintKey,
-
-              child: Stack(
-                children: [
-                  // Background grid and canvas items
-                  Positioned.fill(
-                    child: GestureDetector(
-                      onTap: _deselectItem,
-
-                      child: Container(
-                        color: Colors.white,
-
-                        child: CustomPaint(
-                          painter: CanvasGridPainter(
-                            showGrid: snapToGrid,
-
-                            gridSize: 20.0,
+              return Center(
+                child: Container(
+                  width: displayW,
+                  height: displayH,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.08),
+                        blurRadius: 32,
+                        offset: const Offset(0, 12),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    child: RepaintBoundary(
+                      key: _canvasRepaintKey,
+                      child: Stack(
+                        children: [
+                          GestureDetector(
+                            onTap: _deselectItem,
+                            child: CustomPaint(
+                              painter: CanvasGridPainter(
+                                showGrid: snapToGrid,
+                                gridSize: 20.0,
+                              ),
+                              child: Stack(
+                                children: [
+                                  ...(() {
+                                    final items = [...canvasItems]
+                                      ..sort(
+                                        (a, b) => a.layerIndex.compareTo(
+                                          b.layerIndex,
+                                        ),
+                                      );
+                                    final visibleItems = items
+                                        .where((it) => it.isVisible)
+                                        .toList();
+                                    return visibleItems
+                                        .map((it) => _buildCanvasItem(it))
+                                        .toList();
+                                  })(),
+                                ],
+                              ),
+                            ),
                           ),
 
-                          child: Stack(
-                            children: [
-                              // Canvas items (saved drawings, images, etc.)
-                              ...(() {
-                                final items = [...canvasItems]
-                                  ..sort(
-                                    (a, b) =>
-                                        a.layerIndex.compareTo(b.layerIndex),
-                                  );
-
-                                final visibleItems = items
-                                    .where((it) => it.isVisible)
-                                    .toList();
-
-                                return visibleItems
-                                    .map((it) => _buildCanvasItem(it))
-                                    .toList();
-                              })(),
-                            ],
-                          ),
-                        ),
+                          if (drawingMode == DrawingMode.enabled)
+                            Positioned.fill(
+                              child: GestureDetector(
+                                onPanStart: _onDrawingStart,
+                                onPanUpdate: _onDrawingUpdate,
+                                onPanEnd: _onDrawingEnd,
+                                child: RepaintBoundary(
+                                  child: CustomPaint(
+                                    painter: DrawingPainter(
+                                      layers: drawingLayers,
+                                      currentPoints: currentDrawingPoints,
+                                      currentTool: selectedDrawingTool,
+                                      currentColor: drawingColor,
+                                      currentStrokeWidth: drawingStrokeWidth,
+                                      currentOpacity: drawingOpacity,
+                                      currentPathText: _currentPathText,
+                                      currentPathFontFamily:
+                                          _currentPathFontFamily,
+                                      currentPathLetterSpacing:
+                                          _currentPathLetterSpacing,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                   ),
-
-                  // Drawing layer on top of everything
-                  if (drawingMode == DrawingMode.enabled)
-                    Positioned.fill(
-                      child: GestureDetector(
-                        onPanStart: _onDrawingStart,
-
-                        onPanUpdate: _onDrawingUpdate,
-
-                        onPanEnd: _onDrawingEnd,
-
-                        child: RepaintBoundary(
-                          child: CustomPaint(
-                            painter: DrawingPainter(
-                              layers: drawingLayers,
-
-                              currentPoints: currentDrawingPoints,
-
-                              currentTool: selectedDrawingTool,
-
-                              currentColor: drawingColor,
-
-                              currentStrokeWidth: drawingStrokeWidth,
-
-                              currentOpacity: drawingOpacity,
-
-                              currentPathText: _currentPathText,
-
-                              currentPathFontFamily: _currentPathFontFamily,
-
-                              currentPathLetterSpacing:
-                                  _currentPathLetterSpacing,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
+                ),
+              );
+            },
           ),
         ),
       ),
@@ -12767,18 +12806,16 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               ),
             ],
 
-                   Container(
-          color: Colors.grey,
-          alignment: Alignment.center,
-          width: double.infinity,
-          height: 50,
-          child: const AdBanner320x50(),
-        ),
+            Container(
+              color: Colors.grey,
+              alignment: Alignment.center,
+              width: double.infinity,
+              height: 50,
+              child: const AdBanner320x50(),
+            ),
           ],
         ),
       ),
-     
-    
     );
   }
 }
