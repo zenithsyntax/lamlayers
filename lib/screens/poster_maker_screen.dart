@@ -2261,6 +2261,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   late UserPreferences userPreferences;
 
   Timer? _autoSaveTimer;
+  bool _isAutoSaving = false;
 
   @override
   void initState() {
@@ -2444,31 +2445,19 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   void _showAutoSaveIndicator() {
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          mainAxisSize: MainAxisSize.min,
+    // Set autosave state to show progress indicator
+    setState(() {
+      _isAutoSaving = true;
+    });
 
-          children: [
-            Icon(Icons.save, color: Colors.white, size: 16),
-
-            SizedBox(width: 8),
-
-            Text('Auto-saved', style: TextStyle(fontSize: 12)),
-          ],
-        ),
-
-        backgroundColor: Colors.green.shade600,
-
-        duration: Duration(seconds: 2),
-
-        behavior: SnackBarBehavior.floating,
-
-        margin: EdgeInsets.all(16),
-
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-    );
+    // Hide progress indicator after 2 seconds
+    Timer(Duration(seconds: 2), () {
+      if (mounted) {
+        setState(() {
+          _isAutoSaving = false;
+        });
+      }
+    });
   }
 
   void _updateUserPreferences(UserPreferences newPreferences) {
@@ -5743,7 +5732,11 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             // Vertical divider
             Padding(
               padding: EdgeInsets.all(8.0.h),
-              child: Container(width: 2.w, height: 40.h, color: Colors.grey[300]),
+              child: Container(
+                width: 2.w,
+                height: 40.h,
+                color: Colors.grey[300],
+              ),
             ),
             // Upload from Pixabay button
             Expanded(
@@ -11544,6 +11537,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       onShowLayers: _showLayerPanel,
       onExport: _exportPoster,
       onBack: () => Navigator.pop(context),
+      isAutoSaving: _isAutoSaving,
     );
   }
 
@@ -12712,10 +12706,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               Container(
                 height: 60.h,
                 padding: EdgeInsets.symmetric(horizontal: 20.w),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                 
-                ),
+                decoration: BoxDecoration(color: Colors.white),
                 child: selectedTabIndex == 3
                     ? _buildDrawingControls()
                     : _buildTabContent(),

@@ -10,6 +10,7 @@ class ActionBar extends StatelessWidget {
   final VoidCallback onShowLayers;
   final VoidCallback onExport;
   final VoidCallback? onBack;
+  final bool isAutoSaving;
 
   const ActionBar({
     super.key,
@@ -21,6 +22,7 @@ class ActionBar extends StatelessWidget {
     required this.onShowLayers,
     required this.onExport,
     this.onBack,
+    this.isAutoSaving = false,
   });
 
   @override
@@ -76,13 +78,15 @@ class ActionBar extends StatelessWidget {
             iconColor: Colors.green[600],
           ),
           SizedBox(width: 8.w),
-          // Export button
-          _buildExportButton(
-            context,
-            'Export',
-            Icons.file_download_rounded,
-            onExport,
-          ),
+          // Export button or Auto-save progress indicator
+          isAutoSaving
+              ? _buildAutoSaveIndicator(context)
+              : _buildExportButton(
+                  context,
+                  'Export',
+                  Icons.file_download_rounded,
+                  onExport,
+                ),
         ],
       ),
     );
@@ -127,6 +131,47 @@ class ActionBar extends StatelessWidget {
             size: 24.sp,
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildAutoSaveIndicator(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
+      decoration: BoxDecoration(
+        color: Colors.green[50],
+        borderRadius: BorderRadius.circular(20.r),
+        border: Border.all(color: Colors.green[200]!, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 10.w,
+            height: 10.h,
+            child: CircularProgressIndicator(
+              strokeWidth: 2.5,
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.green[600]!),
+            ),
+          ),
+          SizedBox(width: 8.w),
+          Text(
+            'saving...',
+            style: TextStyle(
+              color: Colors.green[600],
+              fontSize: 16.sp,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.3,
+            ),
+          ),
+        ],
       ),
     );
   }
