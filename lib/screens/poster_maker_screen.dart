@@ -7274,7 +7274,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   Widget _buildCanvas() {
     return Expanded(
       child: InteractiveViewer(
-        minScale: 0.5,
+        minScale: 0.005,
 
         maxScale: 3.0,
 
@@ -7285,7 +7285,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         },
 
         child: Padding(
-          padding: EdgeInsets.all(20.w),
+          padding: EdgeInsets.symmetric(horizontal: 20.0, vertical: 25.0),
           child: LayoutBuilder(
             builder: (context, constraints) {
               final double cw = _currentProject!.canvasWidth;
@@ -12786,32 +12786,66 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
-
       body: SafeArea(
-        child: Column(
+        child: Stack(
           children: [
-            _buildActionBar(),
-            _buildCanvas(),
-            _buildTopToolbar(),
-            if (selectedItem == null) ...[
-              Container(
-                height: (selectedTabIndex == 3)
-                    ? (showDrawingToolSelection ? 60.h : 105.h)
-                    : 60.h,
-                padding: EdgeInsets.symmetric(horizontal: 20.w),
-                decoration: BoxDecoration(color: Colors.white),
-                child: selectedTabIndex == 3
-                    ? _buildDrawingControls()
-                    : _buildTabContent(),
-              ),
-            ],
+            // === Canvas always at the bottom ===
+            SizedBox(
+              height: double.infinity,
 
-            Container(
-              color: Colors.grey,
-              alignment: Alignment.center,
               width: double.infinity,
-              height: 50,
-              child: const AdBanner320x50(),
+              child: Column(
+                children: [
+                  SizedBox(height: 70.h),
+                  _buildCanvas(),
+                  Container(height: 102.5.h, color: Colors.grey[100]),
+                  Container(height: 102.5.h, color: Colors.white),
+                ],
+              ),
+            ),
+
+            // === Action bar at the very top ===
+            Positioned(top: 0, left: 0, right: 0, child: _buildActionBar()),
+
+            // === Top Toolbar (overlayed, not pushing canvas) ===
+            Positioned(
+              bottom: selectedItem != null
+                  ? 40
+                  : 150, // leaves space for the ad banner
+              left: 0,
+              right: 0,
+              child: _buildTopToolbar(),
+            ),
+
+            // === Bottom Controls (only if no item selected) ===
+            if (selectedItem == null)
+              Positioned(
+                bottom: 80, // leaves space for the ad banner
+                left: 0,
+                right: 0,
+                child: Container(
+                  height: (selectedTabIndex == 3)
+                      ? (showDrawingToolSelection ? 60.h : 105.h)
+                      : 60.h,
+                  padding: EdgeInsets.symmetric(horizontal: 20.w),
+                  decoration: const BoxDecoration(color: Colors.white),
+                  child: selectedTabIndex == 3
+                      ? _buildDrawingControls()
+                      : _buildTabContent(),
+                ),
+              ),
+
+            // === Fixed Ad Banner at very bottom ===
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                color: Colors.grey,
+                alignment: Alignment.center,
+                height: 50,
+                child: const AdBanner320x50(),
+              ),
             ),
           ],
         ),
