@@ -3200,6 +3200,12 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       return _buildTopEditToolbar();
     }
 
+    // Hide the main tool tabs when a drawing tool is selected or drawing is active
+    if (selectedTabIndex == 3 &&
+        (!showDrawingToolSelection || drawingMode == DrawingMode.enabled)) {
+      return const SizedBox.shrink();
+    }
+
     return Container(
       height: 80.h,
       padding: EdgeInsets.symmetric(horizontal: 20.w),
@@ -6256,11 +6262,11 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               });
             },
             child: Container(
-              width: 50.w,
-              height: 50.h,
+              width: 70.w,
+              height: 70.h,
               child: Icon(
                 drawingTool['icon'] as IconData,
-                size: 24.sp,
+                size: 28.sp,
                 color: isSelected ? Colors.pink[600] : Colors.pink[400],
               ),
             ),
@@ -6361,239 +6367,115 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       child: ListView(
         scrollDirection: Axis.horizontal,
 
-        padding: EdgeInsets.only(left: 6.w, right: 6.w, bottom: 20.h),
+        padding: EdgeInsets.only(left: 8.w, right: 8.w, bottom: 35.h, top: 10.h),
 
         children: [
-          // Back button
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 6.w),
+          // Back to tools
+          _chipButton(
+            background: Colors.grey.shade200,
+            borderColor: Colors.grey.shade300,
+            icon: Icons.arrow_back,
+            iconColor: Colors.grey.shade800,
+            label: 'Back',
+            onTap: () {
+              setState(() {
+                showDrawingToolSelection = true;
 
-            child: GestureDetector(
-              onTap: () {
-                setState(() {
-                  showDrawingToolSelection = true;
-
-                  showDrawingControls = false;
-                });
-              },
-
-              child: Container(
-                width: 60.w,
-
-                decoration: BoxDecoration(
-                  color: Colors.white,
-
-                  borderRadius: BorderRadius.circular(10.r),
-
-                  border: Border.all(color: Colors.grey.shade300, width: 1.5),
-                ),
-
-                child: Center(
-                  child: Icon(
-                    Icons.arrow_back,
-
-                    size: 24.sp,
-
-                    color: Colors.grey.shade700,
-                  ),
-                ),
-              ),
-            ),
+                showDrawingControls = false;
+              });
+            },
           ),
 
           // Start Drawing
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 6.w),
+          _chipButton(
+            background: Colors.blue.shade600,
+            borderColor: Colors.transparent,
+            icon: Icons.brush,
+            iconColor: Colors.white,
+            label: 'Start',
+            labelColor: Colors.white,
+            onTap: () {
+              setState(() {
+                showDrawingControls = false;
 
-            child: GestureDetector(
-              onTap: () {
-                setState(() {
-                  showDrawingControls = false;
+                drawingMode = DrawingMode.enabled;
+              });
 
-                  drawingMode = DrawingMode.enabled;
-                });
-
-                if (selectedDrawingTool == DrawingTool.textPath &&
-                    ((_currentPathText == null) ||
-                        _currentPathText!.trim().isEmpty)) {
-                  _promptForPathText();
-                }
-              },
-
-              child: Container(
-                width: 110.w,
-
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade600,
-
-                  borderRadius: BorderRadius.circular(10.r),
-                ),
-
-                child: Center(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-
-                    children: [
-                      Icon(Icons.brush, size: 20.sp, color: Colors.white),
-
-                      SizedBox(width: 8.w),
-
-                      Text(
-                        'Start',
-
-                        style: TextStyle(fontSize: 14.sp, color: Colors.white),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+              if (selectedDrawingTool == DrawingTool.textPath &&
+                  ((_currentPathText == null) ||
+                      _currentPathText!.trim().isEmpty)) {
+                _promptForPathText();
+              }
+            },
           ),
 
           // Color picker
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 6.w),
-
-            child: GestureDetector(
-              onTap: _showDrawingColorPicker,
-
-              child: Container(
-                width: 70.w,
-
-                decoration: BoxDecoration(
-                  color: Colors.white,
-
-                  borderRadius: BorderRadius.circular(10.r),
-
-                  border: Border.all(color: Colors.grey.shade300, width: 1.5),
-                ),
-
-                child: Center(
-                  child: Container(
-                    width: 36.w,
-
-                    height: 36.w,
-
-                    decoration: BoxDecoration(
-                      color: drawingColor,
-
-                      borderRadius: BorderRadius.circular(8.r),
-
-                      border: Border.all(
-                        color: Colors.grey.shade300,
-
-                        width: 1.5,
-                      ),
-                    ),
-                  ),
-                ),
+          _chipCustom(
+            background: Colors.white,
+            borderColor: Colors.grey.shade300,
+            icon: Icons.color_lens,
+            iconColor: drawingColor,
+            label: 'Color',
+            child: Container(
+              width: 22.w,
+              height: 22.w,
+              decoration: BoxDecoration(
+                color: drawingColor,
+                borderRadius: BorderRadius.circular(6.r),
+                border: Border.all(color: Colors.grey.shade300, width: 1),
               ),
             ),
+            onTap: _showDrawingColorPicker,
           ),
 
-          // Size slider item
-          EnhancedDrawingSlider(
+          // Size slider condensed
+          _chipSlider(
+            icon: Icons.format_size,
+            iconColor: Colors.deepPurple,
             label: selectedDrawingTool == DrawingTool.textPath
-                ? 'Font: ${drawingStrokeWidth.toInt()}'
-                : 'Size: ${drawingStrokeWidth.toInt()}',
+                ? 'Font ${drawingStrokeWidth.toInt()}'
+                : 'Size ${drawingStrokeWidth.toInt()}',
             value: drawingStrokeWidth,
             min: 1.0,
             max: 20.0,
             divisions: 19,
-            onChanged: (value) {
-              setState(() {
-                drawingStrokeWidth = value;
-              });
-            },
+            onChanged: (v) => setState(() => drawingStrokeWidth = v),
           ),
 
           // Font favorites (only for textPath)
           if (selectedDrawingTool == DrawingTool.textPath)
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 6.w),
-
-              child: GestureDetector(
-                onTap: _showTextPathFontFavorites,
-
-                child: Container(
-                  width: 190.w,
-
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-
-                    borderRadius: BorderRadius.circular(10.r),
-
-                    border: Border.all(color: Colors.grey.shade300, width: 1.5),
-                  ),
-
-                  child: Center(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-
-                      children: [
-                        Icon(
-                          Icons.favorite_rounded,
-
-                          size: 20.sp,
-
-                          color: Colors.pink,
-                        ),
-
-                        SizedBox(width: 8.w),
-
-                        Text(
-                          _currentPathFontFamily ?? 'Fav fonts',
-
-                          style: TextStyle(
-                            fontSize: 12.sp,
-
-                            color: Colors.grey.shade700,
-                          ),
-                        ),
-
-                        SizedBox(width: 2.w),
-
-                        Icon(
-                          Icons.keyboard_arrow_down_rounded,
-
-                          size: 18.sp,
-
-                          color: Colors.grey.shade600,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+            _chipButton(
+              background: Colors.pink.shade50,
+              borderColor: Colors.pink.shade200,
+              icon: Icons.favorite_rounded,
+              iconColor: Colors.pink,
+              label: _currentPathFontFamily ?? 'Fav fonts',
+              onTap: _showTextPathFontFavorites,
             ),
 
-          // Letter spacing slider (only for textPath)
+          // Letter spacing (only for textPath)
           if (selectedDrawingTool == DrawingTool.textPath)
-            EnhancedDrawingSlider(
-              label: 'Letter Spacing',
+            _chipSlider(
+              icon: Icons.space_bar,
+              iconColor: Colors.teal,
+              label: 'Spacing',
               value: _currentPathLetterSpacing ?? 0.0,
               min: -5.0,
               max: 20.0,
               divisions: 25,
-              onChanged: (value) {
-                setState(() {
-                  _currentPathLetterSpacing = value;
-                });
-              },
+              onChanged: (v) => setState(() => _currentPathLetterSpacing = v),
             ),
 
-          // Opacity slider item
-          EnhancedDrawingSlider(
-            label: 'Opacity: ${(drawingOpacity * 100).toInt()}%',
+          // Opacity slider
+          _chipSlider(
+            icon: Icons.opacity,
+            iconColor: Colors.indigo,
+            label: 'Opacity ${(drawingOpacity * 100).toInt()}%',
             value: drawingOpacity,
             min: 0.1,
             max: 1.0,
             divisions: 9,
-            onChanged: (value) {
-              setState(() {
-                drawingOpacity = value;
-              });
-            },
+            onChanged: (v) => setState(() => drawingOpacity = v),
           ),
         ],
       ),
@@ -6723,176 +6605,86 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   }
 
   Widget _buildDrawingMode() {
-    return Column(
-      children: [
-        // Current settings display with settings button at start
-        Row(
-          children: [
-            // Settings button at the beginning
-            GestureDetector(
-              onTap: () {
-                setState(() {
-                  showDrawingControls = true;
+    return SizedBox(
+      height: 100.h,
 
-                  drawingMode = DrawingMode.disabled;
-                });
-              },
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+         padding: EdgeInsets.only(left: 8.w, right: 8.w, bottom: 35.h, top: 10.h),
+        children: [
+          _chipButton(
+            background: Colors.grey.shade100,
+            borderColor: Colors.grey.shade300,
+            icon: Icons.settings,
+            iconColor: Colors.grey.shade700,
+            label: 'Settings',
+            onTap: () {
+              setState(() {
+                showDrawingControls = true;
 
-              child: Container(
-                padding: EdgeInsets.all(6.w),
+                drawingMode = DrawingMode.disabled;
+              });
+            },
+          ),
 
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-
-                  borderRadius: BorderRadius.circular(6.r),
-
-                  border: Border.all(color: Colors.grey.shade300),
-                ),
-
-                child: Icon(
-                  Icons.settings,
-
-                  size: 14.sp,
-
-                  color: Colors.grey.shade600,
-                ),
-              ),
-            ),
-
-            SizedBox(width: 8.w),
-
-            // Current settings display
-            Expanded(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-
-                children: [
-                  _buildSettingDisplay(
-                    'Color',
-
-                    Container(
-                      width: 20.w,
-
-                      height: 20.w,
-
-                      decoration: BoxDecoration(
-                        color: drawingColor,
-
-                        borderRadius: BorderRadius.circular(4.r),
-
-                        border: Border.all(color: Colors.grey.shade300),
-                      ),
-                    ),
-                  ),
-
-                  _buildSettingDisplay(
-                    'Size',
-
-                    Text(
-                      '${drawingStrokeWidth.toInt()}',
-
-                      style: TextStyle(fontSize: 10.sp),
-                    ),
-                  ),
-
-                  _buildSettingDisplay(
-                    'Opacity',
-
-                    Text(
-                      '${(drawingOpacity * 100).toInt()}%',
-
-                      style: TextStyle(fontSize: 10.sp),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-
-        SizedBox(height: 4.h),
-
-        // Erase + Stop & Save row
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-
-          children: [
-            // Erase toggle button
-            ElevatedButton.icon(
-              onPressed: () {
-                setState(() {
-                  final isEraserActive =
-                      selectedDrawingTool == DrawingTool.eraser;
-
-                  if (isEraserActive) {
-                    // Toggle off: restore previous non-eraser tool, default to brush
-
-                    selectedDrawingTool =
-                        _previousNonEraserTool ?? DrawingTool.brush;
-                  } else {
-                    // Toggle on: remember current tool if not eraser
-
-                    if (selectedDrawingTool != DrawingTool.eraser) {
-                      _previousNonEraserTool = selectedDrawingTool;
-                    }
-
-                    selectedDrawingTool = DrawingTool.eraser;
-
-                    drawingMode = DrawingMode.enabled;
+          _chipToggle(
+            active: selectedDrawingTool == DrawingTool.eraser,
+            activeBackground: Colors.orange.shade700,
+            inactiveBackground: Colors.grey.shade600,
+            icon: Icons.auto_fix_off,
+            label: 'Erase',
+            onTap: () {
+              setState(() {
+                final isEraserActive =
+                    selectedDrawingTool == DrawingTool.eraser;
+                if (isEraserActive) {
+                  selectedDrawingTool =
+                      _previousNonEraserTool ?? DrawingTool.brush;
+                } else {
+                  if (selectedDrawingTool != DrawingTool.eraser) {
+                    _previousNonEraserTool = selectedDrawingTool;
                   }
-                });
-              },
+                  selectedDrawingTool = DrawingTool.eraser;
+                  drawingMode = DrawingMode.enabled;
+                }
+              });
+            },
+          ),
 
-              icon: Icon(Icons.auto_fix_off, size: 12.sp),
+          _chipButton(
+            background: Colors.red.shade600,
+            borderColor: Colors.transparent,
+            icon: Icons.stop,
+            iconColor: Colors.white,
+            label: 'Stop & Save',
+            labelColor: Colors.white,
+            onTap: () {
+              _saveCurrentDrawing();
+              setState(() {
+                drawingMode = DrawingMode.disabled;
+                showDrawingToolSelection = true;
+                showDrawingControls = false;
+              });
+            },
+          ),
 
-              label: Text('Erase', style: TextStyle(fontSize: 9.sp)),
-
-              style: ElevatedButton.styleFrom(
-                backgroundColor: selectedDrawingTool == DrawingTool.eraser
-                    ? Colors.orange.shade700
-                    : Colors.grey.shade600,
-
-                foregroundColor: Colors.white,
-
-                padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-
-                minimumSize: Size(0, 28.h),
+          // Quick status chips
+          _chipStatus(
+            label: 'Color',
+            child: Container(
+              width: 18.w,
+              height: 18.w,
+              decoration: BoxDecoration(
+                color: drawingColor,
+                borderRadius: BorderRadius.circular(4.r),
+                border: Border.all(color: Colors.grey.shade300),
               ),
             ),
-
-            SizedBox(width: 8.w),
-
-            // Stop Drawing button
-            ElevatedButton.icon(
-              onPressed: () {
-                _saveCurrentDrawing();
-
-                setState(() {
-                  drawingMode = DrawingMode.disabled;
-
-                  showDrawingToolSelection = true;
-
-                  showDrawingControls = false;
-                });
-              },
-
-              icon: Icon(Icons.stop, size: 12.sp),
-
-              label: Text('Stop & Save', style: TextStyle(fontSize: 9.sp)),
-
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red.shade600,
-
-                foregroundColor: Colors.white,
-
-                padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-
-                minimumSize: Size(0, 28.h),
-              ),
-            ),
-          ],
-        ),
-      ],
+          ),
+          _chipStatus(label: 'Size ${drawingStrokeWidth.toInt()}'),
+          _chipStatus(label: 'Opacity ${(drawingOpacity * 100).toInt()}%'),
+        ],
+      ),
     );
   }
 
@@ -6909,6 +6701,254 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
         value,
       ],
+    );
+  }
+
+  // Reusable compact chip-style controls for horizontal toolbars
+  Widget _chipButton({
+    required Color background,
+    required Color borderColor,
+    required IconData icon,
+    required String label,
+    Color? iconColor,
+    Color? labelColor,
+    required VoidCallback onTap,
+  }) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 6.w),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+          decoration: BoxDecoration(
+            color: background,
+            borderRadius: BorderRadius.circular(12.r),
+            border: Border.all(color: borderColor, width: 1.2),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 16.sp, color: iconColor ?? Colors.white),
+              SizedBox(width: 8.w),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11.sp,
+                  fontWeight: FontWeight.w600,
+                  color: labelColor ?? Colors.black87,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _chipCustom({
+    required Color background,
+    required Color borderColor,
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    required Widget child,
+    Color? iconColor,
+    Color? labelColor,
+  }) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 6.w),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+          decoration: BoxDecoration(
+            color: background,
+            borderRadius: BorderRadius.circular(12.r),
+            border: Border.all(color: borderColor, width: 1.2),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 16.sp, color: iconColor ?? Colors.black87),
+              SizedBox(width: 8.w),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11.sp,
+                  fontWeight: FontWeight.w600,
+                  color: labelColor ?? Colors.black87,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+              SizedBox(width: 10.w),
+              child,
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _chipSlider({
+    required IconData icon,
+    required String label,
+    required double value,
+    required double min,
+    required double max,
+    int? divisions,
+    Color? iconColor,
+    required ValueChanged<double> onChanged,
+  }) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 6.w),
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12.r),
+          border: Border.all(color: Colors.grey.shade300, width: 1.2),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16.sp, color: iconColor ?? Colors.blueGrey),
+            SizedBox(width: 8.w),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11.sp,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade800,
+              ),
+            ),
+            SizedBox(width: 10.w),
+            _roundIcon(
+              icon: Icons.remove,
+              onTap: () {
+                final double computedDivs = (divisions ?? 10).toDouble();
+                final double step =
+                    (max - min) / (computedDivs <= 0 ? 10 : computedDivs);
+                final double next = (value - step).clamp(min, max);
+                onChanged(next);
+              },
+            ),
+            SizedBox(width: 8.w),
+            SizedBox(
+              width: 160.w,
+              child: SliderTheme(
+                data: SliderTheme.of(context).copyWith(
+                  trackHeight: 3.h,
+                  thumbShape: const RoundSliderThumbShape(
+                    enabledThumbRadius: 8,
+                  ),
+                ),
+                child: Slider(
+                  min: min,
+                  max: max,
+                  divisions: divisions,
+                  value: value.clamp(min, max),
+                  onChanged: onChanged,
+                ),
+              ),
+            ),
+            SizedBox(width: 8.w),
+            _roundIcon(
+              icon: Icons.add,
+              onTap: () {
+                final double computedDivs = (divisions ?? 10).toDouble();
+                final double step =
+                    (max - min) / (computedDivs <= 0 ? 10 : computedDivs);
+                final double next = (value + step).clamp(min, max);
+                onChanged(next);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _roundIcon({required IconData icon, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 28.w,
+        height: 28.w,
+        decoration: BoxDecoration(
+          color: Colors.grey.shade200,
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Icon(icon, size: 14.sp, color: Colors.grey.shade800),
+      ),
+    );
+  }
+
+  Widget _chipToggle({
+    required bool active,
+    required Color activeBackground,
+    required Color inactiveBackground,
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    final Color bg = active ? activeBackground : inactiveBackground;
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 6.w),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(12.r),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 16.sp, color: Colors.white),
+              SizedBox(width: 8.w),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11.sp,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _chipStatus({required String label, Widget? child}) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 6.w),
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(12.r),
+          border: Border.all(color: Colors.grey.shade300, width: 1.2),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11.sp,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade800,
+              ),
+            ),
+            if (child != null) ...[SizedBox(width: 10.w), child],
+          ],
+        ),
+      ),
     );
   }
 
@@ -12704,7 +12744,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             _buildTopToolbar(),
             if (selectedItem == null) ...[
               Container(
-                height: 60.h,
+                height: (selectedTabIndex == 3)
+                    ? (showDrawingToolSelection ? 60.h : 105.h)
+                    : 60.h,
                 padding: EdgeInsets.symmetric(horizontal: 20.w),
                 decoration: BoxDecoration(color: Colors.white),
                 child: selectedTabIndex == 3
