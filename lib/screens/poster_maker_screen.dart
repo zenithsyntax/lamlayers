@@ -2211,7 +2211,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
     {'shape': 'hexagon', 'icon': Icons.hexagon_outlined},
 
-    {'shape': 'diamond', 'icon': Icons.diamond_outlined},
+    {'shape': 'diamond', 'icon': Icons.crop_square_rounded},
 
     {'shape': 'star', 'icon': Icons.star_border_rounded},
 
@@ -3212,90 +3212,97 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     }
 
     return Container(
-      height: 185.h,
-
+      height: 80.h,
+      padding: EdgeInsets.symmetric(horizontal: 20.w),
       decoration: BoxDecoration(
         color: Colors.white,
-
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.06),
-
             blurRadius: 20,
-
             offset: const Offset(0, 4),
           ),
         ],
       ),
-
-      child: Column(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 20.h),
-
-            child: Row(
-              children: List.generate(tabTitles.length, (index) {
-                final isSelected = selectedTabIndex == index;
-
-                return Expanded(
-                  child: GestureDetector(
-                    onTap: () => setState(() => selectedTabIndex = index),
-
-                    child: Container(
-                      margin: EdgeInsets.symmetric(horizontal: 6.w),
-
-                      padding: EdgeInsets.symmetric(vertical: 14.h),
-
-                      decoration: BoxDecoration(
-                        color: isSelected ? Colors.blue : Colors.white,
-
-                        borderRadius: BorderRadius.circular(20.r),
-
-                        border: Border.all(
-                          color: isSelected
-                              ? Colors.blue
-                              : Colors.grey.shade300,
-
-                          width: 1.2,
-                        ),
-                      ),
-
-                      child: Text(
-                        tabTitles[index],
-
-                        textAlign: TextAlign.center,
-
-                        style: TextStyle(
-                          color: isSelected
-                              ? Colors.white
-                              : Colors.grey.shade700,
-
-                          fontSize: 15.sp,
-
-                          fontWeight: isSelected
-                              ? FontWeight.w600
-                              : FontWeight.w400,
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              }),
-            ),
+          _buildToolButton(
+            context,
+            Icons.text_fields_rounded,
+            'Text',
+            selectedTabIndex == 0,
+            () => setState(() => selectedTabIndex = 0),
+            Colors.purple[600]!,
           ),
-
-          Expanded(
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 24.w),
-
-              child: selectedTabIndex == 3
-                  ? _buildDrawingControls()
-                  : _buildTabContent(),
-            ),
+          SizedBox(width: 8.w),
+          _buildToolButton(
+            context,
+            Icons.image_rounded,
+            'Images',
+            selectedTabIndex == 1,
+            () => setState(() => selectedTabIndex = 1),
+            Colors.blue[600]!,
           ),
-
-          SizedBox(height: 10.h),
+          SizedBox(width: 8.w),
+          _buildToolButton(
+            context,
+            Icons.category_rounded,
+            'Shapes',
+            selectedTabIndex == 2,
+            () => setState(() => selectedTabIndex = 2),
+            Colors.orange[600]!,
+          ),
+          SizedBox(width: 8.w),
+          _buildToolButton(
+            context,
+            Icons.brush_rounded,
+            'Drawing',
+            selectedTabIndex == 3,
+            () => setState(() => selectedTabIndex = 3),
+            Colors.pink[600]!,
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildToolButton(
+    BuildContext context,
+    IconData icon,
+    String label,
+    bool isSelected,
+    VoidCallback onTap,
+    Color iconColor,
+  ) {
+    return Tooltip(
+      message: label,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 60.w,
+          height: 60.h,
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.transparent : Colors.transparent,
+            borderRadius: BorderRadius.circular(12.r),
+            border: isSelected ? Border.all(color: iconColor, width: 2) : null,
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: iconColor, size: 24.sp),
+              SizedBox(height: 4.h),
+              Text(
+                label,
+                style: TextStyle(
+                  color: iconColor,
+                  fontSize: 10.sp,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -5716,46 +5723,63 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   }
 
   Widget _buildTabContent() {
-    return ListView.builder(
-      scrollDirection: Axis.horizontal,
-
-      itemCount: _getTabItemCount(),
-
-      itemBuilder: (context, index) {
-        return Padding(
-          padding: EdgeInsets.only(right: 16.w),
-
-          child: GestureDetector(
-            onTap: () => _onTabItemTap(index),
-
-            child: Container(
-              width: 80.w,
-
-              height: 80.h,
-
-              decoration: BoxDecoration(
-                color: Colors.white,
-
-                borderRadius: BorderRadius.circular(20.r),
-
-                border: Border.all(color: Colors.grey.shade100, width: 2),
-
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.06),
-
-                    blurRadius: 12,
-
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+    if (selectedTabIndex == 1) {
+      // Custom layout for images tab with divider
+      return SizedBox(
+        height: 60.h,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Upload from Gallery button
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4.w),
+                child: GestureDetector(
+                  onTap: () => _onTabItemTap(0),
+                  child: Container(height: 60.h, child: _getTabItemWidget(0)),
+                ),
               ),
-
-              child: Center(child: _getTabItemWidget(index)),
             ),
-          ),
-        );
-      },
+            // Vertical divider
+            Padding(
+              padding: EdgeInsets.all(8.0.h),
+              child: Container(width: 2.w, height: 40.h, color: Colors.grey[300]),
+            ),
+            // Upload from Pixabay button
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4.w),
+                child: GestureDetector(
+                  onTap: () => _onTabItemTap(1),
+                  child: Container(height: 60.h, child: _getTabItemWidget(1)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Default ListView.builder for other tabs
+    return SizedBox(
+      height: 50.h,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: _getTabItemCount(),
+        itemBuilder: (context, index) {
+          return Padding(
+            padding: EdgeInsets.symmetric(horizontal: 4.w),
+            child: GestureDetector(
+              onTap: () => _onTabItemTap(index),
+              child: Container(
+                width: 50.w,
+                height: 50.h,
+                child: _getTabItemWidget(index),
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -5781,144 +5805,135 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     }
   }
 
+  bool _isValidFontFamily(String fontFamily) {
+    // List of invalid font families that cause GoogleFonts errors
+    final invalidFonts = ['Material Icons', 'MaterialIcons', 'Icons', 'Icon'];
+
+    return !invalidFonts.contains(fontFamily) &&
+        fontFamily.isNotEmpty &&
+        !fontFamily.contains('Icon');
+  }
+
   Widget _getTabItemWidget(int index) {
     switch (selectedTabIndex) {
       case 0:
         if (index == 0) {
-          return Column(
+          return Icon(
+            Icons.add_rounded,
+            size: 24.sp,
+            color: Colors.purple[600],
+          );
+        }
+        final family = likedFontFamilies[index - 1];
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Icon(
+            //   Icons.text_fields_rounded,
+            //   size:15.sp,
+            //   color: Colors.purple[600],
+            // ),
+            // SizedBox(width: 4.w),
+            Expanded(
+              child: Text(
+                family,
+                style: _isValidFontFamily(family)
+                    ? GoogleFonts.getFont(
+                        family,
+                        textStyle: TextStyle(
+                          fontSize: 15.sp,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.purple[600],
+                        ),
+                      )
+                    : TextStyle(
+                        fontSize: 10.sp,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.purple[600],
+                      ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.fade,
+              ),
+            ),
+          ],
+        );
+
+      case 1:
+        if (index == 0) {
+          return Row(
             mainAxisAlignment: MainAxisAlignment.center,
-
             children: [
-              Icon(Icons.add_rounded, size: 28.sp, color: Colors.blue.shade700),
-
-              SizedBox(height: 6.h),
-
-              Text(
-                'Add Font',
-
-                style: TextStyle(
-                  fontSize: 10.sp,
-
-                  fontWeight: FontWeight.w600,
-
-                  color: Colors.grey.shade700,
+              Icon(
+                Icons.add_photo_alternate_rounded,
+                size: 25.sp,
+                color: Colors.blue[600],
+              ),
+              SizedBox(width: 6.w),
+              Expanded(
+                child: Text(
+                  'Upload from Gallery',
+                  style: TextStyle(
+                    fontSize: 10.sp,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey[700],
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          );
+        } else {
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.image_search_rounded,
+                size: 25.sp,
+                color: Colors.blue[600],
+              ),
+              SizedBox(width: 6.w),
+              Expanded(
+                child: Text(
+                  'Upload from Pixabay',
+                  style: TextStyle(
+                    fontSize: 10.sp,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey[700],
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           );
         }
 
-        final family = likedFontFamilies[index - 1];
-
-        return Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-
-          children: [
-            Icon(
-              Icons.text_fields_rounded,
-
-              size: 24.sp,
-
-              color: Colors.blue.shade600,
-            ),
-
-            SizedBox(height: 6.h),
-
-            Text(
-              family,
-
-              style: GoogleFonts.getFont(
-                family,
-
-                textStyle: TextStyle(
-                  fontSize: 10.sp,
-
-                  fontWeight: FontWeight.w600,
-
-                  color: Colors.grey.shade700,
-                ),
-              ),
-
-              textAlign: TextAlign.center,
-
-              maxLines: 1,
-
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        );
-
-      case 1:
-        return Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-
-          children: [
-            Icon(
-              Icons.add_photo_alternate_rounded,
-
-              size: 28.sp,
-
-              color: Colors.blue.shade700,
-            ),
-
-            SizedBox(height: 6.h),
-
-            Text(
-              'Upload',
-
-              style: TextStyle(
-                fontSize: 10.sp,
-
-                fontWeight: FontWeight.w600,
-
-                color: Colors.grey.shade700,
-              ),
-            ),
-          ],
-        );
-
       case 2:
-        return Icon(
-          sampleShapes[index]['icon'] as IconData,
+        final shapeData = sampleShapes[index];
+        final icon = shapeData['icon'] as IconData;
+        final shape = shapeData['shape'] as String;
 
-          size: 32.sp,
+        // Rotate diamond shape 90 degrees
+        if (shape == 'diamond') {
+          return Transform.rotate(
+            angle: 0.7854,
+            child: Icon(icon, size: 24.sp, color: Colors.orange[600]),
+          );
+        }
 
-          color: Colors.green.shade600,
-        );
+        return Icon(icon, size: 24.sp, color: Colors.orange[600]);
 
       case 3:
         final drawingTool = _getDrawingTools()[index];
-
         final isSelected = selectedDrawingTool == drawingTool['tool'];
-
-        return Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-
-          children: [
-            Icon(
-              drawingTool['icon'] as IconData,
-
-              size: 28.sp,
-
-              color: isSelected ? Colors.blue.shade600 : Colors.orange.shade600,
-            ),
-
-            SizedBox(height: 4.h),
-
-            Text(
-              drawingTool['name'] as String,
-
-              style: TextStyle(
-                fontSize: 9.sp,
-
-                fontWeight: FontWeight.w500,
-
-                color: isSelected ? Colors.blue.shade600 : Colors.grey.shade700,
-              ),
-
-              textAlign: TextAlign.center,
-            ),
-          ],
+        return Icon(
+          drawingTool['icon'] as IconData,
+          size: 24.sp,
+          color: isSelected ? Colors.pink[600] : Colors.pink[400],
         );
 
       default:
@@ -6234,7 +6249,31 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   Widget _buildDrawingControls() {
     if (showDrawingToolSelection) {
-      return _buildToolSelection();
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: List.generate(_getDrawingTools().length, (index) {
+          final drawingTool = _getDrawingTools()[index];
+          final isSelected = selectedDrawingTool == drawingTool['tool'];
+          return GestureDetector(
+            onTap: () {
+              setState(() {
+                selectedDrawingTool = drawingTool['tool'] as DrawingTool;
+                showDrawingToolSelection = false;
+                showDrawingControls = true;
+              });
+            },
+            child: Container(
+              width: 50.w,
+              height: 50.h,
+              child: Icon(
+                drawingTool['icon'] as IconData,
+                size: 24.sp,
+                color: isSelected ? Colors.pink[600] : Colors.pink[400],
+              ),
+            ),
+          );
+        }),
+      );
     } else if (showDrawingControls) {
       return _buildToolControls();
     } else {
@@ -12665,7 +12704,24 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
       body: SafeArea(
         child: Column(
-          children: [_buildActionBar(), _buildCanvas(), _buildTopToolbar()],
+          children: [
+            _buildActionBar(),
+            _buildCanvas(),
+            _buildTopToolbar(),
+            if (selectedItem == null) ...[
+              Container(
+                height: 60.h,
+                padding: EdgeInsets.symmetric(horizontal: 20.w),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                 
+                ),
+                child: selectedTabIndex == 3
+                    ? _buildDrawingControls()
+                    : _buildTabContent(),
+              ),
+            ],
+          ],
         ),
       ),
 
