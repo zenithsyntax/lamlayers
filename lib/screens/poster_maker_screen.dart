@@ -12861,7 +12861,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                 children: [
                   SizedBox(height: 70.h),
                   _buildCanvas(),
-                  Container(height: 102.5.h, color: Colors.grey[100]),
+                  Container(height: 102.5.h, color: Colors.white),
                   Container(height: 102.5.h, color: Colors.white),
                 ],
               ),
@@ -12873,8 +12873,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             // === Top Toolbar (overlayed, not pushing canvas) ===
             Positioned(
               bottom: selectedItem != null
-                  ? 40
-                  : 150, // leaves space for the ad banner
+                  ? 30.h
+                  : 140.h, // leaves space for the ad banner
               left: 0,
               right: 0,
               child: _buildTopToolbar(),
@@ -12883,13 +12883,13 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             // === Bottom Controls (only if no item selected) ===
             if (selectedItem == null)
               Positioned(
-                bottom: 80, // leaves space for the ad banner
+                bottom: 70.h, // leaves space for the ad banner
                 left: 0,
                 right: 0,
                 child: Container(
                   height: (selectedTabIndex == 3)
-                      ? (showDrawingToolSelection ? 60.h : 105.h)
-                      : 60.h,
+                      ? (showDrawingToolSelection ? 50.h : 95.h)
+                      : 50.h,
                   padding: EdgeInsets.symmetric(horizontal: 20.w),
                   decoration: const BoxDecoration(color: Colors.white),
                   child: selectedTabIndex == 3
@@ -12904,9 +12904,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               left: 0,
               right: 0,
               child: Container(
-                color: Colors.grey,
+                color: Colors.white,
                 alignment: Alignment.center,
-                height: 50,
+                height: 40.h,
                 child: const AdBanner320x50(),
               ),
             ),
