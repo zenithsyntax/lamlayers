@@ -3353,6 +3353,24 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     );
   }
 
+  Color _currentAccent() {
+    final CanvasItemType? itemType = selectedItem?.type;
+    switch (itemType) {
+      case CanvasItemType.text:
+        return Colors.purple[600]!;
+      case CanvasItemType.image:
+        return Colors.blue[600]!;
+      case CanvasItemType.shape:
+        return Colors.orange[600]!;
+      case CanvasItemType.drawing:
+        return Colors.pink[600]!;
+      case CanvasItemType.sticker:
+        return Colors.green[600]!;
+      default:
+        return Colors.blueGrey;
+    }
+  }
+
   Widget _buildTopEditToolbar() {
     // Compact editing UI shown at the top when an item is selected
 
@@ -3434,7 +3452,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                         Icon(
                           Icons.check_rounded,
                           size: 16.sp,
-                          color: Colors.green.shade600,
+                          color: _currentAccent(),
                         ),
                       ],
                     ),
@@ -3514,20 +3532,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   Widget _buildSegmentButton(String label, int index) {
     final bool isActive = editTopbarTabIndex == index;
 
-    final Color accent = () {
-      switch (label.toLowerCase()) {
-        case 'general':
-          return const Color(0xFF2980B9); // blue
-        case 'type':
-          return const Color(0xFF27AE60); // green
-        case 'shadow':
-          return const Color(0xFF8E44AD); // purple for shadow tab
-        case 'gradient':
-          return const Color(0xFFE67E22); // orange
-        default:
-          return Colors.blueGrey;
-      }
-    }();
+    final Color accent = _currentAccent();
     return GestureDetector(
       onTap: () => setState(() => editTopbarTabIndex = index),
       child: AnimatedContainer(
@@ -4359,17 +4364,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   }
 
   Widget _miniIconButton(String tooltip, IconData icon, VoidCallback onTap) {
-    final List<Color> palette = const [
-      Color(0xFF2980B9), // blue
-      Color(0xFFE74C3C), // red
-      Color(0xFFF1C40F), // yellow
-      Color(0xFF16A085), // teal
-      Color(0xFF9B59B6), // purple
-      Color(0xFFD35400), // orange
-      Color(0xFF2ECC71), // green
-    ];
-    final int idx = (tooltip.hashCode.abs()) % palette.length;
-    final Color accent = palette[idx];
+    final Color accent = _currentAccent();
 
     final TextStyle labelStyle = TextStyle(
       fontSize: 10.sp,
@@ -4436,17 +4431,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
     VoidCallback onTap,
   ) {
-    final List<Color> palette = const [
-      Color(0xFF2980B9),
-      Color(0xFFE74C3C),
-      Color(0xFFF1C40F),
-      Color(0xFF16A085),
-      Color(0xFF9B59B6),
-      Color(0xFFD35400),
-      Color(0xFF2ECC71),
-    ];
-    final int idx = (tooltip.hashCode.abs()) % palette.length;
-    final Color accent = palette[idx];
+    final Color accent = _currentAccent();
     final String dynLabel = isActive
         ? tooltip.replaceFirst(
             RegExp('^Enable', caseSensitive: false),
@@ -4701,7 +4686,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           // no border
         ),
 
-        child: Icon(icon, size: 18.sp, color: Colors.blue.shade600),
+        child: Icon(icon, size: 18.sp, color: _currentAccent()),
       ),
     );
   }
@@ -4719,21 +4704,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
     IconData icon,
   ) {
-    // Assign distinct colors per slider label for a colorful UI
-    final List<Color> palette = const [
-      Color(0xFF8E44AD), // purple
-      Color(0xFF27AE60), // green
-      Color(0xFFE67E22), // orange
-      Color(0xFF3498DB), // blue
-      Color(0xFFE74C3C), // red
-      Color(0xFFF1C40F), // yellow
-      Color(0xFF1ABC9C), // teal
-      Color(0xFF9B59B6), // amethyst
-    ];
-    final int paletteIndex = (label.hashCode.abs()) % palette.length;
-    final Color accent = paletteIndex >= 0 && paletteIndex < palette.length
-        ? palette[paletteIndex]
-        : const Color(0xFF3498DB);
+    final Color accent = _currentAccent();
     return EnhancedSlider(
       label: label,
       value: value,
@@ -4766,19 +4737,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   Widget _miniColorSwatch(String label, Color color, VoidCallback onTap) {
     final bool isTransparent = color == Colors.transparent;
-
-    final List<Color> palette = const [
-      Color(0xFF8E44AD), // purple
-      Color(0xFF27AE60), // green
-      Color(0xFFE67E22), // orange
-      Color(0xFF3498DB), // blue
-      Color(0xFFE74C3C), // red
-      Color(0xFFF1C40F), // yellow
-      Color(0xFF1ABC9C), // teal
-      Color(0xFF9B59B6), // amethyst
-    ];
-    final int idx = (label.hashCode.abs()) % palette.length;
-    final Color accent = palette[idx];
+    final Color accent = _currentAccent();
 
     return GestureDetector(
       onTap: onTap,
@@ -4851,16 +4810,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
     ValueChanged<String> onChanged,
   ) {
-    final List<Color> palette = const [
-      Color(0xFF2980B9), // blue
-      Color(0xFF27AE60), // green
-      Color(0xFFE67E22), // orange
-      Color(0xFF8E44AD), // purple
-      Color(0xFFE74C3C), // red
-      Color(0xFF1ABC9C), // teal
-    ];
-    final int idx = (label.hashCode.abs()) % palette.length;
-    final Color accent = palette[idx];
+    final Color accent = _currentAccent();
 
     return Container(
       width: 260.w,
