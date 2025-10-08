@@ -3882,6 +3882,24 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             (v) => setState(() => selectedItem!.properties['text'] = v),
           ),
 
+          _miniFontButton(
+            'Font',
+
+            selectedItem!.properties['fontFamily'] as String? ?? 'Roboto',
+
+            () => _showFontSelectionDialog(),
+          ),
+
+          _miniColorSwatch(
+            'Color',
+
+            (selectedItem!.properties['color'] is HiveColor)
+                ? (selectedItem!.properties['color'] as HiveColor).toColor()
+                : Colors.black,
+
+            () => _showColorPicker('color'),
+          ),
+
           _miniSlider(
             'Font Size',
 
@@ -3924,24 +3942,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                   ? FontStyle.normal
                   : FontStyle.italic;
             }),
-          ),
-
-          _miniFontButton(
-            'Font',
-
-            selectedItem!.properties['fontFamily'] as String? ?? 'Roboto',
-
-            () => _showFontSelectionDialog(),
-          ),
-
-          _miniColorSwatch(
-            'Color',
-
-            (selectedItem!.properties['color'] is HiveColor)
-                ? (selectedItem!.properties['color'] as HiveColor).toColor()
-                : Colors.black,
-
-            () => _showColorPicker('color'),
           ),
         ];
 
@@ -4818,12 +4818,13 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
       margin: EdgeInsets.only(right: 12.w),
 
-      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
 
       decoration: BoxDecoration(
         color: Colors.transparent,
 
         borderRadius: BorderRadius.circular(14.r),
+        border: Border.all(color: Colors.grey.shade300),
       ),
 
       child: Column(
@@ -4858,12 +4859,14 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             child: Container(
               width: double.infinity,
 
-              padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+              // Reduce inner vertical padding to shrink bordered area height
+              padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
 
               decoration: BoxDecoration(
                 color: Colors.transparent,
 
                 borderRadius: BorderRadius.circular(10.r),
+                border: Border.all(color: Colors.grey.shade300),
               ),
 
               child: Row(
@@ -5712,6 +5715,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   Widget _miniFontButton(String label, String fontFamily, VoidCallback onTap) {
     return Container(
+      width: 190.w,
       margin: EdgeInsets.only(right: 12.w, bottom: 35.h),
 
       padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
@@ -5721,7 +5725,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
         borderRadius: BorderRadius.circular(14.r),
 
-        // no border
+        border: Border.all(color: Colors.grey.shade300),
       ),
 
       child: Row(
@@ -5756,7 +5760,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
               Text(
                 fontFamily.length > 10
-                    ? '${fontFamily.substring(0, 10)}...'
+                    ? '${fontFamily.substring(0, 12)}...'
                     : fontFamily,
 
                 style: TextStyle(
@@ -5770,7 +5774,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             ],
           ),
 
-          SizedBox(width: 8.w),
+          SizedBox(width: 27.w),
 
           GestureDetector(
             onTap: onTap,
