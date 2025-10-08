@@ -3371,6 +3371,21 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     }
   }
 
+  Color _segmentColor(String label) {
+    switch (label.toLowerCase()) {
+      case 'general':
+        return const Color(0xFF2980B9); // blue
+      case 'type':
+        return const Color(0xFF27AE60); // green
+      case 'shadow':
+        return const Color(0xFF8E44AD); // purple
+      case 'gradient':
+        return const Color(0xFFE67E22); // orange
+      default:
+        return Colors.blueGrey;
+    }
+  }
+
   Widget _buildTopEditToolbar() {
     // Compact editing UI shown at the top when an item is selected
 
@@ -3533,6 +3548,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     final bool isActive = editTopbarTabIndex == index;
 
     final Color accent = _currentAccent();
+    final Color segmentBorder = _segmentColor(label);
+    final Color textColor = isActive ? accent : Colors.grey.shade700;
     return GestureDetector(
       onTap: () => setState(() => editTopbarTabIndex = index),
       child: AnimatedContainer(
@@ -3542,7 +3559,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         decoration: BoxDecoration(
           color: Colors.transparent,
           borderRadius: BorderRadius.circular(10.r),
-          // no border
+          border: Border.all(color: textColor, width: isActive ? 2 : 1),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -3551,14 +3568,10 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               label,
               style: TextStyle(
                 fontSize: 12.sp,
-                color: isActive ? accent : Colors.grey.shade700,
+                color: textColor,
                 fontWeight: FontWeight.w700,
               ),
             ),
-            if (isActive) ...[
-              SizedBox(width: 6.w),
-              Icon(Icons.check_rounded, size: 14.sp, color: accent),
-            ],
           ],
         ),
       ),
@@ -4632,21 +4645,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       height: 32.h,
 
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Colors.transparent,
 
         borderRadius: BorderRadius.circular(8.r),
-
-        border: Border.all(color: Colors.grey.shade300),
-
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-
-            blurRadius: 4,
-
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
 
       alignment: Alignment.center,
@@ -4656,7 +4657,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
         size: 14.sp,
 
-        color: Colors.grey[500],
+        color: _currentAccent(),
       ),
     );
   }

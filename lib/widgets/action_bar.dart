@@ -206,7 +206,7 @@ class ActionBar extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                color: Colors.red[600],
+                color: Colors.orange[600],
                 fontSize: 16.sp,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.3,
