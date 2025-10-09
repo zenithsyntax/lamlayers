@@ -6,22 +6,32 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:saver_gallery/saver_gallery.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:archive/archive.dart';
 import 'package:image/image.dart' as img;
 import 'package:lamlayers/screens/hive_model.dart' as hive_model;
 import 'package:lamlayers/widgets/export_dialog.dart' as export_dialog;
+import 'package:device_info_plus/device_info_plus.dart';
 
 class ExportManager {
   static Future<bool> requestPermissions() async {
-    if (Platform.isAndroid) {
-      // On Android 11+ some devices require MANAGE_EXTERNAL_STORAGE to write to Downloads
-      final storage = await Permission.storage.request();
-      if (storage.isGranted) return true;
-      final manage = await Permission.manageExternalStorage.request();
-      return manage.isGranted;
+    if (!Platform.isAndroid) return true;
+
+    // Android 13+ uses READ_MEDIA_IMAGES for saving to Photos
+    final androidInfo = await DeviceInfoPlugin().androidInfo;
+    final int sdkInt = androidInfo.version.sdkInt ?? 33;
+    if (sdkInt >= 33) {
+      // On Android 13+ request READ_MEDIA_IMAGES (mapped to Permission.photos)
+      final status = await Permission.photos.request();
+      return status.isGranted;
     }
-    return true;
+    // Android 10-12: need storage permission; WRITE is only up to 29
+    final storage = await Permission.storage.request();
+    if (storage.isGranted) return true;
+    // As a last resort on some OEMs
+    final manage = await Permission.manageExternalStorage.request();
+    return manage.isGranted;
   }
 
   static double getPixelRatio(export_dialog.ExportClarity clarity) {
@@ -58,6 +68,11 @@ class ExportManager {
     export_dialog.ExportOptions options,
   ) async {
     try {
+      // Ensure we have permissions where needed (Android public storage)
+      final bool hasPerm = await requestPermissions();
+      if (!hasPerm) {
+        print('ExportManager: Storage permission not granted; using app temp');
+      }
       final boundary =
           canvasKey.currentContext?.findRenderObject()
               as RenderRepaintBoundary?;
@@ -82,15 +97,33 @@ class ExportManager {
         );
       }
 
+      // Save to gallery via GallerySaver (requires a file path)
+      if (Platform.isAndroid) {
+        final Directory tempDir = await getTemporaryDirectory();
+        final String name =
+            'LamLayers_${DateTime.now().millisecondsSinceEpoch}.${getFileExtension(options.format)}';
+        final String tempPath = '${tempDir.path}/$name';
+        final File tmp = File(tempPath);
+        await tmp.writeAsBytes(imageBytes);
+
+        final result = await SaverGallery.saveFile(
+          filePath: tempPath,
+          androidRelativePath: 'Pictures/LamLayers',
+          fileName: name,
+          skipIfExists: false,
+        );
+
+        if (result.isSuccess) {
+          return tempPath;
+        }
+        // If gallery save failed, we still return tempPath below
+      }
+
       final Directory tempDir = await getTemporaryDirectory();
-      final String fileName =
-          'poster_${DateTime.now().millisecondsSinceEpoch}.${getFileExtension(options.format)}';
-      final String filePath = '${tempDir.path}/$fileName';
-
-      final File file = File(filePath);
-      await file.writeAsBytes(imageBytes);
-
-      return filePath;
+      final String tempPath =
+          '${tempDir.path}/LamLayers_${DateTime.now().millisecondsSinceEpoch}.${getFileExtension(options.format)}';
+      await File(tempPath).writeAsBytes(imageBytes);
+      return tempPath;
     } catch (e) {
       print('Error exporting image: $e');
       return null;
@@ -141,9 +174,14 @@ class ExportManager {
       final hasPermission = await requestPermissions();
       if (!hasPermission) return false;
 
-      // For now, just return true as we'll use share instead
-      // In a real implementation, you'd use a proper gallery saver package
-      return true;
+      final String name = filePath.split('/').last;
+      final result = await SaverGallery.saveFile(
+        filePath: filePath,
+        androidRelativePath: 'Pictures/LamLayers',
+        fileName: name,
+        skipIfExists: true,
+      );
+      return result.isSuccess;
     } catch (e) {
       print('Error saving to gallery: $e');
       return false;
