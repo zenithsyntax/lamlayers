@@ -2210,6 +2210,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   // Nudge control timers for press-and-hold behavior
 
+  bool _suppressSelectionUI = false;
+
   Timer? _nudgeRepeatTimer;
 
   Timer? _nudgeInitialDelayTimer;
@@ -2570,6 +2572,10 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   Future<void> _generateAndStoreThumbnail(PosterProject project) async {
     try {
+      setState(() {
+        _suppressSelectionUI = true;
+      });
+      await WidgetsBinding.instance.endOfFrame;
       final boundary =
           _canvasRepaintKey.currentContext?.findRenderObject()
               as RenderRepaintBoundary?;
@@ -2601,6 +2607,13 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       }
     } catch (_) {
       // Ignore thumbnail errors; not critical for saving
+    } finally {
+      if (mounted) {
+        setState(() {
+          _suppressSelectionUI = false;
+        });
+        await WidgetsBinding.instance.endOfFrame;
+      }
     }
   }
 
@@ -7584,7 +7597,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   }
 
   Widget _buildCanvasItem(CanvasItem item) {
-    final isSelected = selectedItem == item;
+    final isSelected = !_suppressSelectionUI && selectedItem == item;
 
     return Positioned(
       left: item.position.dx,
@@ -12211,6 +12224,10 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     try {
       // Persist the latest edits before exporting
       _saveProject(showIndicator: false, saveThumbnail: false);
+      setState(() {
+        _suppressSelectionUI = true;
+      });
+      await WidgetsBinding.instance.endOfFrame;
       // Export the image
       final String? filePath = await ExportManager.exportImage(
         _canvasRepaintKey,
@@ -12238,6 +12255,13 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       if (!mounted) return;
       Navigator.of(context).pop(); // Close progress dialog
       _showErrorSnackBar('Failed to export image: ${e.toString()}');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _suppressSelectionUI = false;
+        });
+        await WidgetsBinding.instance.endOfFrame;
+      }
     }
   }
 
