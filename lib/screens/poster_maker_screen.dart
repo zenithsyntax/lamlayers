@@ -1400,7 +1400,7 @@ class _ShapePainter extends CustomPainter {
     final double strokeWidth = (props['strokeWidth'] as double?) ?? 0.0;
 
     final Color fillColor =
-        (props['fillColor'] as HiveColor?)?.toColor() ?? Colors.blue;
+        (props['fillColor'] as HiveColor?)?.toColor() ?? Colors.green;
 
     final Color strokeColor =
         (props['strokeColor'] as HiveColor?)?.toColor() ?? Colors.green;
@@ -3233,11 +3233,11 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         return {
           'shape': 'rectangle',
 
-          'fillColor': HiveColor.fromColor(Colors.blue),
+          'fillColor': HiveColor.fromColor(Colors.green),
 
-          'strokeColor': HiveColor.fromColor(Colors.transparent),
+          'strokeColor': HiveColor.fromColor(Colors.black),
 
-          'strokeWidth': 0.0,
+          'strokeWidth': 2.0,
 
           'hasGradient': false,
 
@@ -4172,7 +4172,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
             (selectedItem!.properties['fillColor'] is HiveColor)
                 ? (selectedItem!.properties['fillColor'] as HiveColor).toColor()
-                : Colors.blue,
+                : Colors.green,
 
             () => _showColorPicker('fillColor'),
           ),
@@ -4191,7 +4191,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           _miniSlider(
             'Stroke Width',
 
-            (selectedItem!.properties['strokeWidth'] as double?) ?? 2.0,
+            (selectedItem!.properties['strokeWidth'] as double?) ?? 0.0,
 
             0.0,
 
@@ -4415,9 +4415,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             _miniSlider(
               'Stroke Width',
 
-              (selectedItem!.properties['strokeWidth'] as double?) ?? 2.0,
+              (selectedItem!.properties['strokeWidth'] as double?) ?? 0.0,
 
-              1.0,
+              0.0,
 
               20.0,
 
@@ -6299,7 +6299,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
             'fillColor': Colors.green,
 
-            'strokeColor': Colors.greenAccent,
+            'strokeColor': Colors.black,
 
             'strokeWidth': 2.0,
 
@@ -8478,7 +8478,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
         final Color fillColor = (props['fillColor'] is HiveColor)
             ? (props['fillColor'] as HiveColor).toColor()
-            : Colors.blue;
+            : Colors.green;
 
         final Color strokeColor = (props['strokeColor'] is HiveColor)
             ? (props['strokeColor'] as HiveColor).toColor()
@@ -8872,13 +8872,13 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     return BoxDecoration(
       color: (props['hasGradient'] == true)
           ? null
-          : (props['fillColor'] as Color? ?? Colors.blue),
+          : (props['fillColor'] as Color? ?? Colors.green),
 
       gradient: (props['hasGradient'] == true)
           ? LinearGradient(
               colors:
                   (props['gradientColors'] as List<Color>?) ??
-                  [Colors.blue, Colors.purple],
+                  [Colors.green, Colors.purple],
             )
           : null,
 
@@ -9531,7 +9531,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                 (props['gradientColors'] == null ||
                     (props['gradientColors'] as List).isEmpty)) {
               props['gradientColors'] = [
-                HiveColor.fromColor(Colors.blue),
+                HiveColor.fromColor(Colors.green),
 
                 HiveColor.fromColor(Colors.purple),
               ];

@@ -300,6 +300,15 @@ class ExportManager {
     }
   }
 
+  static String _basename(String path) {
+    if (path.isEmpty) return path;
+    // Normalize Windows and POSIX separators
+    final String normalized = path.replaceAll('\\', '/');
+    final int idx = normalized.lastIndexOf('/');
+    if (idx == -1) return normalized;
+    return normalized.substring(idx + 1);
+  }
+
   static Future<String?> _encodeImageToBase64(String? imagePath) async {
     if (imagePath == null || imagePath.isEmpty) return null;
 
@@ -353,17 +362,28 @@ class ExportManager {
 
       // Add image data for image items
       if (item.type == hive_model.HiveCanvasItemType.image) {
-        final imageProps =
-            item.properties['imageProperties']
-                as hive_model.HiveImageProperties?;
-        if (imageProps?.filePath != null && imageProps!.filePath!.isNotEmpty) {
-          final imageData = await _encodeImageToBase64(imageProps.filePath);
+        // Prefer the flat filePath (stroked) first; fallback to nested original path
+        String? filePathToEncode =
+            (item.properties['filePath'] is String &&
+                (item.properties['filePath'] as String).isNotEmpty)
+            ? item.properties['filePath'] as String
+            : null;
+
+        if (filePathToEncode == null || filePathToEncode.isEmpty) {
+          final hive_model.HiveImageProperties? nestedProps =
+              item.properties['imageProperties']
+                  as hive_model.HiveImageProperties?;
+          if (nestedProps?.filePath != null &&
+              nestedProps!.filePath!.isNotEmpty) {
+            filePathToEncode = nestedProps.filePath;
+          }
+        }
+
+        if (filePathToEncode != null && filePathToEncode.isNotEmpty) {
+          final imageData = await _encodeImageToBase64(filePathToEncode);
           if (imageData != null) {
             itemData["imageData"] = imageData;
-            // Also store the original filename for reference
-            itemData["originalImageName"] = imageProps.filePath!
-                .split('/')
-                .last;
+            itemData["originalImageName"] = _basename(filePathToEncode);
           } else {
             print('Warning: Failed to encode image for item ${item.id}');
           }
@@ -472,7 +492,7 @@ class ExportManager {
           );
           itemData["shapeImageData"] = shapeImageData;
           if (shapeImagePath != null) {
-            itemData["originalShapeImageName"] = shapeImagePath.split('/').last;
+            itemData["originalShapeImageName"] = _basename(shapeImagePath);
           }
           // Also inline to properties so runtime doesn't depend on a file path
           try {
@@ -771,12 +791,19 @@ class ExportManager {
         );
 
         // Update image path in properties if image was decoded
-        if (imagePath != null && properties['imageProperties'] != null) {
-          final imageProps = Map<String, dynamic>.from(
-            properties['imageProperties'] as Map<String, dynamic>,
-          );
-          imageProps['filePath'] = imagePath;
-          properties['imageProperties'] = imageProps;
+        if (imagePath != null) {
+          // Set flat runtime key used by editor
+          properties['filePath'] = imagePath;
+
+          // Also set nested imageProperties when present
+          if (properties['imageProperties'] != null &&
+              properties['imageProperties'] is Map<String, dynamic>) {
+            final imageProps = Map<String, dynamic>.from(
+              properties['imageProperties'] as Map<String, dynamic>,
+            );
+            imageProps['filePath'] = imagePath;
+            properties['imageProperties'] = imageProps;
+          }
         }
 
         // For shapes: store base64 directly and also materialize a temp file for code paths
@@ -907,16 +934,16 @@ class ExportManager {
               );
             }
           }
-          // If strokeColor missing or invalid, default to transparent (no border)
+          // If strokeColor missing or invalid, default to black with visible stroke
           if (properties['strokeColor'] == null ||
               properties['strokeColor'] is! hive_model.HiveColor) {
             properties['strokeColor'] = hive_model.HiveColor(
-              Colors.transparent.value,
+              Colors.black.value,
             );
-            // Also default missing/invalid stroke width to 0 (no border)
+            // Also default missing/invalid stroke width to a sensible visible width
             if (properties['strokeWidth'] == null ||
                 (properties['strokeWidth'] is! num)) {
-              properties['strokeWidth'] = 0.0;
+              properties['strokeWidth'] = 2.0;
             }
           }
         }
