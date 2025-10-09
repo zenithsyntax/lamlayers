@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'dart:typed_data';
 
@@ -41,6 +42,9 @@ import 'package:flutter/services.dart';
 import 'package:lamlayers/screens/add_images.dart';
 
 import 'package:lamlayers/screens/settings_screen.dart';
+import 'package:lamlayers/widgets/export_dialog.dart' as export_dialog;
+import 'package:lamlayers/utils/export_manager.dart';
+import 'package:lamlayers/screens/hive_model.dart' as hive_model;
 
 import 'package:cached_network_image/cached_network_image.dart';
 
@@ -907,9 +911,9 @@ class _MultiStrokeDrawingPainter extends CustomPainter {
 
       final List<Offset> points =
           (stroke['points'] as List<dynamic>?)
-              ?.map((p) => p as Offset)
+              ?.map<Offset>((p) => _parseOffset(p) ?? const Offset(0, 0))
               .toList() ??
-          [];
+          <Offset>[];
 
       final dynamic colorRaw = stroke['color'];
 
@@ -1305,6 +1309,82 @@ class _MultiStrokeDrawingPainter extends CustomPainter {
   }
 }
 
+// Robust parsing helpers for loaded project data
+Offset? _parseOffset(dynamic value) {
+  if (value == null) return null;
+  if (value is Offset) return value;
+  if (value is Map) {
+    final dx = (value['dx'] as num?)?.toDouble() ?? 0.0;
+    final dy = (value['dy'] as num?)?.toDouble() ?? 0.0;
+    return Offset(dx, dy);
+  }
+  return null;
+}
+
+FontWeight _parseFontWeight(dynamic value) {
+  if (value is FontWeight) return value;
+  if (value is int) {
+    return FontWeight.values.firstWhere(
+      (e) => e.index == value,
+      orElse: () => FontWeight.normal,
+    );
+  }
+  if (value is Map && value['enum'] is String) {
+    final name = (value['enum'] as String).toLowerCase();
+    switch (name) {
+      case 'w100':
+        return FontWeight.w100;
+      case 'w200':
+        return FontWeight.w200;
+      case 'w300':
+        return FontWeight.w300;
+      case 'w400':
+        return FontWeight.w400;
+      case 'w500':
+        return FontWeight.w500;
+      case 'w600':
+        return FontWeight.w600;
+      case 'w700':
+        return FontWeight.w700;
+      case 'w800':
+        return FontWeight.w800;
+      case 'w900':
+        return FontWeight.w900;
+    }
+  }
+  if (value is String) {
+    // Accept names like 'bold', 'normal'
+    switch (value.toLowerCase()) {
+      case 'bold':
+        return FontWeight.bold;
+      case 'normal':
+        return FontWeight.normal;
+    }
+  }
+  return FontWeight.normal;
+}
+
+FontStyle _parseFontStyle(dynamic value) {
+  if (value is FontStyle) return value;
+  if (value is int) {
+    return FontStyle.values.firstWhere(
+      (e) => e.index == value,
+      orElse: () => FontStyle.normal,
+    );
+  }
+  if (value is Map && value['enum'] is String) {
+    return (value['enum'] as String).toLowerCase() == 'italic'
+        ? FontStyle.italic
+        : FontStyle.normal;
+  }
+  if (value is String) {
+    return value.toLowerCase() == 'italic'
+        ? FontStyle.italic
+        : FontStyle.normal;
+  }
+  return FontStyle.normal;
+}
+
 class _ShapePainter extends CustomPainter {
   final Map<String, dynamic> props;
 
@@ -1317,13 +1397,13 @@ class _ShapePainter extends CustomPainter {
     final String shape =
         (props['shape'] as String?)?.toLowerCase() ?? 'rectangle';
 
-    final double strokeWidth = (props['strokeWidth'] as double?) ?? 2.0;
+    final double strokeWidth = (props['strokeWidth'] as double?) ?? 0.0;
 
     final Color fillColor =
         (props['fillColor'] as HiveColor?)?.toColor() ?? Colors.blue;
 
     final Color strokeColor =
-        (props['strokeColor'] as HiveColor?)?.toColor() ?? Colors.black;
+        (props['strokeColor'] as HiveColor?)?.toColor() ?? Colors.green;
 
     final bool hasGradient = (props['hasGradient'] as bool?) ?? false;
 
@@ -2109,7 +2189,7 @@ class _ShapePainter extends CustomPainter {
 }
 
 class _PosterMakerScreenState extends State<PosterMakerScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   int selectedTabIndex = 0;
 
   List<CanvasItem> canvasItems = [];
@@ -2275,6 +2355,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
 
     _projectBox = Hive.box<PosterProject>('posterProjects');
 
@@ -2395,6 +2476,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     _autoSaveTimer?.cancel();
     _saveProject(showIndicator: false, saveThumbnail: false);
 
+    WidgetsBinding.instance.removeObserver(this);
+
     _bottomSheetController.dispose();
 
     _selectionController.dispose();
@@ -2406,6 +2489,16 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     BackgroundRemover.instance.dispose();
 
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (_isDisposing) return;
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      _saveProject(showIndicator: false, saveThumbnail: false);
+    }
   }
 
   void _initializeAutoSave() {
@@ -2558,7 +2651,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
           final List<Offset> points =
               (stroke['points'] as List<dynamic>?)
-                  ?.map((p) => p as Offset)
+                  ?.map<Offset>((p) => _parseOffset(p) ?? const Offset(0, 0))
                   .toList() ??
               <Offset>[];
 
@@ -2734,9 +2827,57 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
             final List<Offset> points =
                 (stroke['points'] as List<dynamic>?)
-                    ?.map((p) => p as Offset)
+                    ?.map<Offset>((p) => _parseOffset(p) ?? const Offset(0, 0))
                     .toList() ??
                 <Offset>[];
+
+            // Rehydrate optional font props if they were serialized as {"enum": name}
+            FontWeight? parsedFontWeight;
+            final dynamic fwRaw = stroke['fontWeight'];
+            if (fwRaw is FontWeight) {
+              parsedFontWeight = fwRaw;
+            } else if (fwRaw is Map && fwRaw['enum'] is String) {
+              switch ((fwRaw['enum'] as String).toLowerCase()) {
+                case 'w100':
+                  parsedFontWeight = FontWeight.w100;
+                  break;
+                case 'w200':
+                  parsedFontWeight = FontWeight.w200;
+                  break;
+                case 'w300':
+                  parsedFontWeight = FontWeight.w300;
+                  break;
+                case 'w400':
+                  parsedFontWeight = FontWeight.w400;
+                  break;
+                case 'w500':
+                  parsedFontWeight = FontWeight.w500;
+                  break;
+                case 'w600':
+                  parsedFontWeight = FontWeight.w600;
+                  break;
+                case 'w700':
+                  parsedFontWeight = FontWeight.w700;
+                  break;
+                case 'w800':
+                  parsedFontWeight = FontWeight.w800;
+                  break;
+                case 'w900':
+                  parsedFontWeight = FontWeight.w900;
+                  break;
+              }
+            }
+
+            FontStyle? parsedFontStyle;
+            final dynamic fsRaw = stroke['fontStyle'];
+            if (fsRaw is FontStyle) {
+              parsedFontStyle = fsRaw;
+            } else if (fsRaw is Map && fsRaw['enum'] is String) {
+              parsedFontStyle =
+                  (fsRaw['enum'] as String).toLowerCase() == 'italic'
+                  ? FontStyle.italic
+                  : FontStyle.normal;
+            }
 
             rehydrated.add({
               'tool': tool,
@@ -2760,11 +2901,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
               'fontFamily': (stroke['fontFamily'] as String?) ?? 'Roboto',
 
-              if (stroke.containsKey('fontWeight'))
-                'fontWeight': stroke['fontWeight'],
+              if (parsedFontWeight != null) 'fontWeight': parsedFontWeight,
 
-              if (stroke.containsKey('fontStyle'))
-                'fontStyle': stroke['fontStyle'],
+              if (parsedFontStyle != null) 'fontStyle': parsedFontStyle,
             });
           }
 
@@ -2795,6 +2934,36 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             }
           } catch (e) {
             print('Error loading image from file: $e');
+          }
+        }
+      }
+
+      // Also support embedded base64 for shapes (cross-device portability)
+      if (hiveItem.type == HiveCanvasItemType.shape &&
+          properties['image'] == null) {
+        // Prefer nested shapeProperties.imageBase64 if present
+        String? imageBase64;
+        if (properties['shapeProperties'] is Map<String, dynamic>) {
+          final Map<String, dynamic> sp = Map<String, dynamic>.from(
+            properties['shapeProperties'] as Map,
+          );
+          final String? nested = sp['imageBase64'] as String?;
+          if (nested != null && nested.isNotEmpty) {
+            imageBase64 = nested;
+          }
+        }
+        // Fallback to top-level imageBase64 if provided
+        imageBase64 ??= properties['imageBase64'] as String?;
+
+        if (imageBase64 != null && imageBase64.isNotEmpty) {
+          try {
+            final Uint8List imageBytes = base64Decode(imageBase64);
+            final ui.Codec codec = await ui.instantiateImageCodec(imageBytes);
+            final ui.FrameInfo frame = await codec.getNextFrame();
+            final ui.Image image = frame.image;
+            properties['image'] = image;
+          } catch (e) {
+            print('Error decoding base64 shape image: $e');
           }
         }
       }
@@ -3066,9 +3235,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
           'fillColor': HiveColor.fromColor(Colors.blue),
 
-          'strokeColor': HiveColor.fromColor(Colors.black),
+          'strokeColor': HiveColor.fromColor(Colors.transparent),
 
-          'strokeWidth': 2.0,
+          'strokeWidth': 0.0,
 
           'hasGradient': false,
 
@@ -8067,21 +8236,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               ? (props['color'] as Color)
               : Colors.black,
 
-          fontWeight: (props['fontWeight'] is FontWeight)
-              ? (props['fontWeight'] as FontWeight)
-              : FontWeight.values.firstWhere(
-                  (e) => e.index == (props['fontWeight'] as int?),
+          fontWeight: _parseFontWeight(props['fontWeight']),
 
-                  orElse: () => FontWeight.normal,
-                ),
-
-          fontStyle: (props['fontStyle'] is FontStyle)
-              ? (props['fontStyle'] as FontStyle)
-              : FontStyle.values.firstWhere(
-                  (e) => e.index == (props['fontStyle'] as int?),
-
-                  orElse: () => FontStyle.normal,
-                ),
+          fontStyle: _parseFontStyle(props['fontStyle']),
 
           decoration: _intToTextDecoration((props['decoration'] as int?) ?? 0),
 
@@ -8097,7 +8254,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                     color: effectiveShadowColor,
 
                     offset:
-                        (props['shadowOffset'] as Offset?) ??
+                        _parseOffset(props['shadowOffset']) ??
                         const Offset(2, 2),
 
                     blurRadius: (props['shadowBlur'] as double?) ?? 4.0,
@@ -8574,9 +8731,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
           final List<Offset> points =
               (props['points'] as List<dynamic>?)
-                  ?.map((p) => p as Offset)
+                  ?.map<Offset>((p) => _parseOffset(p) ?? const Offset(0, 0))
                   .toList() ??
-              [];
+              <Offset>[];
 
           final Color color = (props['color'] is HiveColor)
               ? (props['color'] as HiveColor).toColor()
@@ -11578,6 +11735,22 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
         selectedItem!.properties['imagePath'] = picked.path;
 
+        // Also store base64 so exports are portable across devices
+        try {
+          final String base64Str = base64Encode(bytes);
+          selectedItem!.properties['imageBase64'] = base64Str;
+          // Mirror under nested shapeProperties when available
+          if (selectedItem!.properties['shapeProperties']
+              is Map<String, dynamic>) {
+            final Map<String, dynamic> sp = Map<String, dynamic>.from(
+              selectedItem!.properties['shapeProperties'] as Map,
+            );
+            sp['imageBase64'] = base64Str;
+            sp['imagePath'] = picked.path;
+            selectedItem!.properties['shapeProperties'] = sp;
+          }
+        } catch (_) {}
+
         // Disable gradient when using image fill
 
         selectedItem!.properties['hasGradient'] = false;
@@ -11960,70 +12133,462 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   }
 
   Future<void> _exportPoster() async {
+    // Show export options dialog
+    final export_dialog.ExportOptions? options =
+        await showDialog<export_dialog.ExportOptions>(
+          context: context,
+          builder: (context) => const export_dialog.ExportDialog(),
+        );
+
+    if (options == null) return;
+
+    // Show progress dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => _buildProgressDialog(options),
+    );
+
     try {
-      final boundary =
-          _canvasRepaintKey.currentContext?.findRenderObject()
-              as RenderRepaintBoundary?;
-
-      if (boundary == null) return;
-
-      final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
-
-      final ByteData? byteData = await image.toByteData(
-        format: ui.ImageByteFormat.png,
-      );
-
-      if (byteData == null) return;
-
-      final Uint8List pngBytes = byteData.buffer.asUint8List();
-
-      final Directory tempDir = await getTemporaryDirectory();
-
-      final String filePath =
-          '${tempDir.path}/poster_${DateTime.now().millisecondsSinceEpoch}.png';
-
-      final File file = File(filePath);
-
-      await file.writeAsBytes(pngBytes);
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.download_done_rounded, color: Colors.white),
-
-              SizedBox(width: 12.w),
-
-              Text(
-                'Poster exported. Sharing...',
-
-                style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w500),
-              ),
-            ],
-          ),
-
-          backgroundColor: Colors.green.shade400,
-
-          behavior: SnackBarBehavior.floating,
-
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12.r),
-          ),
-
-          margin: EdgeInsets.all(16.w),
-        ),
-      );
-
-      await Share.shareXFiles([XFile(file.path)], text: 'My poster');
+      if (options.type == export_dialog.ExportType.image) {
+        await _exportImage(options);
+      } else {
+        await _exportProject(options);
+      }
     } catch (e) {
       if (!mounted) return;
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Export failed')));
+      Navigator.of(context).pop(); // Close progress dialog
+      _showErrorSnackBar('Export failed: ${e.toString()}');
     }
+  }
+
+  Widget _buildProgressDialog(export_dialog.ExportOptions options) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
+      child: Container(
+        padding: EdgeInsets.all(24.w),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20.r),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(
+                options.type == export_dialog.ExportType.image
+                    ? Colors.blue[600]!
+                    : Colors.purple[600]!,
+              ),
+            ),
+            SizedBox(height: 16.h),
+            Text(
+              options.type == export_dialog.ExportType.image
+                  ? 'Exporting Image...'
+                  : 'Exporting Project...',
+              style: GoogleFonts.poppins(
+                fontSize: 16.sp,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF333333),
+              ),
+            ),
+            SizedBox(height: 8.h),
+            Text(
+              'Please wait while we process your ${options.type == export_dialog.ExportType.image ? 'image' : 'project'}',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(
+                fontSize: 14.sp,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _exportImage(export_dialog.ExportOptions options) async {
+    try {
+      // Persist the latest edits before exporting
+      _saveProject(showIndicator: false, saveThumbnail: false);
+      // Export the image
+      final String? filePath = await ExportManager.exportImage(
+        _canvasRepaintKey,
+        options,
+      );
+
+      if (filePath == null) {
+        throw Exception('Failed to export image');
+      }
+
+      // Save to gallery
+      final bool savedToGallery = await ExportManager.saveToGallery(filePath);
+
+      if (!mounted) return;
+      Navigator.of(context).pop(); // Close progress dialog
+
+      if (savedToGallery) {
+        _showSuccessSnackBar('Image exported and saved to gallery!');
+      } else {
+        // If gallery save failed, offer to share
+        await ExportManager.shareImage(filePath);
+        _showSuccessSnackBar('Image exported and shared!');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context).pop(); // Close progress dialog
+      _showErrorSnackBar('Failed to export image: ${e.toString()}');
+    }
+  }
+
+  Future<void> _exportProject(export_dialog.ExportOptions options) async {
+    try {
+      // Persist the latest edits before exporting
+      _saveProject(showIndicator: false, saveThumbnail: false);
+      print('Starting project export...');
+
+      // Get current project data
+      final PosterProject project = _getCurrentProject(options);
+      print('Project data prepared: ${project.canvasItems.length} items');
+
+      // Export the project
+      print('Calling ExportManager.exportProject...');
+      final String? filePath = await ExportManager.exportProject(project);
+
+      if (filePath == null) {
+        print('ExportManager.exportProject returned null');
+        throw Exception('Failed to export project');
+      }
+
+      print('Project exported successfully to: $filePath');
+
+      if (!mounted) return;
+      Navigator.of(context).pop(); // Close progress dialog
+
+      // Share the project file
+      print('Sharing project file...');
+      await Share.shareXFiles([XFile(filePath)], text: 'My LamLayers Project');
+      _showSuccessSnackBar('Project exported and shared!');
+    } catch (e) {
+      print('Error in _exportProject: $e');
+      print('Stack trace: ${StackTrace.current}');
+      if (!mounted) return;
+      Navigator.of(context).pop(); // Close progress dialog
+      _showErrorSnackBar('Failed to export project: ${e.toString()}');
+    }
+  }
+
+  PosterProject _getCurrentProject(export_dialog.ExportOptions options) {
+    // Convert current canvas items to HiveCanvasItem format
+    final List<HiveCanvasItem> hiveItems = canvasItems.map((item) {
+      return HiveCanvasItem(
+        id: item.id,
+        type: _convertCanvasItemType(item.type),
+        position: item.position,
+        scale: item.scale,
+        rotation: item.rotation,
+        opacity: item.opacity,
+        layerIndex: item.layerIndex,
+        isVisible: item.isVisible,
+        isLocked: item.isLocked,
+        properties: _convertProperties(item),
+        createdAt: item.createdAt,
+        lastModified: item.lastModified,
+        groupId: item.groupId,
+      );
+    }).toList();
+
+    // Use current project data if available, otherwise create new
+    final currentProject = _currentProject;
+    if (currentProject != null) {
+      return currentProject.copyWith(
+        canvasItems: hiveItems,
+        settings: currentProject.settings.copyWith(
+          exportSettings: ExportSettings(
+            format: _convertExportFormat(options.format),
+            quality: _convertExportQuality(options.clarity),
+          ),
+        ),
+      );
+    } else {
+      return PosterProject(
+        id:
+            widget.projectId ??
+            DateTime.now().millisecondsSinceEpoch.toString(),
+        name: 'Current Project',
+        description: 'Exported project',
+        createdAt: DateTime.now(),
+        lastModified: DateTime.now(),
+        canvasItems: hiveItems,
+        settings: ProjectSettings(
+          exportSettings: ExportSettings(
+            format: _convertExportFormat(options.format),
+            quality: _convertExportQuality(options.clarity),
+          ),
+        ),
+        canvasWidth: widget.initialCanvasWidth ?? 1080,
+        canvasHeight: widget.initialCanvasHeight ?? 1920,
+        canvasBackgroundColor: const HiveColor(0xFFFFFFFF),
+        backgroundImagePath: widget.initialBackgroundImagePath,
+      );
+    }
+  }
+
+  HiveCanvasItemType _convertCanvasItemType(CanvasItemType type) {
+    switch (type) {
+      case CanvasItemType.text:
+        return HiveCanvasItemType.text;
+      case CanvasItemType.image:
+        return HiveCanvasItemType.image;
+      case CanvasItemType.sticker:
+        return HiveCanvasItemType.sticker;
+      case CanvasItemType.shape:
+        return HiveCanvasItemType.shape;
+      case CanvasItemType.drawing:
+        return HiveCanvasItemType.drawing;
+    }
+  }
+
+  Map<String, dynamic> _convertProperties(CanvasItem item) {
+    try {
+      print('Converting properties for item ${item.id} of type ${item.type}');
+      // Build a fresh properties map to avoid mutating during iteration
+      final Map<String, dynamic> hiveProperties = <String, dynamic>{};
+      item.properties.forEach((key, value) {
+        if (value is ui.Image) {
+          // Skip non-serializable runtime image objects
+          return;
+        }
+        if (value is Color) {
+          hiveProperties[key] = HiveColor.fromColor(value);
+          return;
+        }
+        if (value is Offset) {
+          hiveProperties[key] = {'dx': value.dx, 'dy': value.dy};
+          return;
+        }
+        if (value is List<Color>) {
+          hiveProperties[key] = value
+              .map((color) => HiveColor.fromColor(color))
+              .toList();
+          return;
+        }
+        // Pass through all other values as-is
+        hiveProperties[key] = value;
+      });
+
+      // Handle image-specific properties
+      if (item.type == CanvasItemType.image) {
+        // Ensure imageProperties is properly structured
+        final String? filePath = item.properties['filePath'] as String?;
+        if (filePath != null && filePath.isNotEmpty) {
+          print('Processing image properties for file: $filePath');
+          hiveProperties['imageProperties'] = HiveImageProperties(
+            filePath: filePath,
+            tint: (item.properties['tint'] is HiveColor)
+                ? item.properties['tint'] as HiveColor
+                : HiveColor.fromColor(
+                    item.properties['tint'] as Color? ?? Colors.transparent,
+                  ),
+            blur: (item.properties['blur'] as double?) ?? 0.0,
+            hasGradient: (item.properties['hasGradient'] as bool?) ?? false,
+            gradientColors:
+                (item.properties['gradientColors'] as List<dynamic>?)
+                    ?.map(
+                      (e) =>
+                          e is HiveColor ? e : HiveColor.fromColor(e as Color),
+                    )
+                    .toList() ??
+                [],
+            gradientAngle: (item.properties['gradientAngle'] as double?) ?? 0.0,
+            hasShadow: (item.properties['hasShadow'] as bool?) ?? false,
+            shadowColor: (item.properties['shadowColor'] is HiveColor)
+                ? item.properties['shadowColor'] as HiveColor
+                : HiveColor.fromColor(
+                    item.properties['shadowColor'] as Color? ?? Colors.black54,
+                  ),
+            shadowOffset:
+                item.properties['shadowOffset'] as Offset? ??
+                const Offset(8, 8),
+            shadowBlur: (item.properties['shadowBlur'] as double?) ?? 8.0,
+            shadowOpacity: (item.properties['shadowOpacity'] as double?) ?? 0.6,
+            displayWidth: (item.properties['displayWidth'] as double?),
+            displayHeight: (item.properties['displayHeight'] as double?),
+          );
+        }
+      }
+
+      // Handle text-specific properties
+      if (item.type == CanvasItemType.text) {
+        print('Processing text properties');
+        hiveProperties['textProperties'] = HiveTextProperties(
+          text: (item.properties['text'] as String?) ?? 'Sample Text',
+          fontSize: (item.properties['fontSize'] as double?) ?? 24.0,
+          color: (item.properties['color'] is HiveColor)
+              ? item.properties['color'] as HiveColor
+              : HiveColor.fromColor(
+                  item.properties['color'] as Color? ?? Colors.black,
+                ),
+          fontWeight: (item.properties['fontWeight'] is FontWeight)
+              ? item.properties['fontWeight'] as FontWeight
+              : FontWeight.values[(item.properties['fontWeight'] as int?) ?? 0],
+          fontStyle: (item.properties['fontStyle'] is FontStyle)
+              ? item.properties['fontStyle'] as FontStyle
+              : FontStyle.values[(item.properties['fontStyle'] as int?) ?? 0],
+          textAlign: (item.properties['textAlign'] is TextAlign)
+              ? item.properties['textAlign'] as TextAlign
+              : TextAlign.values[(item.properties['textAlign'] as int?) ?? 0],
+          hasGradient: (item.properties['hasGradient'] as bool?) ?? false,
+          gradientColors:
+              (item.properties['gradientColors'] as List<dynamic>?)
+                  ?.map(
+                    (e) => e is HiveColor ? e : HiveColor.fromColor(e as Color),
+                  )
+                  .toList() ??
+              [],
+          gradientAngle: (item.properties['gradientAngle'] as double?) ?? 0.0,
+          decoration: (item.properties['decoration'] as int?) ?? 0,
+          letterSpacing: (item.properties['letterSpacing'] as double?) ?? 0.0,
+          hasShadow: (item.properties['hasShadow'] as bool?) ?? false,
+          shadowColor: (item.properties['shadowColor'] is HiveColor)
+              ? item.properties['shadowColor'] as HiveColor
+              : HiveColor.fromColor(
+                  item.properties['shadowColor'] as Color? ?? Colors.black54,
+                ),
+          shadowOffset:
+              item.properties['shadowOffset'] as Offset? ?? const Offset(4, 4),
+          shadowBlur: (item.properties['shadowBlur'] as double?) ?? 4.0,
+          shadowOpacity: (item.properties['shadowOpacity'] as double?) ?? 0.6,
+          fontFamily: (item.properties['fontFamily'] as String?),
+        );
+      }
+
+      // Handle shape-specific color/stroke normalization
+      if (item.type == CanvasItemType.shape) {
+        // Ensure colors are HiveColor for export
+        final dynamic rawFill = item.properties['fillColor'];
+        if (rawFill is Color) {
+          hiveProperties['fillColor'] = HiveColor.fromColor(rawFill);
+        }
+        final dynamic rawStroke = item.properties['strokeColor'];
+        if (rawStroke is Color) {
+          hiveProperties['strokeColor'] = HiveColor.fromColor(rawStroke);
+        }
+        // Preserve strokeWidth if present
+        if (item.properties.containsKey('strokeWidth')) {
+          hiveProperties['strokeWidth'] = item.properties['strokeWidth'];
+        }
+      }
+
+      // Ensure shape image base64 is preserved if present
+      if (item.type == CanvasItemType.shape) {
+        // If nested shapeProperties exists, mirror base64 to top-level for exporter compatibility
+        if (hiveProperties['shapeProperties'] is Map<String, dynamic>) {
+          final Map<String, dynamic> sp = Map<String, dynamic>.from(
+            hiveProperties['shapeProperties'] as Map,
+          );
+          final String? nestedB64 = sp['imageBase64'] as String?;
+          if (nestedB64 != null && nestedB64.isNotEmpty) {
+            hiveProperties['imageBase64'] = nestedB64;
+          }
+        }
+      }
+
+      print('Properties conversion completed for item ${item.id}');
+      return hiveProperties;
+    } catch (e) {
+      print('Error converting properties for item ${item.id}: $e');
+      print('Stack trace: ${StackTrace.current}');
+      // Return a basic properties map to avoid breaking the export
+      return {
+        'error': 'Failed to convert properties: $e',
+        'originalProperties': item.properties.toString(),
+      };
+    }
+  }
+
+  hive_model.ExportFormat _convertExportFormat(
+    export_dialog.ExportFormat format,
+  ) {
+    switch (format) {
+      case export_dialog.ExportFormat.png:
+        return hive_model.ExportFormat.png;
+      case export_dialog.ExportFormat.jpg:
+        return hive_model.ExportFormat.jpg;
+    }
+  }
+
+  hive_model.ExportQuality _convertExportQuality(
+    export_dialog.ExportClarity clarity,
+  ) {
+    switch (clarity) {
+      case export_dialog.ExportClarity.high:
+        return hive_model.ExportQuality.high;
+      case export_dialog.ExportClarity.medium:
+        return hive_model.ExportQuality.medium;
+      case export_dialog.ExportClarity.low:
+        return hive_model.ExportQuality.low;
+    }
+  }
+
+  void _showSuccessSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.white),
+            SizedBox(width: 12.w),
+            Expanded(
+              child: Text(
+                message,
+                style: GoogleFonts.poppins(
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.green[600],
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12.r),
+        ),
+        margin: EdgeInsets.all(16.w),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.error, color: Colors.white),
+            SizedBox(width: 12.w),
+            Expanded(
+              child: Text(
+                message,
+                style: GoogleFonts.poppins(
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.red[600],
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12.r),
+        ),
+        margin: EdgeInsets.all(16.w),
+        duration: const Duration(seconds: 4),
+      ),
+    );
   }
 
   Future<void> _navigateToPixabayImages() async {

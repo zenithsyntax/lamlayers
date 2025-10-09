@@ -5,8 +5,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lamlayers/screens/poster_maker_screen.dart';
 import 'package:lamlayers/screens/canvas_preset_screen.dart';
 import 'package:lamlayers/screens/hive_model.dart';
+import 'package:lamlayers/utils/export_manager.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
+import 'package:file_picker/file_picker.dart';
 
 class MyDesignsScreen extends StatefulWidget {
   const MyDesignsScreen({Key? key}) : super(key: key);
@@ -49,6 +51,171 @@ class _MyDesignsScreenState extends State<MyDesignsScreen> {
         ),
       );
     }
+  }
+
+  Future<void> _loadProjectFromStorage() async {
+    try {
+      // Show file picker for .lamlayer files
+      // Some Android pickers throw "Unsupported filter" for custom extensions.
+      // Use FileType.any and validate the extension client-side.
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+        allowMultiple: false,
+      );
+
+      if (result != null && result.files.single.path != null) {
+        final String filePath = result.files.single.path!;
+
+        // Validate extension manually
+        if (!filePath.toLowerCase().endsWith('.lamlayer')) {
+          _showErrorMessage(
+            'Please select a .lamlayer file. Selected: ${filePath.split('/').last}',
+          );
+          return;
+        }
+
+        // Show loading dialog
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => _buildLoadingDialog(),
+        );
+
+        try {
+          // Load the project
+          final PosterProject? project = await ExportManager.loadProject(
+            filePath,
+          );
+
+          if (!mounted) return;
+          Navigator.of(context).pop(); // Close loading dialog
+
+          if (project != null) {
+            // Save the loaded project to Hive
+            await _projectBox.put(project.id, project);
+
+            // Navigate to poster maker with the loaded project
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => PosterMakerScreen(projectId: project.id),
+              ),
+            );
+
+            _showSuccessMessage('Project loaded successfully!');
+          } else {
+            _showErrorMessage(
+              'Failed to load project. The file may be corrupted.',
+            );
+          }
+        } catch (e) {
+          if (!mounted) return;
+          Navigator.of(context).pop(); // Close loading dialog
+          _showErrorMessage('Error loading project: ${e.toString()}');
+        }
+      }
+    } catch (e) {
+      _showErrorMessage('Error selecting file: ${e.toString()}');
+    }
+  }
+
+  Widget _buildLoadingDialog() {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
+      child: Container(
+        padding: EdgeInsets.all(24.w),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20.r),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.purple[600]!),
+            ),
+            SizedBox(height: 16.h),
+            Text(
+              'Loading Project...',
+              style: GoogleFonts.poppins(
+                fontSize: 16.sp,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF333333),
+              ),
+            ),
+            SizedBox(height: 8.h),
+            Text(
+              'Please wait while we load your project',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(
+                fontSize: 14.sp,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSuccessMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.white),
+            SizedBox(width: 12.w),
+            Expanded(
+              child: Text(
+                message,
+                style: GoogleFonts.poppins(
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.green[600],
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12.r),
+        ),
+        margin: EdgeInsets.all(16.w),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  void _showErrorMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.error, color: Colors.white),
+            SizedBox(width: 12.w),
+            Expanded(
+              child: Text(
+                message,
+                style: GoogleFonts.poppins(
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.red[600],
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12.r),
+        ),
+        margin: EdgeInsets.all(16.w),
+        duration: const Duration(seconds: 4),
+      ),
+    );
   }
 
   Widget _actionButton({
@@ -378,7 +545,7 @@ class _MyDesignsScreenState extends State<MyDesignsScreen> {
                   _actionButton(
                     title: 'Load from Storage',
                     icon: Icons.folder_open,
-                    onTap: () {},
+                    onTap: _loadProjectFromStorage,
                     color: const Color(0xFF66BB6A),
                   ),
                 ],
