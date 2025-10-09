@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:archive/archive.dart';
+import 'package:image/image.dart' as img;
 import 'package:lamlayers/screens/hive_model.dart' as hive_model;
 import 'package:lamlayers/widgets/export_dialog.dart' as export_dialog;
 
@@ -74,7 +75,11 @@ class ExportManager {
 
       // Convert RGBA to JPEG if needed
       if (options.format == export_dialog.ExportFormat.jpg) {
-        imageBytes = await _convertToJpeg(imageBytes);
+        imageBytes = await _convertToJpeg(
+          imageBytes,
+          image.width,
+          image.height,
+        );
       }
 
       final Directory tempDir = await getTemporaryDirectory();
@@ -92,10 +97,43 @@ class ExportManager {
     }
   }
 
-  static Future<Uint8List> _convertToJpeg(Uint8List rgbaBytes) async {
-    // This is a simplified conversion - in a real app you might want to use
-    // a proper image processing library like image package
-    return rgbaBytes;
+  static Future<Uint8List> _convertToJpeg(
+    Uint8List rgbaBytes,
+    int width,
+    int height,
+  ) async {
+    // Flatten RGBA onto white (JPEG has no alpha), producing RGB bytes
+    final int pixelCount = width * height;
+    final Uint8List rgbBytes = Uint8List(pixelCount * 3);
+    int src = 0;
+    int dst = 0;
+    for (int i = 0; i < pixelCount; i++) {
+      final int r = rgbaBytes[src];
+      final int g = rgbaBytes[src + 1];
+      final int b = rgbaBytes[src + 2];
+      final int a = rgbaBytes[src + 3];
+      // Alpha blend over white: out = a*color + (1-a)*255
+      final int outR = 255 - (((255 - r) * a) ~/ 255);
+      final int outG = 255 - (((255 - g) * a) ~/ 255);
+      final int outB = 255 - (((255 - b) * a) ~/ 255);
+      rgbBytes[dst] = outR;
+      rgbBytes[dst + 1] = outG;
+      rgbBytes[dst + 2] = outB;
+      src += 4;
+      dst += 3;
+    }
+
+    // Create 3-channel image from RGB bytes and encode to JPEG
+    final img.Image rgbImage = img.Image.fromBytes(
+      width: width,
+      height: height,
+      bytes: rgbBytes.buffer,
+      numChannels: 3,
+      format: img.Format.uint8,
+      order: img.ChannelOrder.rgb,
+    );
+
+    return Uint8List.fromList(img.encodeJpg(rgbImage, quality: 90));
   }
 
   static Future<bool> saveToGallery(String filePath) async {
