@@ -3502,16 +3502,16 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           width: 70.w,
           height: 70.h,
           decoration: BoxDecoration(
-            color: isSelected
-                ? iconColor.withOpacity(0.1)
-                : const Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.circular(20.r),
-            border: Border.all(
-              color: isSelected
-                  ? iconColor.withOpacity(0.3)
-                  : const Color(0xFFE2E8F0),
-              width: 1.5,
-            ),
+            // color: isSelected
+            //     ? iconColor.withOpacity(0.1)
+            //     : const Color(0xFFF8FAFC),
+            // borderRadius: BorderRadius.circular(20.r),
+            // border: Border.all(
+            //   color: isSelected
+            //       ? iconColor.withOpacity(0.3)
+            //       : const Color(0xFFE2E8F0),
+            //   width: 1.5,
+            // ),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -13504,7 +13504,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             Positioned(
               bottom: selectedItem != null
                   ? 40.h
-                  : 160.h, // leaves space for the ad banner
+                  : 150.h, // leaves space for the ad banner
               left: 0,
               right: 0,
               child: _buildTopToolbar(),
