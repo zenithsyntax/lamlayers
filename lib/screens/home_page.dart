@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lamlayers/screens/poster_maker_screen.dart';
 import 'package:lamlayers/screens/canvas_preset_screen.dart';
 import 'package:lamlayers/screens/hive_model.dart';
+import 'package:lamlayers/screens/scrapbook_manager_screen.dart';
 import 'package:lamlayers/screens/settings_screen.dart';
 import 'package:lamlayers/utils/export_manager.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -21,6 +22,7 @@ class _HomePageState extends State<HomePage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   late Box<PosterProject> _projectBox;
+  late Box<Scrapbook> _scrapbookBox;
   bool _isBoxReady = false;
 
   final List<String> _designQuotes = [
@@ -65,9 +67,123 @@ class _HomePageState extends State<HomePage>
 
   Future<void> _openProjectBox() async {
     _projectBox = await Hive.openBox<PosterProject>('posterProjects');
+    _scrapbookBox = await Hive.openBox<Scrapbook>('scrapbooks');
     setState(() {
       _isBoxReady = true;
     });
+  }
+
+  Future<void> _createNewScrapbook() async {
+    final controller = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20.r),
+        ),
+        child: Padding(
+          padding: EdgeInsets.all(20.w),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Name your Scrapbook',
+                style: GoogleFonts.inter(
+                  fontSize: 18.sp,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              SizedBox(height: 12.h),
+              TextField(
+                controller: controller,
+                autofocus: true,
+                decoration: InputDecoration(
+                  hintText: 'e.g. Planner 1',
+                  filled: true,
+                  fillColor: const Color(0xFFF8FAFC),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12.r),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+              SizedBox(height: 16.h),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Cancel'),
+                  ),
+                  SizedBox(width: 8.w),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+                    child: const Text('Create'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (name == null || name.isEmpty) return;
+
+    // Create default cover and back cover pages at 1600x1200
+    final double pageW = 1600;
+    final double pageH = 1200;
+
+    final cover = PosterProject(
+      id: 'p_${DateTime.now().millisecondsSinceEpoch}',
+      name: 'Cover',
+      createdAt: DateTime.now(),
+      lastModified: DateTime.now(),
+      canvasItems: [],
+      settings: ProjectSettings(exportSettings: ExportSettings()),
+      canvasWidth: pageW,
+      canvasHeight: pageH,
+    );
+    final back = PosterProject(
+      id: 'p_${DateTime.now().millisecondsSinceEpoch + 1}',
+      name: 'Back Cover',
+      createdAt: DateTime.now(),
+      lastModified: DateTime.now(),
+      canvasItems: [],
+      settings: ProjectSettings(exportSettings: ExportSettings()),
+      canvasWidth: pageW,
+      canvasHeight: pageH,
+    );
+
+    await _projectBox.put(cover.id, cover);
+    await _projectBox.put(back.id, back);
+
+    final scrapbook = Scrapbook(
+      id: 's_${DateTime.now().millisecondsSinceEpoch}',
+      name: name,
+      createdAt: DateTime.now(),
+      lastModified: DateTime.now(),
+      pageProjectIds: [cover.id, back.id],
+      pageWidth: pageW,
+      pageHeight: pageH,
+    );
+    await _scrapbookBox.put(scrapbook.id, scrapbook);
+
+    if (!mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ScrapbookManagerScreen(scrapbookId: scrapbook.id),
+      ),
+    );
+  }
+
+  void _openScrapbookList() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ScrapbookManagerScreen()),
+    );
   }
 
   Future<void> _createNewProject() async {
@@ -87,6 +203,397 @@ class _HomePageState extends State<HomePage>
         ),
       );
     }
+  }
+
+  Future<void> _renameScrapbook(Scrapbook scrapbook) async {
+    final controller = TextEditingController(text: scrapbook.name);
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24.r),
+        ),
+        child: Container(
+          padding: EdgeInsets.all(24.w),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Rename Scrapbook',
+                style: GoogleFonts.inter(
+                  fontSize: 20.sp,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF0F172A),
+                  letterSpacing: -0.5,
+                ),
+              ),
+              SizedBox(height: 20.h),
+              TextField(
+                controller: controller,
+                autofocus: true,
+                style: GoogleFonts.inter(fontSize: 15.sp),
+                decoration: InputDecoration(
+                  hintText: 'Enter new name',
+                  hintStyle: GoogleFonts.inter(color: const Color(0xFF94A3B8)),
+                  filled: true,
+                  fillColor: const Color(0xFFF8FAFC),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12.r),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12.r),
+                    borderSide: BorderSide(color: const Color(0xFFE2E8F0)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12.r),
+                    borderSide: BorderSide(
+                      color: const Color(0xFFEC4899),
+                      width: 2,
+                    ),
+                  ),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 16.w,
+                    vertical: 14.h,
+                  ),
+                ),
+              ),
+              SizedBox(height: 24.h),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: Text(
+                      'Cancel',
+                      style: GoogleFonts.inter(
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w500,
+                        color: const Color(0xFF64748B),
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 8.w),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFEC4899),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 24.w,
+                        vertical: 12.h,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10.r),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: Text(
+                      'Save',
+                      style: GoogleFonts.inter(
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (newName != null && newName.isNotEmpty) {
+      final updated = scrapbook.copyWith(name: newName);
+      await _scrapbookBox.put(scrapbook.id, updated);
+    }
+  }
+
+  Future<void> _deleteScrapbook(Scrapbook scrapbook) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24.r),
+        ),
+        child: Container(
+          padding: EdgeInsets.all(24.w),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: EdgeInsets.all(12.w),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEF4444).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+                child: Icon(
+                  Icons.delete_outline,
+                  color: const Color(0xFFEF4444),
+                  size: 24.r,
+                ),
+              ),
+              SizedBox(height: 16.h),
+              Text(
+                'Delete Scrapbook?',
+                style: GoogleFonts.inter(
+                  fontSize: 20.sp,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF0F172A),
+                  letterSpacing: -0.5,
+                ),
+              ),
+              SizedBox(height: 8.h),
+              Text(
+                'Are you sure you want to delete "${scrapbook.name}"? All its pages will also be deleted.',
+                style: GoogleFonts.inter(
+                  fontSize: 14.sp,
+                  color: const Color(0xFF64748B),
+                  height: 1.5,
+                ),
+              ),
+              SizedBox(height: 24.h),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: Text(
+                      'Cancel',
+                      style: GoogleFonts.inter(
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w500,
+                        color: const Color(0xFF64748B),
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 8.w),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFEF4444),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 24.w,
+                        vertical: 12.h,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10.r),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: Text(
+                      'Delete',
+                      style: GoogleFonts.inter(
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (confirm == true) {
+      // Cascade delete: remove all page projects referenced by this scrapbook
+      final List<String> pageIds = List<String>.from(scrapbook.pageProjectIds);
+      for (final String pid in pageIds) {
+        await _projectBox.delete(pid);
+      }
+      await _scrapbookBox.delete(scrapbook.id);
+    }
+  }
+
+  Widget _scrapbookCard(Scrapbook scrapbook) {
+    PosterProject? cover;
+    if (scrapbook.pageProjectIds.isNotEmpty) {
+      cover = _projectBox.get(scrapbook.pageProjectIds.first);
+    }
+
+    return Container(
+      width: 220.w,
+      margin: EdgeInsets.only(right: 20.w),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24.r),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withOpacity(0.04),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
+            spreadRadius: -4,
+          ),
+          BoxShadow(
+            color: const Color(0xFF0F172A).withOpacity(0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          InkWell(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>
+                      ScrapbookManagerScreen(scrapbookId: scrapbook.id),
+                ),
+              );
+            },
+            borderRadius: BorderRadius.circular(24.r),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  height: 200.h,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(24.r),
+                      topRight: Radius.circular(24.r),
+                    ),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(24.r),
+                      topRight: Radius.circular(24.r),
+                    ),
+                    child: _buildProjectPreviewImage(cover),
+                  ),
+                ),
+                Padding(
+                  padding: EdgeInsets.all(18.w),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        scrapbook.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF0F172A),
+                          letterSpacing: -0.4,
+                        ),
+                      ),
+                      SizedBox(height: 8.h),
+                      Row(
+                        children: [
+                          Container(
+                            padding: EdgeInsets.all(4.w),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEC4899).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(6.r),
+                            ),
+                            child: Icon(
+                              Icons.auto_stories,
+                              size: 13.r,
+                              color: const Color(0xFFEC4899),
+                            ),
+                          ),
+                          SizedBox(width: 6.w),
+                          Text(
+                            '${scrapbook.pageProjectIds.length} pages',
+                            style: GoogleFonts.inter(
+                              fontSize: 12.sp,
+                              fontWeight: FontWeight.w500,
+                              color: const Color(0xFF64748B),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Positioned(
+            right: 8.w,
+            top: 8.h,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.95),
+                borderRadius: BorderRadius.circular(10.r),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: PopupMenuButton<String>(
+                onSelected: (value) {
+                  if (value == 'rename') {
+                    _renameScrapbook(scrapbook);
+                  } else if (value == 'delete') {
+                    _deleteScrapbook(scrapbook);
+                  }
+                },
+                icon: Icon(
+                  Icons.more_horiz,
+                  size: 20.r,
+                  color: const Color(0xFF64748B),
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+                itemBuilder: (context) => [
+                  PopupMenuItem(
+                    value: 'rename',
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.edit_outlined,
+                          size: 18.r,
+                          color: const Color(0xFF64748B),
+                        ),
+                        SizedBox(width: 12.w),
+                        Text(
+                          'Rename',
+                          style: GoogleFonts.inter(fontSize: 14.sp),
+                        ),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.delete_outline,
+                          size: 18.r,
+                          color: const Color(0xFFEF4444),
+                        ),
+                        SizedBox(width: 12.w),
+                        Text(
+                          'Delete',
+                          style: GoogleFonts.inter(
+                            fontSize: 14.sp,
+                            color: const Color(0xFFEF4444),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _loadProjectFromStorage() async {
@@ -979,7 +1486,25 @@ class _HomePageState extends State<HomePage>
             ValueListenableBuilder<Box<PosterProject>>(
               valueListenable: _projectBox.listenable(),
               builder: (context, box, _) {
-                if (box.isEmpty) {
+                // Build a set of all project IDs that belong to any scrapbook (cover, back, or pages)
+                final Set<String> scrapbookProjectIds = <String>{};
+                for (int i = 0; i < _scrapbookBox.length; i++) {
+                  final sb = _scrapbookBox.getAt(i);
+                  if (sb != null) {
+                    scrapbookProjectIds.addAll(sb.pageProjectIds);
+                  }
+                }
+
+                // Collect poster-only projects (exclude projects that are scrapbook pages)
+                final List<PosterProject?> posterOnly = [];
+                for (int i = 0; i < box.length; i++) {
+                  final p = box.getAt(i);
+                  if (p != null && !scrapbookProjectIds.contains(p.id)) {
+                    posterOnly.add(p);
+                  }
+                }
+
+                if (posterOnly.isEmpty) {
                   return Container(
                     margin: EdgeInsets.symmetric(horizontal: 24.w),
                     padding: EdgeInsets.all(48.w),
@@ -1032,9 +1557,9 @@ class _HomePageState extends State<HomePage>
                   child: ListView.builder(
                     scrollDirection: Axis.horizontal,
                     padding: EdgeInsets.symmetric(horizontal: 24.w),
-                    itemCount: box.length,
+                    itemCount: posterOnly.length,
                     itemBuilder: (context, index) {
-                      final project = box.getAt(index);
+                      final project = posterOnly[index];
                       return _projectCard(project);
                     },
                   ),
@@ -1143,7 +1668,7 @@ class _HomePageState extends State<HomePage>
                       end: Alignment.bottomRight,
                       colors: [Color(0xFFEC4899), Color(0xFFF43F5E)],
                     ),
-                    onTap: () {},
+                    onTap: _createNewScrapbook,
                   ),
                 ),
                 SizedBox(width: 16.w),
@@ -1157,7 +1682,7 @@ class _HomePageState extends State<HomePage>
                       end: Alignment.bottomRight,
                       colors: [Color(0xFFF59E0B), Color(0xFFF97316)],
                     ),
-                    onTap: () {},
+                    onTap: _openScrapbookList,
                   ),
                 ),
               ],
@@ -1166,71 +1691,108 @@ class _HomePageState extends State<HomePage>
 
           SizedBox(height: 40.h),
 
-          // Coming Soon Section
-          Container(
-            margin: EdgeInsets.symmetric(horizontal: 24.w),
-            padding: EdgeInsets.all(48.w),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20.r),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: Center(
-              child: Column(
-                children: [
-                  Container(
-                    padding: EdgeInsets.all(20.w),
+          // Scrapbooks List
+          if (!_isBoxReady)
+            Container(
+              margin: EdgeInsets.symmetric(horizontal: 24.w),
+              padding: EdgeInsets.all(48.w),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20.r),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Center(
+                child: Column(
+                  children: [
+                    SizedBox(
+                      width: 28.w,
+                      height: 28.w,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 3,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          const Color(0xFFEC4899),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 20.h),
+                    Text(
+                      'Loading scrapbooks...',
+                      style: GoogleFonts.inter(
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w500,
+                        color: const Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            ValueListenableBuilder<Box<Scrapbook>>(
+              valueListenable: _scrapbookBox.listenable(),
+              builder: (context, box, _) {
+                if (box.isEmpty) {
+                  return Container(
+                    margin: EdgeInsets.symmetric(horizontal: 24.w),
+                    padding: EdgeInsets.all(48.w),
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          const Color(0xFFEC4899).withOpacity(0.1),
-                          const Color(0xFFF59E0B).withOpacity(0.1),
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20.r),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Center(
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: EdgeInsets.all(20.w),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEC4899).withOpacity(0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.collections_bookmark_rounded,
+                              size: 48.r,
+                              color: const Color(0xFFEC4899),
+                            ),
+                          ),
+                          SizedBox(height: 20.h),
+                          Text(
+                            'No scrapbooks yet',
+                            style: GoogleFonts.inter(
+                              fontSize: 17.sp,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF0F172A),
+                              letterSpacing: -0.3,
+                            ),
+                          ),
+                          SizedBox(height: 8.h),
+                          Text(
+                            'Create your first scrapbook to get started',
+                            style: GoogleFonts.inter(
+                              fontSize: 14.sp,
+                              color: const Color(0xFF64748B),
+                            ),
+                          ),
                         ],
                       ),
-                      shape: BoxShape.circle,
                     ),
-                    child: Icon(
-                      Icons.collections_bookmark_rounded,
-                      size: 56.r,
-                      color: const Color(0xFFEC4899),
-                    ),
+                  );
+                }
+
+                return SizedBox(
+                  height: 300.h,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    padding: EdgeInsets.symmetric(horizontal: 24.w),
+                    itemCount: box.length,
+                    itemBuilder: (context, index) {
+                      final scrapbook = box.getAt(index)!;
+                      return _scrapbookCard(scrapbook);
+                    },
                   ),
-                  SizedBox(height: 24.h),
-                  Text(
-                    'Coming Soon',
-                    style: GoogleFonts.inter(
-                      fontSize: 22.sp,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF0F172A),
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  SizedBox(height: 12.h),
-                  Text(
-                    'We\'re working on something special',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.inter(
-                      fontSize: 15.sp,
-                      color: const Color(0xFF64748B),
-                      height: 1.5,
-                    ),
-                  ),
-                  SizedBox(height: 8.h),
-                  Text(
-                    'Create beautiful scrapbooks to preserve\nyour cherished memories',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.inter(
-                      fontSize: 14.sp,
-                      color: const Color(0xFF94A3B8),
-                      height: 1.5,
-                    ),
-                  ),
-                ],
-              ),
+                );
+              },
             ),
-          ),
 
           SizedBox(height: 40.h),
         ],

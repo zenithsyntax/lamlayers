@@ -14,6 +14,7 @@ void main() async {
   await Hive.initFlutter(appDocumentDirectory.path);
 
   // Register Adapters
+  Hive.registerAdapter(ScrapbookAdapter());
   Hive.registerAdapter(PosterProjectAdapter());
   Hive.registerAdapter(ProjectSettingsAdapter());
   Hive.registerAdapter(ExportSettingsAdapter());
@@ -38,6 +39,7 @@ void main() async {
   Hive.registerAdapter(TextAlignAdapter()); // Register TextAlignAdapter
 
   await Hive.openBox<PosterProject>('posterProjects');
+  await Hive.openBox<Scrapbook>('scrapbooks');
   await Hive.openBox<UserPreferences>('userPreferences');
 
   runApp(const MyApp());

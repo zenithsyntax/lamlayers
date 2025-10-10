@@ -9124,19 +9124,13 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
           return SizedBox(
             width: width,
-
             height: height,
-
             child: CustomPaint(
               painter: _DrawingItemPainter(
                 tool: tool,
-
                 points: points,
-
                 color: color,
-
                 strokeWidth: strokeWidth,
-
                 isDotted: isDotted,
               ),
             ),
@@ -12320,9 +12314,118 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       hasItems: canvasItems.isNotEmpty,
       onShowLayers: _showLayerPanel,
       onExport: _exportPoster,
-      onBack: () => Navigator.pop(context),
+      onBack: _onBackPressed,
       isAutoSaving: _isAutoSaving,
     );
+  }
+
+  Future<bool> _showSaveBeforeExitDialog() async {
+    final bool? shouldSaveAndExit = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24.r),
+          ),
+          child: Container(
+            padding: EdgeInsets.all(24.w),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(10.w),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF6366F1).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                      child: Icon(
+                        Icons.save_rounded,
+                        color: const Color(0xFF6366F1),
+                        size: 20.sp,
+                      ),
+                    ),
+                    SizedBox(width: 12.w),
+                    Expanded(
+                      child: Text(
+                        'Save project before leaving?',
+                        style: TextStyle(
+                          fontSize: 18.sp,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF0F172A),
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 12.h),
+                Text(
+                  'We can save your changes and update the thumbnail.',
+                  style: TextStyle(
+                    fontSize: 14.sp,
+                    color: const Color(0xFF64748B),
+                    height: 1.5,
+                  ),
+                ),
+                SizedBox(height: 20.h),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: Text(
+                        'Cancel',
+                        style: TextStyle(
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w500,
+                          color: const Color(0xFF64748B),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 8.w),
+                    ElevatedButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF6366F1),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 20.w,
+                          vertical: 12.h,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10.r),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: const Text('Save & Exit'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (shouldSaveAndExit == true) {
+      _saveProject(showIndicator: false, saveThumbnail: true);
+      return true;
+    }
+    return false;
+  }
+
+  Future<void> _onBackPressed() async {
+    final bool allowExit = await _showSaveBeforeExitDialog();
+    if (allowExit && mounted) {
+      Navigator.pop(context);
+    }
+  }
+
+  Future<bool> _onWillPop() async {
+    return await _showSaveBeforeExitDialog();
   }
 
   void _showLayerPanel() {
@@ -13909,76 +14012,79 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             },
           ),
         },
-        child: Focus(
-          autofocus: true,
-          child: Scaffold(
-            backgroundColor: const Color(0xFFF1F5F9),
-            body: SafeArea(
-              child: Stack(
-                children: [
-                  // === Canvas always at the bottom ===
-                  SizedBox(
-                    height: double.infinity,
-                    width: double.infinity,
-                    child: Column(
-                      children: [
-                        SizedBox(height: 90.h),
-                        _buildCanvas(),
-                        Container(height: 120.h, color: Colors.white),
-                        Container(height: 120.h, color: Colors.white),
-                      ],
-                    ),
-                  ),
-
-                  // === Action bar at the very top ===
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    child: _buildActionBar(),
-                  ),
-
-                  // === Top Toolbar (overlayed, not pushing canvas) ===
-                  Positioned(
-                    bottom: selectedItem != null
-                        ? 40.h
-                        : 150.h, // leaves space for the ad banner
-                    left: 0,
-                    right: 0,
-                    child: _buildTopToolbar(),
-                  ),
-
-                  // === Bottom Controls (only if no item selected) ===
-                  if (selectedItem == null)
-                    Positioned(
-                      bottom: 80.h, // leaves space for the ad banner
-                      left: 0,
-                      right: 0,
-                      child: Container(
-                        height: (selectedTabIndex == 3)
-                            ? (showDrawingToolSelection ? 60.h : 110.h)
-                            : 60.h,
-                        padding: EdgeInsets.symmetric(horizontal: 20.w),
-                        decoration: BoxDecoration(color: Colors.white),
-                        child: selectedTabIndex == 3
-                            ? _buildDrawingControls()
-                            : _buildTabContent(),
+        child: WillPopScope(
+          onWillPop: _onWillPop,
+          child: Focus(
+            autofocus: true,
+            child: Scaffold(
+              backgroundColor: const Color(0xFFF1F5F9),
+              body: SafeArea(
+                child: Stack(
+                  children: [
+                    // === Canvas always at the bottom ===
+                    SizedBox(
+                      height: double.infinity,
+                      width: double.infinity,
+                      child: Column(
+                        children: [
+                          SizedBox(height: 90.h),
+                          _buildCanvas(),
+                          Container(height: 120.h, color: Colors.white),
+                          Container(height: 120.h, color: Colors.white),
+                        ],
                       ),
                     ),
 
-                  // === Fixed Ad Banner at very bottom ===
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: Container(
-                      color: Colors.white,
-                      alignment: Alignment.center,
-                      height: 40.h,
-                      child: const AdBanner320x50(),
+                    // === Action bar at the very top ===
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      child: _buildActionBar(),
                     ),
-                  ),
-                ],
+
+                    // === Top Toolbar (overlayed, not pushing canvas) ===
+                    Positioned(
+                      bottom: selectedItem != null
+                          ? 40.h
+                          : 150.h, // leaves space for the ad banner
+                      left: 0,
+                      right: 0,
+                      child: _buildTopToolbar(),
+                    ),
+
+                    // === Bottom Controls (only if no item selected) ===
+                    if (selectedItem == null)
+                      Positioned(
+                        bottom: 80.h, // leaves space for the ad banner
+                        left: 0,
+                        right: 0,
+                        child: Container(
+                          height: (selectedTabIndex == 3)
+                              ? (showDrawingToolSelection ? 60.h : 110.h)
+                              : 60.h,
+                          padding: EdgeInsets.symmetric(horizontal: 20.w),
+                          decoration: BoxDecoration(color: Colors.white),
+                          child: selectedTabIndex == 3
+                              ? _buildDrawingControls()
+                              : _buildTabContent(),
+                        ),
+                      ),
+
+                    // === Fixed Ad Banner at very bottom ===
+                    Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      child: Container(
+                        color: Colors.white,
+                        alignment: Alignment.center,
+                        height: 40.h,
+                        child: const AdBanner320x50(),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

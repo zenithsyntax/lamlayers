@@ -5,6 +5,97 @@ import 'package:flutter/material.dart';
 part 'hive_model.g.dart'; // Generated file
 
 // Main Project Model
+@HiveType(typeId: 30)
+class Scrapbook extends HiveObject {
+  @HiveField(0)
+  String id;
+
+  @HiveField(1)
+  String name;
+
+  @HiveField(2)
+  DateTime createdAt;
+
+  @HiveField(3)
+  DateTime lastModified;
+
+  // Ordered list of PosterProject ids; index 0 is cover, last is back cover
+  @HiveField(4)
+  List<String> pageProjectIds;
+
+  // Diary page size used for every page
+  @HiveField(5)
+  double pageWidth;
+
+  @HiveField(6)
+  double pageHeight;
+
+  Scrapbook({
+    required this.id,
+    required this.name,
+    required this.createdAt,
+    required this.lastModified,
+    required this.pageProjectIds,
+    this.pageWidth = 1600,
+    this.pageHeight = 1200,
+  });
+
+  Scrapbook copyWith({String? name, List<String>? pageProjectIds}) {
+    return Scrapbook(
+      id: id,
+      name: name ?? this.name,
+      createdAt: createdAt,
+      lastModified: DateTime.now(),
+      pageProjectIds: pageProjectIds ?? List.from(this.pageProjectIds),
+      pageWidth: pageWidth,
+      pageHeight: pageHeight,
+    );
+  }
+}
+
+class ScrapbookAdapter extends TypeAdapter<Scrapbook> {
+  @override
+  final int typeId = 30;
+
+  @override
+  Scrapbook read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{};
+    for (int i = 0; i < numOfFields; i++) {
+      fields[reader.readByte()] = reader.read();
+    }
+    return Scrapbook(
+      id: fields[0] as String,
+      name: fields[1] as String,
+      createdAt: fields[2] as DateTime,
+      lastModified: fields[3] as DateTime,
+      pageProjectIds: (fields[4] as List).cast<String>(),
+      pageWidth: fields[5] as double,
+      pageHeight: fields[6] as double,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, Scrapbook obj) {
+    writer
+      ..writeByte(7)
+      ..writeByte(0)
+      ..write(obj.id)
+      ..writeByte(1)
+      ..write(obj.name)
+      ..writeByte(2)
+      ..write(obj.createdAt)
+      ..writeByte(3)
+      ..write(obj.lastModified)
+      ..writeByte(4)
+      ..write(obj.pageProjectIds)
+      ..writeByte(5)
+      ..write(obj.pageWidth)
+      ..writeByte(6)
+      ..write(obj.pageHeight);
+  }
+}
+
 @HiveType(typeId: 0)
 class PosterProject extends HiveObject {
   @HiveField(0)
