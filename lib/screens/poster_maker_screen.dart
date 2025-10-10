@@ -3440,18 +3440,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     }
 
     return Container(
-      height: 80.h,
-      padding: EdgeInsets.symmetric(horizontal: 20.w),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+      height: 90.h,
+      padding: EdgeInsets.symmetric(horizontal: 24.w),
+      decoration: BoxDecoration(color: Colors.white),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
@@ -3461,34 +3452,34 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             'Text',
             selectedTabIndex == 0,
             () => setState(() => selectedTabIndex = 0),
-            Colors.purple[600]!,
+            const Color(0xFF6366F1),
           ),
-          SizedBox(width: 8.w),
+          SizedBox(width: 12.w),
           _buildToolButton(
             context,
             Icons.image_rounded,
             'Images',
             selectedTabIndex == 1,
             () => setState(() => selectedTabIndex = 1),
-            Colors.blue[600]!,
+            const Color(0xFF8B5CF6),
           ),
-          SizedBox(width: 8.w),
+          SizedBox(width: 12.w),
           _buildToolButton(
             context,
             Icons.category_rounded,
             'Shapes',
             selectedTabIndex == 2,
             () => setState(() => selectedTabIndex = 2),
-            Colors.orange[600]!,
+            const Color(0xFFF59E0B),
           ),
-          SizedBox(width: 8.w),
+          SizedBox(width: 12.w),
           _buildToolButton(
             context,
             Icons.brush_rounded,
             'Drawing',
             selectedTabIndex == 3,
             () => setState(() => selectedTabIndex = 3),
-            Colors.pink[600]!,
+            const Color(0xFFEC4899),
           ),
         ],
       ),
@@ -3508,24 +3499,45 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          width: 60.w,
-          height: 60.h,
+          width: 70.w,
+          height: 70.h,
           decoration: BoxDecoration(
-            color: isSelected ? Colors.transparent : Colors.transparent,
-            borderRadius: BorderRadius.circular(12.r),
-            border: isSelected ? Border.all(color: iconColor, width: 2) : null,
+            color: isSelected
+                ? iconColor.withOpacity(0.1)
+                : const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(20.r),
+            border: Border.all(
+              color: isSelected
+                  ? iconColor.withOpacity(0.3)
+                  : const Color(0xFFE2E8F0),
+              width: 1.5,
+            ),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: iconColor, size: 24.sp),
-              SizedBox(height: 4.h),
+              Container(
+                padding: EdgeInsets.all(8.w),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? iconColor.withOpacity(0.15)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+                child: Icon(
+                  icon,
+                  color: isSelected ? iconColor : const Color(0xFF64748B),
+                  size: 24.r,
+                ),
+              ),
+              SizedBox(height: 6.h),
               Text(
                 label,
-                style: TextStyle(
-                  color: iconColor,
-                  fontSize: 10.sp,
-                  fontWeight: FontWeight.w500,
+                style: GoogleFonts.inter(
+                  color: isSelected ? iconColor : const Color(0xFF64748B),
+                  fontSize: 11.sp,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.2,
                 ),
               ),
             ],
@@ -3539,11 +3551,11 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     final CanvasItemType? itemType = selectedItem?.type;
     switch (itemType) {
       case CanvasItemType.text:
-        return Colors.purple[600]!;
+        return const Color(0xFF6366F1);
       case CanvasItemType.image:
-        return Colors.blue[600]!;
+        return const Color(0xFF8B5CF6);
       case CanvasItemType.shape:
-        return Colors.orange[600]!;
+        return const Color(0xFFF59E0B);
       case CanvasItemType.drawing:
         return Colors.pink[600]!;
       case CanvasItemType.sticker:
@@ -3574,19 +3586,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     return Container(
       height: 185.h,
 
-      decoration: BoxDecoration(
-        color: Colors.white,
-
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-
-            blurRadius: 20,
-
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+      decoration: BoxDecoration(color: Colors.white),
 
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -5091,104 +5091,105 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
     showDialog(
       context: context,
-
       barrierDismissible: false,
-
       builder: (BuildContext context) {
         return Dialog(
           backgroundColor: Colors.transparent,
-
-          insetPadding: EdgeInsets.all(20.w),
-
+          insetPadding: EdgeInsets.all(24.w),
           child: Container(
             width: double.infinity,
-
             constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.7,
-
-              minHeight: 300.h,
+              maxHeight: MediaQuery.of(context).size.height * 0.6,
+              minHeight: 180.h,
             ),
-
             decoration: BoxDecoration(
               color: Colors.white,
-
-              borderRadius: BorderRadius.circular(24.r),
-
+              borderRadius: BorderRadius.circular(28.r),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.15),
-
-                  blurRadius: 20,
-
-                  offset: const Offset(0, 8),
+                  color: const Color(0xFF0F172A).withOpacity(0.08),
+                  blurRadius: 32,
+                  offset: const Offset(0, 12),
+                  spreadRadius: -4,
                 ),
               ],
             ),
-
             child: Column(
               mainAxisSize: MainAxisSize.min,
-
               children: [
                 // Header
                 Container(
-                  padding: EdgeInsets.all(20.w),
-
+                  padding: EdgeInsets.all(24.w),
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Colors.blue.shade400, Colors.blue.shade600],
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
                     ),
-
                     borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(24.r),
-
-                      topRight: Radius.circular(24.r),
+                      topLeft: Radius.circular(28.r),
+                      topRight: Radius.circular(28.r),
                     ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF6366F1).withOpacity(0.3),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-
                   child: Row(
                     children: [
-                      Icon(
-                        Icons.text_fields_rounded,
-
-                        color: Colors.white,
-
-                        size: 24.sp,
-                      ),
-
-                      SizedBox(width: 12.w),
-
-                      Text(
-                        'Edit Text',
-
-                        style: TextStyle(
-                          fontSize: 20.sp,
-
-                          fontWeight: FontWeight.bold,
-
+                      Container(
+                        padding: EdgeInsets.all(10.w),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12.r),
+                        ),
+                        child: Icon(
+                          Icons.edit_rounded,
                           color: Colors.white,
+                          size: 24.r,
                         ),
                       ),
-
-                      const Spacer(),
-
+                      SizedBox(width: 16.w),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Edit Text',
+                              style: GoogleFonts.inter(
+                                fontSize: 20.sp,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                                letterSpacing: -0.5,
+                              ),
+                            ),
+                            SizedBox(height: 4.h),
+                            Text(
+                              'Type your message here',
+                              style: GoogleFonts.inter(
+                                fontSize: 13.sp,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.white.withOpacity(0.9),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                       GestureDetector(
                         onTap: () => Navigator.of(context).pop(),
-
                         child: Container(
-                          padding: EdgeInsets.all(8.w),
-
+                          padding: EdgeInsets.all(10.w),
                           decoration: BoxDecoration(
                             color: Colors.white.withOpacity(0.2),
-
-                            borderRadius: BorderRadius.circular(8.r),
+                            borderRadius: BorderRadius.circular(12.r),
                           ),
-
                           child: Icon(
                             Icons.close_rounded,
-
                             color: Colors.white,
-
-                            size: 18.sp,
+                            size: 20.r,
                           ),
                         ),
                       ),
@@ -5199,95 +5200,107 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                 // Text editing area
                 Flexible(
                   child: Container(
-                    padding: EdgeInsets.all(20.w),
-
+                    padding: EdgeInsets.all(24.w),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-
                       children: [
-                        Text(
-                          'Enter your text:',
-
-                          style: TextStyle(
-                            fontSize: 16.sp,
-
-                            fontWeight: FontWeight.w600,
-
-                            color: Colors.grey[800],
-                          ),
+                        Row(
+                          children: [
+                            Container(
+                              padding: EdgeInsets.all(8.w),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF6366F1).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(10.r),
+                              ),
+                              child: Icon(
+                                Icons.text_fields_rounded,
+                                color: const Color(0xFF6366F1),
+                                size: 18.r,
+                              ),
+                            ),
+                            SizedBox(width: 12.w),
+                            Text(
+                              'Your Text',
+                              style: GoogleFonts.inter(
+                                fontSize: 16.sp,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF0F172A),
+                                letterSpacing: -0.3,
+                              ),
+                            ),
+                          ],
                         ),
-
-                        SizedBox(height: 12.h),
-
+                        SizedBox(height: 16.h),
                         // Multi-line text field
                         Flexible(
                           child: Container(
                             width: double.infinity,
-
                             decoration: BoxDecoration(
-                              color: Colors.grey[50],
-
-                              borderRadius: BorderRadius.circular(16.r),
-
-                              border: Border.all(color: Colors.grey.shade200),
+                              color: const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(20.r),
+                              border: Border.all(
+                                color: const Color(0xFFE2E8F0),
+                                width: 1.5,
+                              ),
                             ),
-
                             child: TextField(
                               controller: controller,
-
                               focusNode: focusNode,
-
                               maxLines: null,
-
-                              minLines: 5,
-
+                              minLines: 4,
                               keyboardType: TextInputType.multiline,
-
                               textInputAction: TextInputAction.newline,
-
-                              style: TextStyle(
+                              style: GoogleFonts.inter(
                                 fontSize: 16.sp,
-
-                                color: Colors.grey[800],
-
-                                height: 1.5,
+                                color: const Color(0xFF0F172A),
+                                height: 1.6,
+                                fontWeight: FontWeight.w500,
                               ),
-
                               decoration: InputDecoration(
                                 hintText:
                                     'Type your text here...\nPress Enter for new lines',
-
-                                hintStyle: TextStyle(
-                                  color: Colors.grey[400],
-
+                                hintStyle: GoogleFonts.inter(
+                                  color: const Color(0xFF94A3B8),
                                   fontSize: 14.sp,
+                                  fontWeight: FontWeight.w400,
                                 ),
-
-                                contentPadding: EdgeInsets.all(16.w),
-
+                                contentPadding: EdgeInsets.all(20.w),
                                 border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
                               ),
-
                               onChanged: (text) {
-                                // Real-time update on canvas
-
                                 onChanged(text);
                               },
                             ),
                           ),
                         ),
-
                         SizedBox(height: 16.h),
-
-                        // Character count
-                        Text(
-                          '${controller.text.length} characters',
-
-                          style: TextStyle(
-                            fontSize: 12.sp,
-
-                            color: Colors.grey[600],
-                          ),
+                        // Character count and info
+                        Row(
+                          children: [
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 12.w,
+                                vertical: 6.h,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(
+                                  0xFF6366F1,
+                                ).withOpacity(0.08),
+                                borderRadius: BorderRadius.circular(8.r),
+                              ),
+                              child: Text(
+                                '${controller.text.length} characters',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12.sp,
+                                  fontWeight: FontWeight.w600,
+                                  color: const Color(0xFF6366F1),
+                                ),
+                              ),
+                            ),
+                            
+                          ],
                         ),
                       ],
                     ),
@@ -5296,18 +5309,17 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
                 // Action buttons
                 Container(
-                  padding: EdgeInsets.all(20.w),
-
+                  padding: EdgeInsets.all(24.w),
                   decoration: BoxDecoration(
-                    color: Colors.grey[50],
-
+                    color: const Color(0xFFF8FAFC),
                     borderRadius: BorderRadius.only(
-                      bottomLeft: Radius.circular(24.r),
-
-                      bottomRight: Radius.circular(24.r),
+                      bottomLeft: Radius.circular(28.r),
+                      bottomRight: Radius.circular(28.r),
+                    ),
+                    border: Border(
+                      top: BorderSide(color: const Color(0xFFE2E8F0), width: 1),
                     ),
                   ),
-
                   child: Row(
                     children: [
                       // Clear button
@@ -5315,44 +5327,34 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                         child: GestureDetector(
                           onTap: () {
                             controller.clear();
-
                             onChanged('');
                           },
-
                           child: Container(
-                            padding: EdgeInsets.symmetric(vertical: 14.h),
-
+                            padding: EdgeInsets.symmetric(vertical: 16.h),
                             decoration: BoxDecoration(
-                              color: Colors.red.shade50,
-
-                              borderRadius: BorderRadius.circular(12.r),
-
-                              border: Border.all(color: Colors.red.shade200),
+                              color: const Color(0xFFFEF2F2),
+                              borderRadius: BorderRadius.circular(16.r),
+                              border: Border.all(
+                                color: const Color(0xFFFECACA),
+                                width: 1.5,
+                              ),
                             ),
-
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
-
                               children: [
                                 Icon(
                                   Icons.clear_rounded,
-
-                                  color: Colors.red.shade600,
-
-                                  size: 18.sp,
+                                  color: const Color(0xFFDC2626),
+                                  size: 20.r,
                                 ),
-
                                 SizedBox(width: 8.w),
-
                                 Text(
                                   'Clear',
-
-                                  style: TextStyle(
+                                  style: GoogleFonts.inter(
                                     fontSize: 14.sp,
-
                                     fontWeight: FontWeight.w600,
-
-                                    color: Colors.red.shade600,
+                                    color: const Color(0xFFDC2626),
+                                    letterSpacing: -0.2,
                                   ),
                                 ),
                               ],
@@ -5360,68 +5362,50 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                           ),
                         ),
                       ),
-
-                      SizedBox(width: 12.w),
-
+                      SizedBox(width: 16.w),
                       // Done button
                       Expanded(
                         flex: 2,
-
                         child: GestureDetector(
                           onTap: () {
                             onChanged(controller.text);
-
                             Navigator.of(context).pop();
                           },
-
                           child: Container(
-                            padding: EdgeInsets.symmetric(vertical: 14.h),
-
+                            padding: EdgeInsets.symmetric(vertical: 16.h),
                             decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  Colors.blue.shade400,
-
-                                  Colors.blue.shade600,
-                                ],
+                              gradient: const LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
                               ),
-
-                              borderRadius: BorderRadius.circular(12.r),
-
+                              borderRadius: BorderRadius.circular(16.r),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.blue.withOpacity(0.3),
-
-                                  blurRadius: 8,
-
-                                  offset: const Offset(0, 3),
+                                  color: const Color(
+                                    0xFF6366F1,
+                                  ).withOpacity(0.3),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
                                 ),
                               ],
                             ),
-
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
-
                               children: [
                                 Icon(
                                   Icons.check_rounded,
-
                                   color: Colors.white,
-
-                                  size: 18.sp,
+                                  size: 20.r,
                                 ),
-
                                 SizedBox(width: 8.w),
-
                                 Text(
-                                  'Done',
-
-                                  style: TextStyle(
+                                  'Save Changes',
+                                  style: GoogleFonts.inter(
                                     fontSize: 14.sp,
-
-                                    fontWeight: FontWeight.w600,
-
+                                    fontWeight: FontWeight.w700,
                                     color: Colors.white,
+                                    letterSpacing: -0.2,
                                   ),
                                 ),
                               ],
@@ -6087,7 +6071,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           return Icon(
             Icons.add_rounded,
             size: 24.sp,
-            color: Colors.purple[600],
+            color: const Color(0xFF6366F1),
           );
         }
         final family = likedFontFamilies[index - 1];
@@ -6109,13 +6093,13 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                         textStyle: TextStyle(
                           fontSize: 15.sp,
                           fontWeight: FontWeight.w500,
-                          color: Colors.purple[600],
+                          color: const Color(0xFF6366F1),
                         ),
                       )
                     : TextStyle(
                         fontSize: 10.sp,
                         fontWeight: FontWeight.w500,
-                        color: Colors.purple[600],
+                        color: const Color(0xFF6366F1),
                       ),
                 textAlign: TextAlign.center,
                 maxLines: 1,
@@ -6133,7 +6117,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               Icon(
                 Icons.add_photo_alternate_rounded,
                 size: 25.sp,
-                color: Colors.blue[600],
+                color: const Color(0xFF8B5CF6),
               ),
               SizedBox(width: 6.w),
               Expanded(
@@ -6158,7 +6142,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               Icon(
                 Icons.image_search_rounded,
                 size: 25.sp,
-                color: Colors.blue[600],
+                color: const Color(0xFF8B5CF6),
               ),
               SizedBox(width: 6.w),
               Expanded(
@@ -8014,16 +7998,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           shape: BoxShape.circle,
 
           border: Border.all(color: Colors.white, width: 2),
-
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-
-              blurRadius: 4,
-
-              offset: const Offset(0, 2),
-            ),
-          ],
         ),
       ),
     );
@@ -8188,16 +8162,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               shape: BoxShape.circle,
 
               border: Border.all(color: Colors.white, width: 2),
-
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
-
-                  blurRadius: 4,
-
-                  offset: const Offset(0, 2),
-                ),
-              ],
             ),
 
             child: Icon(
@@ -8935,16 +8899,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             borderRadius: BorderRadius.circular(20.r),
 
             border: Border.all(color: color.withOpacity(0.3), width: 1),
-
-            boxShadow: [
-              BoxShadow(
-                color: color.withOpacity(0.1),
-
-                blurRadius: 8,
-
-                offset: const Offset(0, 2),
-              ),
-            ],
           ),
 
           child: Icon(icon, size: 20.sp, color: color),
@@ -8974,16 +8928,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
                 topRight: Radius.circular(32.r),
               ),
-
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.12),
-
-                  blurRadius: 32,
-
-                  offset: const Offset(0, -12),
-                ),
-              ],
             ),
 
             child: Column(
@@ -10968,16 +10912,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           borderRadius: BorderRadius.circular(16.r),
 
           border: Border.all(color: color.withOpacity(0.3)),
-
-          boxShadow: [
-            BoxShadow(
-              color: color.withOpacity(0.1),
-
-              blurRadius: 8,
-
-              offset: const Offset(0, 2),
-            ),
-          ],
         ),
 
         child: Row(
@@ -11467,16 +11401,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
                                 width: 2,
                               ),
-
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
-
-                                  blurRadius: 8,
-
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
                             ),
 
                             child: color == Colors.transparent
@@ -11904,16 +11828,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
             topRight: Radius.circular(32.r),
           ),
-
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-
-              blurRadius: 20,
-
-              offset: const Offset(0, -8),
-            ),
-          ],
         ),
 
         child: Column(
@@ -13441,21 +13355,20 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: const Color(0xFFF1F5F9),
       body: SafeArea(
         child: Stack(
           children: [
             // === Canvas always at the bottom ===
             SizedBox(
               height: double.infinity,
-
               width: double.infinity,
               child: Column(
                 children: [
-                  SizedBox(height: 70.h),
+                  SizedBox(height: 90.h),
                   _buildCanvas(),
-                  Container(height: 102.5.h, color: Colors.white),
-                  Container(height: 102.5.h, color: Colors.white),
+                  Container(height: 120.h, color: Colors.white),
+                  Container(height: 120.h, color: Colors.white),
                 ],
               ),
             ),
@@ -13466,8 +13379,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             // === Top Toolbar (overlayed, not pushing canvas) ===
             Positioned(
               bottom: selectedItem != null
-                  ? 30.h
-                  : 140.h, // leaves space for the ad banner
+                  ? 40.h
+                  : 160.h, // leaves space for the ad banner
               left: 0,
               right: 0,
               child: _buildTopToolbar(),
@@ -13476,15 +13389,15 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             // === Bottom Controls (only if no item selected) ===
             if (selectedItem == null)
               Positioned(
-                bottom: 70.h, // leaves space for the ad banner
+                bottom: 80.h, // leaves space for the ad banner
                 left: 0,
                 right: 0,
                 child: Container(
                   height: (selectedTabIndex == 3)
-                      ? (showDrawingToolSelection ? 50.h : 95.h)
-                      : 50.h,
+                      ? (showDrawingToolSelection ? 60.h : 110.h)
+                      : 60.h,
                   padding: EdgeInsets.symmetric(horizontal: 20.w),
-                  decoration: const BoxDecoration(color: Colors.white),
+                  decoration: BoxDecoration(color: Colors.white),
                   child: selectedTabIndex == 3
                       ? _buildDrawingControls()
                       : _buildTabContent(),

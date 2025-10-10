@@ -1,330 +1,1369 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'dart:io';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:lamlayers/screens/poster_maker_screen.dart';
+import 'package:lamlayers/screens/canvas_preset_screen.dart';
+import 'package:lamlayers/screens/hive_model.dart';
+import 'package:lamlayers/screens/settings_screen.dart';
+import 'package:lamlayers/utils/export_manager.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:lamlayers/screens/my_poster_screen.dart';
-import 'package:lamlayers/widgets/ad_banner.dart';
+import 'package:file_picker/file_picker.dart';
 
-class HomePage extends StatelessWidget {
-  const HomePage({super.key});
+class HomePage extends StatefulWidget {
+  const HomePage({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Color(0xFFffc278),
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        child: Stack(
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  late Box<PosterProject> _projectBox;
+  bool _isBoxReady = false;
+
+  final List<String> _designQuotes = [
+    "Design is intelligence made visible",
+    "Creativity is contagious, pass it on",
+    "Great design is invisible",
+    "Design creates culture, culture shapes values",
+    "Every great design begins with an even better story",
+    "Design is where science and art break even",
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+    _openProjectBox();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good Morning';
+    if (hour < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  }
+
+  IconData _getGreetingIcon() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return Icons.wb_sunny_rounded;
+    if (hour < 17) return Icons.wb_cloudy_rounded;
+    return Icons.nightlight_round;
+  }
+
+  String _getRandomQuote() {
+    return _designQuotes[DateTime.now().day % _designQuotes.length];
+  }
+
+  Future<void> _openProjectBox() async {
+    _projectBox = await Hive.openBox<PosterProject>('posterProjects');
+    setState(() {
+      _isBoxReady = true;
+    });
+  }
+
+  Future<void> _createNewProject() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const CanvasPresetScreen()),
+    );
+    if (result != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PosterMakerScreen(
+            initialCanvasWidth: result.width,
+            initialCanvasHeight: result.height,
+            initialBackgroundImagePath: result.backgroundImagePath,
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _loadProjectFromStorage() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+        allowMultiple: false,
+      );
+
+      if (result != null && result.files.single.path != null) {
+        final String filePath = result.files.single.path!;
+
+        if (!filePath.toLowerCase().endsWith('.lamlayer')) {
+          _showErrorMessage(
+            'Please select a .lamlayer file. Selected: ${filePath.split('/').last}',
+          );
+          return;
+        }
+
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => _buildLoadingDialog(),
+        );
+
+        try {
+          final PosterProject? project = await ExportManager.loadProject(
+            filePath,
+          );
+
+          if (!mounted) return;
+          Navigator.of(context).pop();
+
+          if (project != null) {
+            await _projectBox.put(project.id, project);
+
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => PosterMakerScreen(projectId: project.id),
+              ),
+            );
+
+            _showSuccessMessage('Project loaded successfully!');
+          } else {
+            _showErrorMessage(
+              'Failed to load project. The file may be corrupted.',
+            );
+          }
+        } catch (e) {
+          if (!mounted) return;
+          Navigator.of(context).pop();
+          _showErrorMessage('Error loading project: ${e.toString()}');
+        }
+      }
+    } catch (e) {
+      _showErrorMessage('Error selecting file: ${e.toString()}');
+    }
+  }
+
+  Widget _buildLoadingDialog() {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: Container(
+        padding: EdgeInsets.all(32.w),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24.r),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Padding(
-              padding: EdgeInsets.only(top: 50.0.h),
-              child: Container(
-                height: 300.h,
-                width: 300.w,
-                child: ClipRRect(
-                  child: Image.asset(
-                    'assets/app_images/fox_background_vector_shape.png',
-                    width: double.infinity,
-                    fit: BoxFit.fitWidth,
-                  ),
+            Container(
+              padding: EdgeInsets.all(16.w),
+              decoration: BoxDecoration(
+                color: const Color(0xFF6366F1).withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: CircularProgressIndicator(
+                strokeWidth: 3,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  const Color(0xFF6366F1),
                 ),
               ),
             ),
-            Align(
-              alignment: AlignmentGeometry.bottomCenter,
-              child: Container(
-                height: 550.h,
-                width: double.infinity,
-                decoration: BoxDecoration(
+            SizedBox(height: 24.h),
+            Text(
+              'Loading Project',
+              style: GoogleFonts.inter(
+                fontSize: 18.sp,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF0F172A),
+                letterSpacing: -0.5,
+              ),
+            ),
+            SizedBox(height: 8.h),
+            Text(
+              'Please wait a moment',
+              style: GoogleFonts.inter(
+                fontSize: 14.sp,
+                color: const Color(0xFF64748B),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSuccessMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Container(
+              padding: EdgeInsets.all(6.w),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.check,
+                color: const Color(0xFF10B981),
+                size: 16.r,
+              ),
+            ),
+            SizedBox(width: 12.w),
+            Expanded(
+              child: Text(
+                message,
+                style: GoogleFonts.inter(
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w500,
                   color: Colors.white,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(40.sp),
-                    topRight: Radius.circular(40.sp),
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    Padding(
-                      padding: EdgeInsets.only(
-                        top: 40.0.h,
-                        left: 25.h,
-                        right: 25.h,
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
-                        children: [
-                          InkWell(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => MyDesignsScreen(),
-                                ),
-                              );
-                            },
-                            child: Container(
-                              height: 150.h,
-                              width: 160.w,
-                              decoration: BoxDecoration(
-                                color: Color(0xFFFF7648),
-                                borderRadius: BorderRadius.circular(20.sp),
-                              ),
-                              child: Stack(
-                                children: [
-                                  Align(
-                                    alignment: AlignmentGeometry.topRight,
-                                    child: Container(
-                                      height: 70.h,
-                                      width: 80.w,
-                                      decoration: BoxDecoration(
-                                        color: Color(0xFFFFC278),
-                                        borderRadius: BorderRadius.only(
-                                          topLeft: Radius.elliptical(
-                                            10.w,
-                                            50.w,
-                                          ),
-                                          bottomLeft: Radius.elliptical(
-                                            50.w,
-                                            40.w,
-                                          ),
-                                          topRight: Radius.circular(20.sp),
-                                        ),
-                                      ),
-                                      child: Center(
-                                        child: Icon(
-                                          size: 35.sp,
-                                          Icons.add_circle_outline_outlined,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-
-                                  Align(
-                                    alignment: AlignmentGeometry.bottomLeft,
-                                    child: Padding(
-                                      padding: EdgeInsets.all(8.0.h),
-                                      child: Text.rich(
-                                        TextSpan(
-                                          children: [
-                                            TextSpan(
-                                              text: "Create a\n",
-                                              style: TextStyle(
-                                                fontSize: 15.sp,
-                                                fontFamily: 'Poppins',
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.white,
-                                              ),
-                                            ),
-                                            TextSpan(
-                                              text: "Poster",
-                                              style: TextStyle(
-                                                fontSize: 25.sp,
-                                                fontFamily: 'Poppins',
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.white,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-
-                          Container(
-                            height: 150.h,
-                            width: 160.w,
-                            decoration: BoxDecoration(
-                              color: Color(0xFF8F98FF),
-                              borderRadius: BorderRadius.circular(20.sp),
-                            ),
-                            child: Stack(
-                              children: [
-                                Align(
-                                  alignment: AlignmentGeometry.topRight,
-                                  child: Container(
-                                    height: 70.h,
-                                    width: 80.w,
-                                    decoration: BoxDecoration(
-                                      color: Color(0xFF182A88),
-                                      borderRadius: BorderRadius.only(
-                                        topLeft: Radius.elliptical(10.w, 50.w),
-                                        bottomLeft: Radius.elliptical(
-                                          50.w,
-                                          40.w,
-                                        ),
-                                        topRight: Radius.circular(20.sp),
-                                      ),
-                                    ),
-                                    child: Center(
-                                      child: Icon(
-                                        size: 35.sp,
-                                        Icons.add_circle_outline_outlined,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-
-                                Align(
-                                  alignment: AlignmentGeometry.bottomLeft,
-                                  child: Padding(
-                                    padding: EdgeInsets.all(8.0.h),
-                                    child: Text.rich(
-                                      TextSpan(
-                                        children: [
-                                          TextSpan(
-                                            text: "Make Your\n",
-                                            style: TextStyle(
-                                              fontSize: 15.sp,
-                                              fontFamily: 'Poppins',
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.white,
-                                            ),
-                                          ),
-                                          TextSpan(
-                                            text: "Scrapbook",
-                                            style: TextStyle(
-                                              fontSize: 25.sp,
-                                              fontFamily: 'Poppins',
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.white,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Heading Row
-                        Padding(
-                          padding: EdgeInsets.only(
-                            top: 20.0.h,
-                            left: 25.h,
-                            right: 25.h,
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                "Templates",
-                                style: TextStyle(
-                                  fontSize: 25.sp,
-                                  fontFamily: 'Poppins',
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black,
-                                ),
-                              ),
-                              // Right side green button with white arrow
-                              Container(
-                                height: 40.h,
-                                width: 40.h,
-                                decoration: BoxDecoration(
-                                  color: Colors.green,
-                                  borderRadius: BorderRadius.circular(12.r),
-                                ),
-                                child: Icon(
-                                  Icons.arrow_forward_ios,
-                                  color: Colors.white,
-                                  size: 20.sp,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        SizedBox(height: 10.h),
-
-                        // Horizontal ListView
-                        SizedBox(
-                          height: 150.h,
-                          child: ListView(
-                            scrollDirection: Axis.horizontal,
-                            children: [SizedBox()],
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    Padding(
-                      padding: EdgeInsets.only(
-                        top: 20.0.h,
-                        left: 10.h,
-                        right: 10.h,
-                      ),
-                      child: Container(
-                        height: 100.h,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[100],
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              height: 100.h,
-                              width: 30.w,
-                              child: RotatedBox(
-                                quarterTurns: -1,
-                                child: Center(
-                                  child: Text(
-                                    "Sponsored by",
-                                    style: TextStyle(
-                                      fontSize: 16.sp,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            SizedBox(width: 10.w),
-                            SizedBox(
-                              width: 320,
-                              height: 50,
-                              child: const AdBanner320x50(),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            Padding(
-              padding: EdgeInsets.only(top: 15.0.h),
-              child: Container(
-                height: 400.h,
-                width: 300.w,
-                // color: Colors.blue,
-                child: ClipRRect(
-                  child: Image.asset(
-                    'assets/app_images/home_fox.png',
-                    width: double.infinity,
-                    fit: BoxFit.fitHeight,
-                  ),
                 ),
               ),
             ),
           ],
         ),
+        backgroundColor: const Color(0xFF10B981),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16.r),
+        ),
+        margin: EdgeInsets.all(20.w),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  void _showErrorMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Container(
+              padding: EdgeInsets.all(6.w),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.close,
+                color: const Color(0xFFEF4444),
+                size: 16.r,
+              ),
+            ),
+            SizedBox(width: 12.w),
+            Expanded(
+              child: Text(
+                message,
+                style: GoogleFonts.inter(
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: const Color(0xFFEF4444),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16.r),
+        ),
+        margin: EdgeInsets.all(20.w),
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
+
+  Future<void> _renameProject(PosterProject project) async {
+    final controller = TextEditingController(text: project.name);
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24.r),
+        ),
+        child: Container(
+          padding: EdgeInsets.all(24.w),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Rename Project',
+                style: GoogleFonts.inter(
+                  fontSize: 20.sp,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF0F172A),
+                  letterSpacing: -0.5,
+                ),
+              ),
+              SizedBox(height: 20.h),
+              TextField(
+                controller: controller,
+                autofocus: true,
+                style: GoogleFonts.inter(fontSize: 15.sp),
+                decoration: InputDecoration(
+                  hintText: 'Enter new name',
+                  hintStyle: GoogleFonts.inter(color: const Color(0xFF94A3B8)),
+                  filled: true,
+                  fillColor: const Color(0xFFF8FAFC),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12.r),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12.r),
+                    borderSide: BorderSide(color: const Color(0xFFE2E8F0)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12.r),
+                    borderSide: BorderSide(
+                      color: const Color(0xFF6366F1),
+                      width: 2,
+                    ),
+                  ),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 16.w,
+                    vertical: 14.h,
+                  ),
+                ),
+              ),
+              SizedBox(height: 24.h),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 20.w,
+                        vertical: 12.h,
+                      ),
+                    ),
+                    child: Text(
+                      'Cancel',
+                      style: GoogleFonts.inter(
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w500,
+                        color: const Color(0xFF64748B),
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 8.w),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF6366F1),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 24.w,
+                        vertical: 12.h,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10.r),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: Text(
+                      'Save',
+                      style: GoogleFonts.inter(
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (newName != null && newName.isNotEmpty) {
+      final updated = project.copyWith(name: newName);
+      await _projectBox.put(project.id, updated);
+    }
+  }
+
+  Future<void> _deleteProject(PosterProject project) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24.r),
+        ),
+        child: Container(
+          padding: EdgeInsets.all(24.w),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: EdgeInsets.all(12.w),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEF4444).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+                child: Icon(
+                  Icons.delete_outline,
+                  color: const Color(0xFFEF4444),
+                  size: 24.r,
+                ),
+              ),
+              SizedBox(height: 16.h),
+              Text(
+                'Delete Project?',
+                style: GoogleFonts.inter(
+                  fontSize: 20.sp,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF0F172A),
+                  letterSpacing: -0.5,
+                ),
+              ),
+              SizedBox(height: 8.h),
+              Text(
+                'Are you sure you want to delete "${project.name}"? This action cannot be undone.',
+                style: GoogleFonts.inter(
+                  fontSize: 14.sp,
+                  color: const Color(0xFF64748B),
+                  height: 1.5,
+                ),
+              ),
+              SizedBox(height: 24.h),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 20.w,
+                        vertical: 12.h,
+                      ),
+                    ),
+                    child: Text(
+                      'Cancel',
+                      style: GoogleFonts.inter(
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w500,
+                        color: const Color(0xFF64748B),
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 8.w),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFEF4444),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 24.w,
+                        vertical: 12.h,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10.r),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: Text(
+                      'Delete',
+                      style: GoogleFonts.inter(
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (confirm == true) {
+      await _projectBox.delete(project.id);
+    }
+  }
+
+  String _formatDate(DateTime? dateTime) {
+    if (dateTime == null) return '';
+    final d = dateTime.toLocal();
+    final now = DateTime.now();
+    final diff = now.difference(d);
+
+    if (diff.inDays == 0) return 'Today';
+    if (diff.inDays == 1) return 'Yesterday';
+    if (diff.inDays < 7) return '${diff.inDays} days ago';
+
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${two(d.day)}/${two(d.month)}/${d.year}';
+  }
+
+  Widget _buildProjectPreviewImage(PosterProject? project) {
+    final String? thumbnailPath = project?.thumbnailPath;
+    final String? bgPath = project?.backgroundImagePath;
+
+    final String? toShow = (thumbnailPath != null && thumbnailPath.isNotEmpty)
+        ? thumbnailPath
+        : (bgPath != null && bgPath.isNotEmpty ? bgPath : null);
+
+    if (toShow == null) {
+      return Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              const Color(0xFF6366F1).withOpacity(0.1),
+              const Color(0xFF8B5CF6).withOpacity(0.1),
+            ],
+          ),
+        ),
+        child: Center(
+          child: Icon(
+            Icons.image_outlined,
+            size: 48.r,
+            color: const Color(0xFF94A3B8),
+          ),
+        ),
+      );
+    }
+
+    final file = File(toShow);
+    if (!file.existsSync()) {
+      return Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              const Color(0xFFEF4444).withOpacity(0.1),
+              const Color(0xFFF59E0B).withOpacity(0.1),
+            ],
+          ),
+        ),
+        child: Center(
+          child: Icon(
+            Icons.broken_image_outlined,
+            size: 40.r,
+            color: const Color(0xFF94A3B8),
+          ),
+        ),
+      );
+    }
+
+    return Image.file(
+      file,
+      width: double.infinity,
+      height: double.infinity,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          color: const Color(0xFFF8FAFC),
+          child: Center(
+            child: Icon(
+              Icons.image_not_supported_outlined,
+              size: 40.r,
+              color: const Color(0xFF94A3B8),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _projectCard(PosterProject? project) {
+    return Container(
+      width: 220.w,
+      margin: EdgeInsets.only(right: 20.w),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24.r),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withOpacity(0.04),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
+            spreadRadius: -4,
+          ),
+          BoxShadow(
+            color: const Color(0xFF0F172A).withOpacity(0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          InkWell(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      PosterMakerScreen(projectId: project?.id),
+                ),
+              );
+            },
+            borderRadius: BorderRadius.circular(24.r),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  height: 200.h,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(24.r),
+                      topRight: Radius.circular(24.r),
+                    ),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(24.r),
+                      topRight: Radius.circular(24.r),
+                    ),
+                    child: _buildProjectPreviewImage(project),
+                  ),
+                ),
+                Padding(
+                  padding: EdgeInsets.all(18.w),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        project?.name ?? 'Unnamed Project',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF0F172A),
+                          letterSpacing: -0.4,
+                        ),
+                      ),
+                      SizedBox(height: 8.h),
+                      Row(
+                        children: [
+                          Container(
+                            padding: EdgeInsets.all(4.w),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF6366F1).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(6.r),
+                            ),
+                            child: Icon(
+                              Icons.access_time_rounded,
+                              size: 13.r,
+                              color: const Color(0xFF6366F1),
+                            ),
+                          ),
+                          SizedBox(width: 6.w),
+                          Text(
+                            _formatDate(project?.createdAt),
+                            style: GoogleFonts.inter(
+                              fontSize: 12.sp,
+                              fontWeight: FontWeight.w500,
+                              color: const Color(0xFF64748B),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Positioned(
+            right: 8.w,
+            top: 8.h,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.95),
+                borderRadius: BorderRadius.circular(10.r),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: PopupMenuButton<String>(
+                onSelected: (value) {
+                  if (project == null) return;
+                  if (value == 'rename') {
+                    _renameProject(project);
+                  } else if (value == 'delete') {
+                    _deleteProject(project);
+                  }
+                },
+                icon: Icon(
+                  Icons.more_horiz,
+                  size: 20.r,
+                  color: const Color(0xFF64748B),
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+                itemBuilder: (context) => [
+                  PopupMenuItem(
+                    value: 'rename',
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.edit_outlined,
+                          size: 18.r,
+                          color: const Color(0xFF64748B),
+                        ),
+                        SizedBox(width: 12.w),
+                        Text(
+                          'Rename',
+                          style: GoogleFonts.inter(fontSize: 14.sp),
+                        ),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.delete_outline,
+                          size: 18.r,
+                          color: const Color(0xFFEF4444),
+                        ),
+                        SizedBox(width: 12.w),
+                        Text(
+                          'Delete',
+                          style: GoogleFonts.inter(
+                            fontSize: 14.sp,
+                            color: const Color(0xFFEF4444),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPosterTab() {
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(height: 24.h),
+
+          // Motivational Quote Card
+          Container(
+            margin: EdgeInsets.symmetric(horizontal: 24.w),
+            padding: EdgeInsets.all(24.w),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color(0xFF6366F1).withOpacity(0.06),
+                  const Color(0xFF8B5CF6).withOpacity(0.06),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(24.r),
+              border: Border.all(
+                color: const Color(0xFF6366F1).withOpacity(0.15),
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF6366F1).withOpacity(0.05),
+                  blurRadius: 20,
+                  offset: const Offset(0, 4),
+                  spreadRadius: -4,
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(14.w),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                    ),
+                    borderRadius: BorderRadius.circular(16.r),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF6366F1).withOpacity(0.3),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    Icons.auto_awesome_rounded,
+                    color: Colors.white,
+                    size: 24.r,
+                  ),
+                ),
+                SizedBox(width: 18.w),
+                Expanded(
+                  child: Text(
+                    _getRandomQuote(),
+                    style: GoogleFonts.inter(
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF475569),
+                      height: 1.6,
+                      fontStyle: FontStyle.italic,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          SizedBox(height: 32.h),
+
+          // Quick Actions
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24.w),
+            child: Text(
+              'Quick Actions',
+              style: GoogleFonts.inter(
+                fontSize: 18.sp,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF0F172A),
+                letterSpacing: -0.5,
+              ),
+            ),
+          ),
+
+          SizedBox(height: 16.h),
+
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24.w),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _buildActionCard(
+                    title: 'Create New',
+                    subtitle: 'Start fresh project',
+                    icon: Icons.add_rounded,
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                    ),
+                    onTap: _createNewProject,
+                  ),
+                ),
+                SizedBox(width: 16.w),
+                Expanded(
+                  child: _buildActionCard(
+                    title: 'Load Project',
+                    subtitle: 'Open from storage',
+                    icon: Icons.folder_open_rounded,
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF10B981), Color(0xFF059669)],
+                    ),
+                    onTap: _loadProjectFromStorage,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          SizedBox(height: 40.h),
+
+          // Recent Projects
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24.w),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Recent Projects',
+                  style: GoogleFonts.inter(
+                    fontSize: 18.sp,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF0F172A),
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                if (_isBoxReady && _projectBox.isNotEmpty)
+                  TextButton(
+                    onPressed: () {},
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 12.w,
+                        vertical: 6.h,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Text(
+                          'View All',
+                          style: GoogleFonts.inter(
+                            fontSize: 13.sp,
+                            fontWeight: FontWeight.w500,
+                            color: const Color(0xFF6366F1),
+                          ),
+                        ),
+                        SizedBox(width: 4.w),
+                        Icon(
+                          Icons.arrow_forward_ios,
+                          size: 12.r,
+                          color: const Color(0xFF6366F1),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+
+          SizedBox(height: 16.h),
+
+          if (!_isBoxReady)
+            Container(
+              margin: EdgeInsets.symmetric(horizontal: 24.w),
+              padding: EdgeInsets.all(48.w),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20.r),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Center(
+                child: Column(
+                  children: [
+                    SizedBox(
+                      width: 28.w,
+                      height: 28.w,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 3,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          const Color(0xFF6366F1),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 20.h),
+                    Text(
+                      'Loading projects...',
+                      style: GoogleFonts.inter(
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w500,
+                        color: const Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            ValueListenableBuilder<Box<PosterProject>>(
+              valueListenable: _projectBox.listenable(),
+              builder: (context, box, _) {
+                if (box.isEmpty) {
+                  return Container(
+                    margin: EdgeInsets.symmetric(horizontal: 24.w),
+                    padding: EdgeInsets.all(48.w),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20.r),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Center(
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: EdgeInsets.all(20.w),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF6366F1).withOpacity(0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.folder_outlined,
+                              size: 48.r,
+                              color: const Color(0xFF6366F1),
+                            ),
+                          ),
+                          SizedBox(height: 20.h),
+                          Text(
+                            'No projects yet',
+                            style: GoogleFonts.inter(
+                              fontSize: 17.sp,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF0F172A),
+                              letterSpacing: -0.3,
+                            ),
+                          ),
+                          SizedBox(height: 8.h),
+                          Text(
+                            'Create your first project to get started',
+                            style: GoogleFonts.inter(
+                              fontSize: 14.sp,
+                              color: const Color(0xFF64748B),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+
+                return SizedBox(
+                  height: 300.h,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    padding: EdgeInsets.symmetric(horizontal: 24.w),
+                    itemCount: box.length,
+                    itemBuilder: (context, index) {
+                      final project = box.getAt(index);
+                      return _projectCard(project);
+                    },
+                  ),
+                );
+              },
+            ),
+
+          SizedBox(height: 40.h),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionCard({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Gradient gradient,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(24.r),
+      child: Container(
+        padding: EdgeInsets.all(24.w),
+        decoration: BoxDecoration(
+          gradient: gradient,
+          borderRadius: BorderRadius.circular(24.r),
+          boxShadow: [
+            BoxShadow(
+              color: gradient.colors.first.withOpacity(0.4),
+              blurRadius: 32,
+              offset: const Offset(0, 12),
+              spreadRadius: -4,
+            ),
+            BoxShadow(
+              color: gradient.colors.first.withOpacity(0.2),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: EdgeInsets.all(16.w),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.25),
+                borderRadius: BorderRadius.circular(16.r),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Icon(icon, color: Colors.white, size: 32.r),
+            ),
+            SizedBox(height: 24.h),
+            Text(
+              title,
+              style: GoogleFonts.inter(
+                fontSize: 18.sp,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+                letterSpacing: -0.5,
+              ),
+            ),
+            SizedBox(height: 6.h),
+            Text(
+              subtitle,
+              style: GoogleFonts.inter(
+                fontSize: 13.sp,
+                fontWeight: FontWeight.w500,
+                color: Colors.white.withOpacity(0.95),
+                letterSpacing: -0.1,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildScrapbookTab() {
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(height: 24.h),
+
+          // Quick Actions
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24.w),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _buildActionCard(
+                    title: 'Create New',
+                    subtitle: 'Start scrapbook',
+                    icon: Icons.add_rounded,
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFFEC4899), Color(0xFFF43F5E)],
+                    ),
+                    onTap: () {},
+                  ),
+                ),
+                SizedBox(width: 16.w),
+                Expanded(
+                  child: _buildActionCard(
+                    title: 'Load Project',
+                    subtitle: 'Open from storage',
+                    icon: Icons.folder_open_rounded,
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFFF59E0B), Color(0xFFF97316)],
+                    ),
+                    onTap: () {},
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          SizedBox(height: 40.h),
+
+          // Coming Soon Section
+          Container(
+            margin: EdgeInsets.symmetric(horizontal: 24.w),
+            padding: EdgeInsets.all(48.w),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20.r),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Center(
+              child: Column(
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(20.w),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          const Color(0xFFEC4899).withOpacity(0.1),
+                          const Color(0xFFF59E0B).withOpacity(0.1),
+                        ],
+                      ),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.collections_bookmark_rounded,
+                      size: 56.r,
+                      color: const Color(0xFFEC4899),
+                    ),
+                  ),
+                  SizedBox(height: 24.h),
+                  Text(
+                    'Coming Soon',
+                    style: GoogleFonts.inter(
+                      fontSize: 22.sp,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF0F172A),
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  SizedBox(height: 12.h),
+                  Text(
+                    'We\'re working on something special',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.inter(
+                      fontSize: 15.sp,
+                      color: const Color(0xFF64748B),
+                      height: 1.5,
+                    ),
+                  ),
+                  SizedBox(height: 8.h),
+                  Text(
+                    'Create beautiful scrapbooks to preserve\nyour cherished memories',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.inter(
+                      fontSize: 14.sp,
+                      color: const Color(0xFF94A3B8),
+                      height: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          SizedBox(height: 40.h),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF1F5F9),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        toolbarHeight: 90.h,
+        shadowColor: Colors.black.withOpacity(0.05),
+        title: Row(
+          children: [
+            Container(
+              padding: EdgeInsets.all(12.w),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                ),
+                borderRadius: BorderRadius.circular(14.r),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF6366F1).withOpacity(0.25),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Icon(
+                Icons.layers_rounded,
+                color: Colors.white,
+                size: 24.r,
+              ),
+            ),
+            SizedBox(width: 16.w),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Lamlayers',
+                  style: GoogleFonts.inter(
+                    fontSize: 22.sp,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF0F172A),
+                    letterSpacing: -0.8,
+                    height: 1.2,
+                  ),
+                ),
+                SizedBox(height: 4.h),
+                Row(
+                  children: [
+                    Icon(
+                      _getGreetingIcon(),
+                      size: 15.r,
+                      color: const Color(0xFF6366F1),
+                    ),
+                    SizedBox(width: 6.w),
+                    Text(
+                      _getGreeting(),
+                      style: GoogleFonts.inter(
+                        fontSize: 13.sp,
+                        fontWeight: FontWeight.w500,
+                        color: const Color(0xFF64748B),
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
+        bottom: PreferredSize(
+          preferredSize: Size.fromHeight(60.h),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.02),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20.w),
+                  child: TabBar(
+                    controller: _tabController,
+                    labelColor: const Color(0xFF6366F1),
+                    unselectedLabelColor: const Color(0xFF94A3B8),
+                    indicatorColor: const Color(0xFF6366F1),
+                    indicatorWeight: 3,
+                    indicatorSize: TabBarIndicatorSize.label,
+                    indicatorPadding: EdgeInsets.symmetric(horizontal: 8.w),
+                    labelStyle: GoogleFonts.inter(
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.2,
+                    ),
+                    unselectedLabelStyle: GoogleFonts.inter(
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    tabs: const [
+                      Tab(text: 'Poster Making'),
+                      Tab(text: 'Scrapbook'),
+                      Tab(text: 'Settings'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildPosterTab(),
+          _buildScrapbookTab(),
+          const SettingsScreen(),
+        ],
       ),
     );
   }

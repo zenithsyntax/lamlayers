@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class ActionBar extends StatelessWidget {
   final bool canUndo;
@@ -28,15 +29,16 @@ class ActionBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 80.h,
-      padding: EdgeInsets.symmetric(horizontal: 20.w),
+      height: 90.h,
+      padding: EdgeInsets.symmetric(horizontal: 24.w),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withOpacity(0.04),
             blurRadius: 20,
-            offset: const Offset(0, -4),
+            offset: const Offset(0, 4),
+            spreadRadius: -4,
           ),
         ],
       ),
@@ -46,7 +48,7 @@ class ActionBar extends StatelessWidget {
           // Back button
           if (onBack != null) ...[
             _buildBackButton(context),
-            SizedBox(width: 8.w),
+            SizedBox(width: 12.w),
           ],
           // Undo button
           _buildActionButton(
@@ -55,9 +57,9 @@ class ActionBar extends StatelessWidget {
             canUndo,
             onUndo,
             'Undo',
-            iconColor: Colors.amber[600],
+            iconColor: const Color(0xFF6366F1),
           ),
-          SizedBox(width: 8.w),
+          SizedBox(width: 12.w),
           // Redo button
           _buildActionButton(
             context,
@@ -65,9 +67,9 @@ class ActionBar extends StatelessWidget {
             canRedo,
             onRedo,
             'Redo',
-            iconColor: Colors.amber[600],
+            iconColor: const Color(0xFF6366F1),
           ),
-          SizedBox(width: 8.w),
+          SizedBox(width: 12.w),
           // Layers button
           _buildActionButton(
             context,
@@ -75,9 +77,9 @@ class ActionBar extends StatelessWidget {
             hasItems,
             onShowLayers,
             'Layers',
-            iconColor: Colors.green[600],
+            iconColor: const Color(0xFF8B5CF6),
           ),
-          SizedBox(width: 8.w),
+          SizedBox(width: 12.w),
           // Export button or Auto-save progress indicator
           isAutoSaving
               ? _buildAutoSaveIndicator(context)
@@ -105,12 +107,28 @@ class ActionBar extends StatelessWidget {
       child: GestureDetector(
         onTap: enabled ? onTap : null,
         child: Container(
-          width: 48.w,
-          height: 48.h,
+          width: 42.w,
+          height: 42.h,
+          decoration: BoxDecoration(
+            color: enabled
+                ? (iconColor ?? const Color(0xFF6366F1)).withOpacity(0.1)
+                : const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(16.r),
+            border: enabled
+                ? Border.all(
+                    color: (iconColor ?? const Color(0xFF6366F1)).withOpacity(
+                      0.2,
+                    ),
+                    width: 1.5,
+                  )
+                : null,
+          ),
           child: Icon(
             icon,
-            color: enabled ? (iconColor ?? Colors.grey[700]) : Colors.grey[400],
-            size: 24.sp,
+            color: enabled
+                ? (iconColor ?? const Color(0xFF6366F1))
+                : const Color(0xFF94A3B8),
+            size: 20.r,
           ),
         ),
       ),
@@ -123,12 +141,17 @@ class ActionBar extends StatelessWidget {
       child: GestureDetector(
         onTap: onBack,
         child: Container(
-          width: 48.w,
-          height: 48.h,
+          width: 42.w,
+          height: 42.h,
+          decoration: BoxDecoration(
+            color: const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(16.r),
+            border: Border.all(color: const Color(0xFFE2E8F0), width: 1.5),
+          ),
           child: Icon(
-            Icons.arrow_back_ios_rounded,
-            color: Colors.brown[700],
-            size: 24.sp,
+            Icons.arrow_back_rounded,
+            color: const Color(0xFF64748B),
+            size: 20.r,
           ),
         ),
       ),
@@ -137,16 +160,26 @@ class ActionBar extends StatelessWidget {
 
   Widget _buildAutoSaveIndicator(BuildContext context) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
+      padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 14.h),
       decoration: BoxDecoration(
-        color: Colors.green[50],
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFF10B981).withOpacity(0.1),
+            const Color(0xFF059669).withOpacity(0.1),
+          ],
+        ),
         borderRadius: BorderRadius.circular(20.r),
-        border: Border.all(color: Colors.green[200]!, width: 1.5),
+        border: Border.all(
+          color: const Color(0xFF10B981).withOpacity(0.3),
+          width: 1.5,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: const Color(0xFF10B981).withOpacity(0.1),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -154,21 +187,23 @@ class ActionBar extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           SizedBox(
-            width: 10.w,
-            height: 10.h,
+            width: 12.w,
+            height: 12.h,
             child: CircularProgressIndicator(
               strokeWidth: 2.5,
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.green[600]!),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                const Color(0xFF10B981),
+              ),
             ),
           ),
-          SizedBox(width: 8.w),
+          SizedBox(width: 10.w),
           Text(
-            'saving...',
-            style: TextStyle(
-              color: Colors.green[600],
-              fontSize: 16.sp,
+            'Saving...',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF10B981),
+              fontSize: 14.sp,
               fontWeight: FontWeight.w600,
-              letterSpacing: 0.3,
+              letterSpacing: -0.2,
             ),
           ),
         ],
@@ -185,31 +220,34 @@ class ActionBar extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
+        padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 14.h),
         decoration: BoxDecoration(
-          color: Colors.amber[50],
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+          ),
           borderRadius: BorderRadius.circular(20.r),
-          border: Border.all(color: Colors.amber[200]!, width: 1.5),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+              color: const Color(0xFF6366F1).withOpacity(0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: Colors.amber[600], size: 20.sp),
+            Icon(icon, color: Colors.white, size: 20.r),
             SizedBox(width: 8.w),
             Text(
               label,
-              style: TextStyle(
-                color: Colors.orange[600],
-                fontSize: 16.sp,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.3,
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.2,
               ),
             ),
           ],

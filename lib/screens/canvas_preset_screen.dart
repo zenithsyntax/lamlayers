@@ -53,84 +53,163 @@ class _CanvasPresetScreenState extends State<CanvasPresetScreen> {
     required String title,
     required double width,
     required double height,
-    required Color color,
+    required IconData icon,
   }) {
     final aspectRatio = width / height;
-    final ratio = '${width.toInt()}:${height.toInt()}';
 
     return GestureDetector(
       onTap: () => _select(width, height),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 100.w,
-            height: 100.w,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(12.r),
+      child: Container(
+        width: 160.w,
+        padding: EdgeInsets.all(16.w),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20.r),
+          border: Border.all(color: const Color(0xFFE2E8F0), width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF0F172A).withOpacity(0.04),
+              blurRadius: 20,
+              offset: const Offset(0, 4),
+              spreadRadius: -4,
             ),
-            child: Center(
-              child: Container(
-                width: aspectRatio >= 1 ? 60.w : (60.w * aspectRatio),
-                height: aspectRatio <= 1 ? 60.w : (60.w / aspectRatio),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(6.r),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              height: 100.h,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    const Color(0xFF6366F1).withOpacity(0.08),
+                    const Color(0xFF8B5CF6).withOpacity(0.08),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(16.r),
+              ),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(12.w),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                        ),
+                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                      child: Icon(icon, color: Colors.white, size: 24.r),
+                    ),
+                    SizedBox(height: 8.h),
+                    Container(
+                      width: aspectRatio >= 1 ? 40.w : (40.w * aspectRatio),
+                      height: aspectRatio <= 1 ? 40.w : (40.w / aspectRatio),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF6366F1).withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(4.r),
+                        border: Border.all(
+                          color: const Color(0xFF6366F1).withOpacity(0.4),
+                          width: 2,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-          ),
-          SizedBox(height: 8.h),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: GoogleFonts.poppins(
-              fontSize: 13.sp,
-              fontWeight: FontWeight.w500,
-              color: const Color(0xFF1A1A1A),
+            SizedBox(height: 12.h),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF0F172A),
+                letterSpacing: -0.3,
+              ),
             ),
-          ),
-          SizedBox(height: 2.h),
-          Text(
-            '${width.toInt()} x ${height.toInt()}',
-            style: GoogleFonts.poppins(
-              fontSize: 11.sp,
-              color: const Color(0xFF666666),
+            SizedBox(height: 4.h),
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
+              decoration: BoxDecoration(
+                color: const Color(0xFF6366F1).withOpacity(0.08),
+                borderRadius: BorderRadius.circular(8.r),
+              ),
+              child: Text(
+                '${width.toInt()} × ${height.toInt()}',
+                style: GoogleFonts.inter(
+                  fontSize: 11.sp,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF6366F1),
+                  letterSpacing: -0.1,
+                ),
+              ),
             ),
-          ),
-          Text(
-            ratio,
-            style: GoogleFonts.poppins(
-              fontSize: 10.sp,
-              color: const Color(0xFF999999),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _categorySection(String title, List<Widget> children) {
+  Widget _categorySection(String title, IconData icon, List<Widget> children) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
-          child: Text(
-            title,
-            style: GoogleFonts.poppins(
-              fontSize: 18.sp,
-              fontWeight: FontWeight.w600,
-              color: const Color(0xFF1A1A1A),
-            ),
+          padding: EdgeInsets.symmetric(horizontal: 24.w),
+          child: Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(8.w),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                  ),
+                  borderRadius: BorderRadius.circular(10.r),
+                ),
+                child: Icon(icon, color: Colors.white, size: 18.r),
+              ),
+              SizedBox(width: 12.w),
+              Text(
+                title,
+                style: GoogleFonts.inter(
+                  fontSize: 20.sp,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF0F172A),
+                  letterSpacing: -0.5,
+                ),
+              ),
+            ],
           ),
         ),
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16.w),
-          child: Wrap(spacing: 16.w, runSpacing: 16.h, children: children),
+        SizedBox(height: 16.h),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: EdgeInsets.symmetric(horizontal: 24.w),
+          child: Row(
+            children: children.map((child) {
+              final index = children.indexOf(child);
+              return Padding(
+                padding: EdgeInsets.only(
+                  right: index < children.length - 1 ? 16.w : 0,
+                ),
+                child: child,
+              );
+            }).toList(),
+          ),
         ),
-        SizedBox(height: 20.h),
+        SizedBox(height: 32.h),
       ],
     );
   }
@@ -138,384 +217,537 @@ class _CanvasPresetScreenState extends State<CanvasPresetScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFA),
+      backgroundColor: const Color(0xFFF1F5F9),
       appBar: AppBar(
-        title: Text(
-          'Select Canvas Size',
-          style: GoogleFonts.poppins(
-            fontSize: 20.sp,
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF1A1A1A),
-          ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Choose Canvas Size',
+              style: GoogleFonts.inter(
+                fontSize: 20.sp,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF0F172A),
+                letterSpacing: -0.5,
+              ),
+            ),
+            SizedBox(height: 2.h),
+            Text(
+              'Select from presets or create custom',
+              style: GoogleFonts.inter(
+                fontSize: 12.sp,
+                fontWeight: FontWeight.w500,
+                color: const Color(0xFF64748B),
+              ),
+            ),
+          ],
         ),
         backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF1A1A1A),
+        foregroundColor: const Color(0xFF0F172A),
         elevation: 0,
-        iconTheme: const IconThemeData(color: Color(0xFF1A1A1A)),
+        toolbarHeight: 80.h,
+        leading: IconButton(
+          icon: Container(
+            padding: EdgeInsets.all(8.w),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(10.r),
+            ),
+            child: Icon(Icons.arrow_back_rounded, size: 20.r),
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
         bottom: PreferredSize(
           preferredSize: Size.fromHeight(1.h),
-          child: Container(color: const Color(0xFFE0E0E0), height: 1.h),
+          child: Container(
+            decoration: BoxDecoration(
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.02),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Container(color: const Color(0xFFE2E8F0), height: 1.h),
+          ),
         ),
       ),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(height: 16.h),
+            SizedBox(height: 24.h),
 
-            _categorySection('General', [
+            _categorySection('General', Icons.apps_rounded, [
               _presetCard(
                 title: 'App Icon',
                 width: 1024,
                 height: 1024,
-                color: const Color(0xFF4FC3F7),
+                icon: Icons.phone_android_rounded,
               ),
               _presetCard(
                 title: 'Web Logo',
                 width: 512,
                 height: 512,
-                color: const Color(0xFF7E57C2),
+                icon: Icons.language_rounded,
               ),
             ]),
 
-            _categorySection('YouTube', [
+            _categorySection('YouTube', Icons.play_circle_filled_rounded, [
               _presetCard(
                 title: 'Channel Banner',
                 width: 2560,
                 height: 1440,
-                color: const Color(0xFFFF5252),
+                icon: Icons.video_library_rounded,
               ),
               _presetCard(
                 title: 'Profile Picture',
                 width: 800,
                 height: 800,
-                color: const Color(0xFFEC407A),
+                icon: Icons.account_circle_rounded,
               ),
               _presetCard(
                 title: 'Thumbnail',
                 width: 1280,
                 height: 720,
-                color: const Color(0xFFFF7043),
+                icon: Icons.photo_size_select_actual_rounded,
               ),
             ]),
 
-            _categorySection('Instagram', [
+            _categorySection('Instagram', Icons.camera_alt_rounded, [
               _presetCard(
                 title: 'Profile Picture',
                 width: 320,
                 height: 320,
-                color: const Color(0xFFE91E63),
+                icon: Icons.person_rounded,
               ),
               _presetCard(
                 title: 'Square Post',
                 width: 1080,
                 height: 1080,
-                color: const Color(0xFFAB47BC),
+                icon: Icons.crop_square_rounded,
               ),
               _presetCard(
                 title: 'Portrait Post',
                 width: 1080,
                 height: 1350,
-                color: const Color(0xFF7E57C2),
+                icon: Icons.crop_portrait_rounded,
               ),
               _presetCard(
                 title: 'Landscape Post',
                 width: 1080,
                 height: 566,
-                color: const Color(0xFF5C6BC0),
+                icon: Icons.crop_landscape_rounded,
               ),
               _presetCard(
                 title: 'Story',
                 width: 1080,
                 height: 1920,
-                color: const Color(0xFF42A5F5),
+                icon: Icons.auto_stories_rounded,
               ),
             ]),
 
-            _categorySection('Facebook', [
+            _categorySection('Facebook', Icons.public_rounded, [
               _presetCard(
                 title: 'Profile Picture',
                 width: 400,
                 height: 400,
-                color: const Color(0xFF29B6F6),
+                icon: Icons.person_rounded,
               ),
               _presetCard(
                 title: 'Cover Photo',
                 width: 820,
                 height: 312,
-                color: const Color(0xFF26C6DA),
+                icon: Icons.panorama_rounded,
               ),
               _presetCard(
                 title: 'Post Image',
                 width: 1200,
                 height: 630,
-                color: const Color(0xFF26A69A),
+                icon: Icons.article_rounded,
               ),
               _presetCard(
                 title: 'Story',
                 width: 1080,
                 height: 1920,
-                color: const Color(0xFF66BB6A),
+                icon: Icons.bolt_rounded,
               ),
             ]),
 
-            _categorySection('LinkedIn', [
+            _categorySection('LinkedIn', Icons.business_center_rounded, [
               _presetCard(
                 title: 'Profile Picture',
                 width: 400,
                 height: 400,
-                color: const Color(0xFF9CCC65),
+                icon: Icons.badge_rounded,
               ),
               _presetCard(
                 title: 'Cover Banner',
                 width: 1584,
                 height: 396,
-                color: const Color(0xFFD4E157),
+                icon: Icons.view_carousel_rounded,
               ),
               _presetCard(
                 title: 'Company Logo',
                 width: 300,
                 height: 300,
-                color: const Color(0xFFFFEE58),
+                icon: Icons.business_rounded,
               ),
               _presetCard(
                 title: 'Company Cover',
                 width: 1128,
                 height: 191,
-                color: const Color(0xFFFFCA28),
+                icon: Icons.dashboard_rounded,
               ),
             ]),
 
-            _categorySection('X (Twitter)', [
+            _categorySection('X (Twitter)', Icons.alternate_email_rounded, [
               _presetCard(
                 title: 'Profile Picture',
                 width: 400,
                 height: 400,
-                color: const Color(0xFFFFB74D),
+                icon: Icons.account_circle_rounded,
               ),
               _presetCard(
                 title: 'Header Banner',
                 width: 1500,
                 height: 500,
-                color: const Color(0xFFFF8A65),
+                icon: Icons.image_rounded,
               ),
               _presetCard(
                 title: 'Post Image',
                 width: 1200,
                 height: 675,
-                color: const Color(0xFFA1887F),
+                icon: Icons.photo_rounded,
               ),
             ]),
 
-            _categorySection('TikTok', [
+            _categorySection('TikTok', Icons.music_note_rounded, [
               _presetCard(
                 title: 'Profile Picture',
                 width: 200,
                 height: 200,
-                color: const Color(0xFF26C6DA),
+                icon: Icons.person_rounded,
               ),
               _presetCard(
                 title: 'Thumbnail',
                 width: 1080,
                 height: 1080,
-                color: const Color(0xFF29B6F6),
+                icon: Icons.videocam_rounded,
               ),
             ]),
 
-            _categorySection('Pinterest', [
+            _categorySection('Pinterest', Icons.push_pin_rounded, [
               _presetCard(
                 title: 'Pin',
                 width: 1000,
                 height: 1500,
-                color: const Color(0xFFE91E63),
+                icon: Icons.collections_rounded,
               ),
               _presetCard(
                 title: 'Profile Picture',
                 width: 280,
                 height: 280,
-                color: const Color(0xFFAB47BC),
+                icon: Icons.account_circle_rounded,
               ),
             ]),
 
-            _categorySection('WhatsApp', [
+            _categorySection('WhatsApp', Icons.chat_bubble_rounded, [
               _presetCard(
                 title: 'Profile Picture',
                 width: 800,
                 height: 800,
-                color: const Color(0xFF66BB6A),
+                icon: Icons.person_rounded,
               ),
               _presetCard(
                 title: 'Status',
                 width: 1080,
                 height: 1920,
-                color: const Color(0xFF9CCC65),
+                icon: Icons.circle_rounded,
               ),
             ]),
 
             // Custom Size Section
-            Container(
-              margin: EdgeInsets.all(16.w),
-              padding: EdgeInsets.all(20.w),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFFFFF),
-                borderRadius: BorderRadius.circular(16.r),
-                border: Border.all(color: const Color(0xFFE0E0E0), width: 1.w),
-              ),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24.w),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Custom Size',
-                    style: GoogleFonts.poppins(
-                      fontSize: 18.sp,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF1A1A1A),
-                    ),
-                  ),
-                  SizedBox(height: 16.h),
                   Row(
                     children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _w,
-                          keyboardType: TextInputType.number,
-                          style: GoogleFonts.poppins(
-                            fontSize: 14.sp,
-                            color: const Color(0xFF1A1A1A),
+                      Container(
+                        padding: EdgeInsets.all(8.w),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
                           ),
-                          decoration: InputDecoration(
-                            labelText: 'Width',
-                            labelStyle: GoogleFonts.poppins(
-                              fontSize: 14.sp,
-                              color: const Color(0xFF666666),
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10.r),
-                              borderSide: BorderSide(
-                                color: const Color(0xFFE0E0E0),
-                                width: 1.w,
-                              ),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10.r),
-                              borderSide: BorderSide(
-                                color: const Color(0xFFE0E0E0),
-                                width: 1.w,
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10.r),
-                              borderSide: BorderSide(
-                                color: const Color(0xFF42A5F5),
-                                width: 2.w,
-                              ),
-                            ),
-                            contentPadding: EdgeInsets.symmetric(
-                              horizontal: 16.w,
-                              vertical: 16.h,
-                            ),
-                          ),
+                          borderRadius: BorderRadius.circular(10.r),
+                        ),
+                        child: Icon(
+                          Icons.tune_rounded,
+                          color: Colors.white,
+                          size: 18.r,
                         ),
                       ),
                       SizedBox(width: 12.w),
-                      Expanded(
-                        child: TextField(
-                          controller: _h,
-                          keyboardType: TextInputType.number,
-                          style: GoogleFonts.poppins(
-                            fontSize: 14.sp,
-                            color: const Color(0xFF1A1A1A),
-                          ),
-                          decoration: InputDecoration(
-                            labelText: 'Height',
-                            labelStyle: GoogleFonts.poppins(
-                              fontSize: 14.sp,
-                              color: const Color(0xFF666666),
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10.r),
-                              borderSide: BorderSide(
-                                color: const Color(0xFFE0E0E0),
-                                width: 1.w,
-                              ),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10.r),
-                              borderSide: BorderSide(
-                                color: const Color(0xFFE0E0E0),
-                                width: 1.w,
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10.r),
-                              borderSide: BorderSide(
-                                color: const Color(0xFF42A5F5),
-                                width: 2.w,
-                              ),
-                            ),
-                            contentPadding: EdgeInsets.symmetric(
-                              horizontal: 16.w,
-                              vertical: 16.h,
-                            ),
-                          ),
+                      Text(
+                        'Custom Size',
+                        style: GoogleFonts.inter(
+                          fontSize: 20.sp,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF0F172A),
+                          letterSpacing: -0.5,
                         ),
                       ),
                     ],
                   ),
-                  SizedBox(height: 16.h),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        final w = double.tryParse(_w.text);
-                        final h = double.tryParse(_h.text);
-                        if (w != null && h != null && w > 0 && h > 0) {
-                          _select(w, h);
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF42A5F5),
-                        foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(vertical: 16.h),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10.r),
+                  SizedBox(height: 20.h),
+                  Container(
+                    padding: EdgeInsets.all(24.w),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24.r),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF0F172A).withOpacity(0.04),
+                          blurRadius: 20,
+                          offset: const Offset(0, 4),
+                          spreadRadius: -4,
                         ),
-                        elevation: 0,
-                      ),
-                      child: Text(
-                        'Create Canvas',
-                        style: GoogleFonts.poppins(
-                          fontSize: 15.sp,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                      ],
                     ),
-                  ),
-                  SizedBox(height: 12.h),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      onPressed: _pickBackground,
-                      style: OutlinedButton.styleFrom(
-                        padding: EdgeInsets.symmetric(vertical: 16.h),
-                        side: BorderSide(
-                          color: const Color(0xFF42A5F5),
-                          width: 2.w,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Width',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 13.sp,
+                                      fontWeight: FontWeight.w600,
+                                      color: const Color(0xFF64748B),
+                                      letterSpacing: -0.1,
+                                    ),
+                                  ),
+                                  SizedBox(height: 8.h),
+                                  TextField(
+                                    controller: _w,
+                                    keyboardType: TextInputType.number,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 15.sp,
+                                      fontWeight: FontWeight.w600,
+                                      color: const Color(0xFF0F172A),
+                                    ),
+                                    decoration: InputDecoration(
+                                      hintText: '1080',
+                                      hintStyle: GoogleFonts.inter(
+                                        color: const Color(0xFF94A3B8),
+                                      ),
+                                      filled: true,
+                                      fillColor: const Color(0xFFF8FAFC),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(
+                                          14.r,
+                                        ),
+                                        borderSide: BorderSide.none,
+                                      ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(
+                                          14.r,
+                                        ),
+                                        borderSide: BorderSide(
+                                          color: const Color(0xFFE2E8F0),
+                                          width: 1.5,
+                                        ),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(
+                                          14.r,
+                                        ),
+                                        borderSide: BorderSide(
+                                          color: const Color(0xFF6366F1),
+                                          width: 2,
+                                        ),
+                                      ),
+                                      contentPadding: EdgeInsets.symmetric(
+                                        horizontal: 16.w,
+                                        vertical: 16.h,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            SizedBox(width: 16.w),
+                            Container(
+                              padding: EdgeInsets.all(8.w),
+                              child: Icon(
+                                Icons.close_rounded,
+                                color: const Color(0xFF94A3B8),
+                                size: 20.r,
+                              ),
+                            ),
+                            SizedBox(width: 16.w),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Height',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 13.sp,
+                                      fontWeight: FontWeight.w600,
+                                      color: const Color(0xFF64748B),
+                                      letterSpacing: -0.1,
+                                    ),
+                                  ),
+                                  SizedBox(height: 8.h),
+                                  TextField(
+                                    controller: _h,
+                                    keyboardType: TextInputType.number,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 15.sp,
+                                      fontWeight: FontWeight.w600,
+                                      color: const Color(0xFF0F172A),
+                                    ),
+                                    decoration: InputDecoration(
+                                      hintText: '1920',
+                                      hintStyle: GoogleFonts.inter(
+                                        color: const Color(0xFF94A3B8),
+                                      ),
+                                      filled: true,
+                                      fillColor: const Color(0xFFF8FAFC),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(
+                                          14.r,
+                                        ),
+                                        borderSide: BorderSide.none,
+                                      ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(
+                                          14.r,
+                                        ),
+                                        borderSide: BorderSide(
+                                          color: const Color(0xFFE2E8F0),
+                                          width: 1.5,
+                                        ),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(
+                                          14.r,
+                                        ),
+                                        borderSide: BorderSide(
+                                          color: const Color(0xFF6366F1),
+                                          width: 2,
+                                        ),
+                                      ),
+                                      contentPadding: EdgeInsets.symmetric(
+                                        horizontal: 16.w,
+                                        vertical: 16.h,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10.r),
+                        SizedBox(height: 20.h),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              final w = double.tryParse(_w.text);
+                              final h = double.tryParse(_h.text);
+                              if (w != null && h != null && w > 0 && h > 0) {
+                                _select(w, h);
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF6366F1),
+                              foregroundColor: Colors.white,
+                              padding: EdgeInsets.symmetric(vertical: 18.h),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14.r),
+                              ),
+                              elevation: 0,
+                              shadowColor: const Color(
+                                0xFF6366F1,
+                              ).withOpacity(0.3),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.add_rounded, size: 22.r),
+                                SizedBox(width: 8.w),
+                                Text(
+                                  'Create Canvas',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 16.sp,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: -0.3,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                      ),
-                      child: Text(
-                        _bgPath == null
-                            ? 'Pick Background'
-                            : 'Background Selected ✓',
-                        style: GoogleFonts.poppins(
-                          fontSize: 15.sp,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF42A5F5),
+                        SizedBox(height: 12.h),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton(
+                            onPressed: _pickBackground,
+                            style: OutlinedButton.styleFrom(
+                              padding: EdgeInsets.symmetric(vertical: 18.h),
+                              side: BorderSide(
+                                color: _bgPath == null
+                                    ? const Color(0xFFE2E8F0)
+                                    : const Color(0xFF10B981),
+                                width: 2,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14.r),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  _bgPath == null
+                                      ? Icons.image_outlined
+                                      : Icons.check_circle_rounded,
+                                  color: _bgPath == null
+                                      ? const Color(0xFF6366F1)
+                                      : const Color(0xFF10B981),
+                                  size: 22.r,
+                                ),
+                                SizedBox(width: 8.w),
+                                Text(
+                                  _bgPath == null
+                                      ? 'Pick Background (Optional)'
+                                      : 'Background Selected',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 16.sp,
+                                    fontWeight: FontWeight.w700,
+                                    color: _bgPath == null
+                                        ? const Color(0xFF6366F1)
+                                        : const Color(0xFF10B981),
+                                    letterSpacing: -0.3,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                      ),
+                      ],
                     ),
                   ),
                 ],
