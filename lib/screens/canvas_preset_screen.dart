@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:lamlayers/widgets/ad_interstitial.dart';
+import 'package:lamlayers/screens/templates_screen.dart';
 
 class CanvasSelectionResult {
   final double width;
@@ -27,11 +29,23 @@ class _CanvasPresetScreenState extends State<CanvasPresetScreen> {
   final TextEditingController _w = TextEditingController(text: '1080');
   final TextEditingController _h = TextEditingController(text: '1920');
   String? _bgPath;
+  late final InterstitialAdManager _templatesAd;
+
+  @override
+  void initState() {
+    super.initState();
+    // Test IDs: Android: ca-app-pub-3940256099942544/1033173712, iOS: ca-app-pub-3940256099942544/4411468910
+    // Replace with your real interstitial unit ID in production.
+    const String testInterstitialId = 'ca-app-pub-3940256099942544/1033173712';
+    _templatesAd = InterstitialAdManager(adUnitId: testInterstitialId);
+    _templatesAd.load();
+  }
 
   @override
   void dispose() {
     _w.dispose();
     _h.dispose();
+    _templatesAd.dispose();
     super.dispose();
   }
 
@@ -39,6 +53,18 @@ class _CanvasPresetScreenState extends State<CanvasPresetScreen> {
     Navigator.pop(
       context,
       CanvasSelectionResult(width: w, height: h, backgroundImagePath: _bgPath),
+    );
+  }
+
+  void _openTemplatesWithAd() {
+    _templatesAd.show(
+      onClosed: () {
+        if (!mounted) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const TemplatesScreen()),
+        );
+      },
     );
   }
 
@@ -244,6 +270,29 @@ class _CanvasPresetScreenState extends State<CanvasPresetScreen> {
           ),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          Padding(
+            padding: EdgeInsets.only(right: 12.w),
+            child: TextButton.icon(
+              onPressed: _openTemplatesWithAd,
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF6366F1),
+                padding: EdgeInsets.symmetric(horizontal: 12.w),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10.r),
+                ),
+              ),
+              icon: const Icon(Icons.dashboard_customize_rounded),
+              label: Text(
+                'Templates',
+                style: GoogleFonts.inter(
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+        ],
         bottom: PreferredSize(
           preferredSize: Size.fromHeight(1.h),
           child: Container(

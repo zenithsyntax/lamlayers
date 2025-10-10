@@ -4073,9 +4073,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         () => setState(() {
           final bool newVal = !hasShadow;
           props['hasShadow'] = newVal;
-          if (newVal) {
-            props['hasGradient'] = false;
-          }
         }),
       ),
 
@@ -4193,9 +4190,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         () => setState(() {
           final bool newVal = !hasGradient;
           props['hasGradient'] = newVal;
-          if (newVal) {
-            props['hasShadow'] = false;
-          }
 
           // Initialize gradient colors if not present
           if (hasGradient &&
@@ -8613,41 +8607,45 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               : null,
         );
 
-        Widget textWidget;
+        final TextAlign textAlign =
+            (props['textAlign'] as TextAlign?) ?? TextAlign.center;
 
-        if (fontFamily != null) {
-          try {
-            final TextStyle gfStyle = GoogleFonts.getFont(
-              fontFamily,
+        Widget _buildTextWithStyle(TextStyle style) {
+          if (fontFamily != null) {
+            try {
+              final TextStyle gfStyle = GoogleFonts.getFont(
+                fontFamily,
 
-              textStyle: baseStyle,
-            );
+                textStyle: style,
+              );
+              return Text(
+                (props['text'] ?? 'Text') as String,
 
-            textWidget = Text(
-              (props['text'] ?? 'Text') as String,
+                style: gfStyle,
 
-              style: gfStyle,
+                textAlign: textAlign,
+              );
+            } catch (_) {
+              // Fallback to normal Text if GoogleFonts lookup fails
+              return Text(
+                (props['text'] ?? 'Text') as String,
 
-              textAlign: (props['textAlign'] as TextAlign?) ?? TextAlign.center,
-            );
-          } catch (_) {
-            textWidget = Text(
-              (props['text'] ?? 'Text') as String,
+                style: style,
 
-              style: baseStyle,
-
-              textAlign: (props['textAlign'] as TextAlign?) ?? TextAlign.center,
-            );
+                textAlign: textAlign,
+              );
+            }
           }
-        } else {
-          textWidget = Text(
+          return Text(
             (props['text'] ?? 'Text') as String,
 
-            style: baseStyle,
+            style: style,
 
-            textAlign: (props['textAlign'] as TextAlign?) ?? TextAlign.center,
+            textAlign: textAlign,
           );
         }
+
+        Widget textWidget = _buildTextWithStyle(baseStyle);
 
         if (textHasGradient) {
           final double angle = (props['gradientAngle'] as double?) ?? 0.0;
@@ -8662,7 +8660,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
           final Alignment end = Alignment(cx, sy);
 
-          textWidget = ShaderMask(
+          // Build the foreground gradient-filled text (no shadows on top layer)
+          final Widget gradientText = ShaderMask(
             shaderCallback: (bounds) => LinearGradient(
               colors:
                   (props['gradientColors'] as List<dynamic>?)
@@ -8679,8 +8678,33 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               end: end,
             ).createShader(bounds),
 
-            child: textWidget,
+            child: _buildTextWithStyle(
+              baseStyle.copyWith(
+                // Ensure solid fill for masking and remove shadows on the top layer
+                color: Colors.white,
+
+                shadows: null,
+              ),
+            ),
           );
+
+          if (textHasShadow) {
+            // Render a shadow-only text behind the gradient text
+            final Widget shadowText = _buildTextWithStyle(
+              baseStyle.copyWith(
+                // Make glyph fill transparent so only shadow is visible
+                color: Colors.transparent,
+              ),
+            );
+
+            textWidget = Stack(
+              alignment: Alignment.centerLeft,
+
+              children: [shadowText, gradientText],
+            );
+          } else {
+            textWidget = gradientText;
+          }
         }
 
         return Container(padding: EdgeInsets.all(16.w), child: textWidget);
@@ -10517,9 +10541,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           (value) => setState(() {
             final bool newVal = !((props['hasGradient'] as bool?) ?? false);
             props['hasGradient'] = newVal;
-            if (newVal) {
-              props['hasShadow'] = false;
-            }
 
             // Initialize gradient colors if not present
             if (newVal &&
