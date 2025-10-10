@@ -3369,6 +3369,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   }
 
   void _bringToFront(CanvasItem item) {
+    // Capture previous state for undo
+    final CanvasItem previous = item.copyWith();
+
     setState(() {
       // Remove the item from the list
 
@@ -3396,9 +3399,22 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         selectedItem = item;
       }
     });
+
+    // Record history for undo/redo
+    _addAction(
+      CanvasAction(
+        type: 'modify',
+        item: item,
+        previousState: previous,
+        timestamp: DateTime.now(),
+      ),
+    );
   }
 
   void _sendToBack(CanvasItem item) {
+    // Capture previous state for undo
+    final CanvasItem previous = item.copyWith();
+
     setState(() {
       // Remove the item from the list
 
@@ -3426,6 +3442,16 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         selectedItem = item;
       }
     });
+
+    // Record history for undo/redo
+    _addAction(
+      CanvasAction(
+        type: 'modify',
+        item: item,
+        previousState: previous,
+        timestamp: DateTime.now(),
+      ),
+    );
   }
 
   Widget _buildTopToolbar() {
@@ -4626,6 +4652,23 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
     VoidCallback onTap,
   ) {
+    void _recordItemModify(VoidCallback mutate) {
+      if (selectedItem == null) {
+        setState(mutate);
+        return;
+      }
+      final CanvasItem previous = selectedItem!.copyWith();
+      setState(mutate);
+      _addAction(
+        CanvasAction(
+          type: 'modify',
+          item: selectedItem,
+          previousState: previous,
+          timestamp: DateTime.now(),
+        ),
+      );
+    }
+
     final Color accent = _currentAccent();
     final String dynLabel = isActive
         ? tooltip.replaceFirst(
@@ -4653,7 +4696,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         message: dynLabel,
 
         child: GestureDetector(
-          onTap: onTap,
+          onTap: () => _recordItemModify(onTap),
 
           child: Container(
             width: containerWidth,
@@ -4888,15 +4931,31 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     IconData icon,
   ) {
     final Color accent = _currentAccent();
+    ValueChanged<double> wrapped = onChanged;
+    if (selectedItem != null) {
+      final CanvasItem previous = selectedItem!.copyWith();
+      wrapped = (double v) {
+        onChanged(v);
+        _addAction(
+          CanvasAction(
+            type: 'modify',
+            item: selectedItem,
+            previousState: previous,
+            timestamp: DateTime.now(),
+          ),
+        );
+      };
+    }
+
     return EnhancedSlider(
       label: label,
       value: value,
       min: min,
       max: max,
-      onChanged: onChanged,
+      onChanged: wrapped,
       icon: icon,
       isMini: true,
-      step: 0.05, // 5% of the range
+      step: 0.05,
       accentColor: accent,
       borderOnly: true,
     );
@@ -4923,7 +4982,22 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     final Color accent = _currentAccent();
 
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        if (selectedItem == null) {
+          onTap();
+          return;
+        }
+        final CanvasItem previous = selectedItem!.copyWith();
+        onTap();
+        _addAction(
+          CanvasAction(
+            type: 'modify',
+            item: selectedItem,
+            previousState: previous,
+            timestamp: DateTime.now(),
+          ),
+        );
+      },
       child: Container(
         margin: EdgeInsets.only(right: 12.w, bottom: 35.h),
         padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
