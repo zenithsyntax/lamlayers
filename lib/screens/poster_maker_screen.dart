@@ -5299,7 +5299,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                                 ),
                               ),
                             ),
-                            
                           ],
                         ),
                       ],
@@ -10984,29 +10983,18 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   void _showColorPicker(String property, {bool isGradient = false}) {
     final predefinedColors = <Color>[
-      Colors.transparent, // Add transparent as first option
+      Colors.transparent,
       Colors.black,
-
       Colors.white,
-
       Colors.redAccent,
-
       Colors.blueAccent,
-
       Colors.greenAccent,
-
       Colors.orangeAccent,
-
       Colors.purpleAccent,
-
       Colors.tealAccent,
-
       Colors.pinkAccent,
-
       Colors.indigoAccent,
-
       Colors.amberAccent,
-
       Colors.cyanAccent,
     ];
 
@@ -11016,153 +11004,161 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
     showModalBottomSheet(
       context: context,
-
       backgroundColor: Colors.transparent,
-
       isScrollControlled: true,
-
       builder: (context) => StatefulBuilder(
         builder: (BuildContext context, StateSetter setState) {
           return Container(
-            height: 280.h,
-
+            height: 420.h,
             decoration: BoxDecoration(
               color: Colors.white,
-
               borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(32.r),
-
-                topRight: Radius.circular(32.r),
+                topLeft: Radius.circular(28.r),
+                topRight: Radius.circular(28.r),
               ),
-
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-
-                  blurRadius: 20,
-
-                  offset: const Offset(0, -8),
+                  color: const Color(0xFF0F172A).withOpacity(0.08),
+                  blurRadius: 32,
+                  offset: const Offset(0, -12),
+                  spreadRadius: -4,
                 ),
               ],
             ),
-
             child: Column(
               children: [
+                // Handle bar
                 Container(
                   width: 60.w,
-
                   height: 6.h,
-
                   margin: EdgeInsets.symmetric(vertical: 16.h),
-
                   decoration: BoxDecoration(
-                    color: Colors.grey[300],
-
+                    color: const Color(0xFFE2E8F0),
                     borderRadius: BorderRadius.circular(3.r),
                   ),
                 ),
 
+                // Header
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: 24.w),
-
                   child: Row(
                     children: [
-                      Icon(
-                        Icons.palette_rounded,
-
-                        color: Colors.blue.shade400,
-
-                        size: 24.sp,
-                      ),
-
-                      SizedBox(width: 12.w),
-
-                      Text(
-                        'Choose Color',
-
-                        style: TextStyle(
-                          fontSize: 20.sp,
-
-                          fontWeight: FontWeight.bold,
-
-                          color: Colors.grey[800],
+                      Container(
+                        padding: EdgeInsets.all(10.w),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                          ),
+                          borderRadius: BorderRadius.circular(12.r),
+                        ),
+                        child: Icon(
+                          Icons.palette_rounded,
+                          color: Colors.white,
+                          size: 20.r,
                         ),
                       ),
-
-                      SizedBox(width: 12.w),
-
+                      SizedBox(width: 16.w),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Choose Color',
+                              style: GoogleFonts.inter(
+                                fontSize: 18.sp,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF0F172A),
+                                letterSpacing: -0.4,
+                              ),
+                            ),
+                            SizedBox(height: 2.h),
+                            Text(
+                              'Select your preferred color',
+                              style: GoogleFonts.inter(
+                                fontSize: 12.sp,
+                                fontWeight: FontWeight.w500,
+                                color: const Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                       Container(
                         width: 48.w,
-
                         height: 48.h,
-
                         decoration: BoxDecoration(
-                          color: _selectedColorInPicker,
-
-                          shape: BoxShape.circle,
-
+                          color: _selectedColorInPicker == Colors.transparent
+                              ? Colors.white
+                              : _selectedColorInPicker,
+                          borderRadius: BorderRadius.circular(16.r),
                           border: Border.all(
-                            color: Colors.grey.shade300,
-
+                            color: const Color(0xFFE2E8F0),
                             width: 2,
                           ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF0F172A).withOpacity(0.04),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
+                        child: _selectedColorInPicker == Colors.transparent
+                            ? Stack(
+                                children: [
+                                  CustomPaint(
+                                    painter: CheckerboardPainter(),
+                                    size: Size(48.w, 48.h),
+                                  ),
+                                  Center(
+                                    child: Container(
+                                      width: 24.w,
+                                      height: 2.h,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFDC2626),
+                                        borderRadius: BorderRadius.circular(
+                                          1.r,
+                                        ),
+                                      ),
+                                      transform: Matrix4.rotationZ(0.785398),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : null,
                       ),
-
-                      const Spacer(),
-
-                      IconButton(
-                        icon: Icon(
-                          Icons.add_circle,
-
-                          color: Colors.green,
-
-                          size: 24.sp,
-                        ),
-
-                        onPressed: () async {
-                          // Show advanced color picker in a new modal bottom sheet
-
+                      SizedBox(width: 16.w),
+                      GestureDetector(
+                        onTap: () async {
                           final pickedColor = await showColorPickerBottomSheet(
                             context: context,
-
                             initialColor: _selectedColorInPicker,
-
                             onPreview: (color) {
                               if (selectedItem == null) return;
-
-                              // Live update without committing to history
-
                               setState(() {
                                 if (isGradient) {
                                   final List<Color> currentGradient =
                                       _getDisplayGradientColors();
-
                                   final Color first = currentGradient.first;
-
                                   final Color last = currentGradient.last;
-
                                   final Map<String, dynamic> newProperties =
                                       Map.from(selectedItem!.properties);
 
                                   if (property == 'gradientColor1') {
                                     newProperties['gradientColors'] = [
                                       HiveColor.fromColor(color),
-
                                       HiveColor.fromColor(last),
                                     ];
                                   } else if (property == 'gradientColor2') {
                                     newProperties['gradientColors'] = [
                                       HiveColor.fromColor(first),
-
                                       HiveColor.fromColor(color),
                                     ];
                                   } else {
-                                    // Fallback: replace first color
-
                                     newProperties['gradientColors'] = [
                                       HiveColor.fromColor(color),
-
                                       HiveColor.fromColor(last),
                                     ];
                                   }
@@ -11173,11 +11169,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                                 } else {
                                   final Map<String, dynamic> newProperties =
                                       Map.from(selectedItem!.properties);
-
                                   newProperties[property] = HiveColor.fromColor(
                                     color,
                                   );
-
                                   selectedItem = selectedItem!.copyWith(
                                     properties: newProperties,
                                   );
@@ -11187,31 +11181,36 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                           );
 
                           if (pickedColor != null) {
-                            // Update state and save
-
                             setState(() {
                               _selectedColorInPicker = pickedColor;
-
                               if (!recentColors.contains(pickedColor)) {
-                                recentColors.add(
-                                  pickedColor,
-                                ); // or however you manage recentColors
+                                recentColors.add(pickedColor);
                               }
                             });
-
                             _selectColor(
                               property,
-
                               pickedColor,
-
                               isGradient: isGradient,
                             );
-
-                            Navigator.pop(
-                              context,
-                            ); // Close the original bottom sheet
+                            Navigator.pop(context);
                           }
                         },
+                        child: Container(
+                          padding: EdgeInsets.all(10.w),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF10B981).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12.r),
+                            border: Border.all(
+                              color: const Color(0xFF10B981).withOpacity(0.3),
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Icon(
+                            Icons.tune_rounded,
+                            color: const Color(0xFF10B981),
+                            size: 20.r,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -11222,108 +11221,97 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                 if (recentColors.isNotEmpty) ...[
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 24.w),
-
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-
-                      child: Text(
-                        'RECENT',
-
-                        style: TextStyle(
-                          fontSize: 12.sp,
-
-                          fontWeight: FontWeight.bold,
-
-                          color: Colors.grey[600],
-
-                          letterSpacing: 1,
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: EdgeInsets.all(6.w),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF6366F1).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8.r),
+                          ),
+                          child: Icon(
+                            Icons.history_rounded,
+                            color: const Color(0xFF6366F1),
+                            size: 14.r,
+                          ),
                         ),
-                      ),
+                        SizedBox(width: 8.w),
+                        Text(
+                          'Recent Colors',
+                          style: GoogleFonts.inter(
+                            fontSize: 13.sp,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF0F172A),
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-
-                  SizedBox(height: 12.h),
-
+                  SizedBox(height: 16.h),
                   SizedBox(
-                    height: 50.h,
-
+                    height: 60.h,
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
-
                       padding: EdgeInsets.symmetric(horizontal: 24.w),
-
                       itemCount: recentColors.length,
-
                       itemBuilder: (context, index) {
                         final color = recentColors[index];
-
                         return Padding(
                           padding: EdgeInsets.only(right: 12.w),
-
                           child: GestureDetector(
                             onTap: () {
                               setState(() {
                                 _selectedColorInPicker = color;
                               });
-
                               _selectColor(
                                 property,
-
                                 color,
-
                                 isGradient: isGradient,
                               );
-
                               Navigator.pop(context);
                             },
-
                             child: Container(
-                              width: 50.h,
-
-                              height: 50.h,
-
+                              width: 60.h,
+                              height: 60.h,
                               decoration: BoxDecoration(
                                 color: color == Colors.transparent
                                     ? Colors.white
                                     : color,
-                                borderRadius: BorderRadius.circular(12.r),
-
+                                borderRadius: BorderRadius.circular(16.r),
                                 border: Border.all(
-                                  color: Colors.grey.shade300,
-
+                                  color: const Color(0xFFE2E8F0),
                                   width: 2,
                                 ),
-
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.1),
-
-                                    blurRadius: 4,
-
+                                    color: const Color(
+                                      0xFF0F172A,
+                                    ).withOpacity(0.04),
+                                    blurRadius: 8,
                                     offset: const Offset(0, 2),
                                   ),
                                 ],
                               ),
-
                               child: color == Colors.transparent
                                   ? Stack(
                                       children: [
                                         CustomPaint(
                                           painter: CheckerboardPainter(),
-                                          size: Size(50.h, 50.h),
+                                          size: Size(60.h, 60.h),
                                         ),
                                         Center(
                                           child: Container(
-                                            width: 30.w,
+                                            width: 36.w,
                                             height: 3.h,
                                             decoration: BoxDecoration(
-                                              color: Colors.red,
+                                              color: const Color(0xFFDC2626),
                                               borderRadius:
                                                   BorderRadius.circular(1.5.r),
                                             ),
                                             transform: Matrix4.rotationZ(
                                               0.785398,
-                                            ), // 45 degrees
+                                            ),
                                           ),
                                         ),
                                       ],
@@ -11335,74 +11323,66 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                       },
                     ),
                   ),
-
-                  SizedBox(height: 20.h),
+                  SizedBox(height: 24.h),
                 ],
 
+                // Color grid
                 Expanded(
                   child: Padding(
                     padding: EdgeInsets.symmetric(horizontal: 24.w),
-
                     child: BlockPicker(
                       pickerColor: _selectedColorInPicker,
-
                       onColorChanged: (color) {
                         setState(() {
                           _selectedColorInPicker = color;
                         });
                       },
-
                       availableColors: predefinedColors,
-
                       layoutBuilder: (context, colors, child) {
                         return GridView.builder(
                           gridDelegate:
                               SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: 6,
-
                                 crossAxisSpacing: 16.w,
-
                                 mainAxisSpacing: 16.h,
                               ),
-
                           itemCount: colors.length,
-
                           itemBuilder: (context, index) {
                             return child(colors[index]);
                           },
                         );
                       },
-
                       itemBuilder: (color, isCurrentColor, changeColor) {
                         return GestureDetector(
                           onTap: () {
                             changeColor();
-
                             _selectColor(
                               property,
-
                               color,
-
                               isGradient: isGradient,
                             );
-
                             Navigator.pop(context);
                           },
-
                           child: Container(
                             decoration: BoxDecoration(
                               color: color == Colors.transparent
                                   ? Colors.white
                                   : color,
-                              borderRadius: BorderRadius.circular(16.r),
-
+                              borderRadius: BorderRadius.circular(20.r),
                               border: Border.all(
-                                color: Colors.grey.shade300,
-
+                                color: const Color(0xFFE2E8F0),
                                 width: 2,
                               ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(
+                                    0xFF0F172A,
+                                  ).withOpacity(0.04),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
                             ),
-
                             child: color == Colors.transparent
                                 ? Stack(
                                     children: [
@@ -11415,14 +11395,14 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                                           width: 30.w,
                                           height: 3.h,
                                           decoration: BoxDecoration(
-                                            color: Colors.red,
+                                            color: const Color(0xFFDC2626),
                                             borderRadius: BorderRadius.circular(
                                               1.5.r,
                                             ),
                                           ),
                                           transform: Matrix4.rotationZ(
                                             0.785398,
-                                          ), // 45 degrees
+                                          ),
                                         ),
                                       ),
                                     ],
@@ -11435,7 +11415,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                   ),
                 ),
 
-                SizedBox(height: 20.h),
+                SizedBox(height: 24.h),
               ],
             ),
           );
@@ -11446,101 +11426,245 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   Future<Color?> showColorPickerBottomSheet({
     required BuildContext context,
-
     required Color initialColor,
-
     ValueChanged<Color>? onPreview,
   }) async {
     Color currentColor = initialColor;
 
     return await showModalBottomSheet<Color>(
       context: context,
-
       isScrollControlled: true,
-
       backgroundColor: Colors.transparent,
-
       builder: (context) {
         return FractionallySizedBox(
-          heightFactor: 0.8,
-
+          heightFactor: 0.75,
           child: Container(
             decoration: BoxDecoration(
               color: Colors.white,
-
               borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(32),
-
-                topRight: Radius.circular(32),
+                topLeft: Radius.circular(28.r),
+                topRight: Radius.circular(28.r),
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF0F172A).withOpacity(0.08),
+                  blurRadius: 32,
+                  offset: const Offset(0, -12),
+                  spreadRadius: -4,
+                ),
+              ],
             ),
-
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-
-              child: Column(
-                children: [
-                  // Drag handle
-                  Container(
-                    width: 60,
-
-                    height: 6,
-
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-
-                      borderRadius: BorderRadius.circular(3),
-                    ),
+            child: Column(
+              children: [
+                // Drag handle
+                Container(
+                  width: 60.w,
+                  height: 6.h,
+                  margin: EdgeInsets.symmetric(vertical: 16.h),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE2E8F0),
+                    borderRadius: BorderRadius.circular(3.r),
                   ),
+                ),
 
-                  SizedBox(height: 20),
-
-                  Text(
-                    'Pick a Color',
-
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                // Header
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 24.w),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(10.w),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                          ),
+                          borderRadius: BorderRadius.circular(12.r),
+                        ),
+                        child: Icon(
+                          Icons.tune_rounded,
+                          color: Colors.white,
+                          size: 20.r,
+                        ),
+                      ),
+                      SizedBox(width: 16.w),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Advanced Color Picker',
+                              style: GoogleFonts.inter(
+                                fontSize: 18.sp,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF0F172A),
+                                letterSpacing: -0.4,
+                              ),
+                            ),
+                            SizedBox(height: 2.h),
+                            Text(
+                              'Fine-tune your color selection',
+                              style: GoogleFonts.inter(
+                                fontSize: 12.sp,
+                                fontWeight: FontWeight.w500,
+                                color: const Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        width: 48.w,
+                        height: 48.h,
+                        decoration: BoxDecoration(
+                          color: currentColor == Colors.transparent
+                              ? Colors.white
+                              : currentColor,
+                          borderRadius: BorderRadius.circular(16.r),
+                          border: Border.all(
+                            color: const Color(0xFFE2E8F0),
+                            width: 2,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF0F172A).withOpacity(0.04),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: currentColor == Colors.transparent
+                            ? Stack(
+                                children: [
+                                  CustomPaint(
+                                    painter: CheckerboardPainter(),
+                                    size: Size(48.w, 48.h),
+                                  ),
+                                  Center(
+                                    child: Container(
+                                      width: 24.w,
+                                      height: 2.h,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFDC2626),
+                                        borderRadius: BorderRadius.circular(
+                                          1.r,
+                                        ),
+                                      ),
+                                      transform: Matrix4.rotationZ(0.785398),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : null,
+                      ),
+                    ],
                   ),
+                ),
 
-                  SizedBox(height: 20),
+                SizedBox(height: 24.h),
 
-                  // Advanced Color Picker
-                  Expanded(
+                // Advanced Color Picker
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 24.w),
                     child: ColorPicker(
                       pickerColor: currentColor,
-
                       onColorChanged: (Color color) {
                         currentColor = color;
-
                         if (onPreview != null) {
                           onPreview(color);
                         }
                       },
-
-                      colorPickerWidth: 300,
-
+                      colorPickerWidth:
+                          MediaQuery.of(context).size.width - 48.w,
                       pickerAreaHeightPercent: 0.7,
-
                       showLabel: true,
-
                       displayThumbColor: true,
-
                       paletteType: PaletteType.hsv,
                     ),
                   ),
+                ),
 
-                  SizedBox(height: 20),
+                SizedBox(height: 24.h),
 
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(context, currentColor);
-                    },
-
-                    child: Text('Select'),
+                // Action buttons
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 24.w),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                          },
+                          style: OutlinedButton.styleFrom(
+                            padding: EdgeInsets.symmetric(vertical: 16.h),
+                            side: BorderSide(
+                              color: const Color(0xFFE2E8F0),
+                              width: 1.5,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16.r),
+                            ),
+                          ),
+                          child: Text(
+                            'Cancel',
+                            style: GoogleFonts.inter(
+                              fontSize: 14.sp,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF64748B),
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 16.w),
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                            ),
+                            borderRadius: BorderRadius.circular(16.r),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF6366F1).withOpacity(0.3),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Navigator.pop(context, currentColor);
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              shadowColor: Colors.transparent,
+                              padding: EdgeInsets.symmetric(vertical: 16.h),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16.r),
+                              ),
+                            ),
+                            child: Text(
+                              'Select Color',
+                              style: GoogleFonts.inter(
+                                fontSize: 14.sp,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
+                ),
 
-                  SizedBox(height: 10),
-                ],
-              ),
+                SizedBox(height: 44.h),
+              ],
             ),
           ),
         );
