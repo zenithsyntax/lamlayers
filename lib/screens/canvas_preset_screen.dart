@@ -96,24 +96,11 @@ class _CanvasPresetScreenState extends State<CanvasPresetScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Container(
-                      padding: EdgeInsets.all(12.w),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                        ),
-                        borderRadius: BorderRadius.circular(12.r),
-                      ),
-                      child: Icon(icon, color: Colors.white, size: 24.r),
-                    ),
-                    SizedBox(height: 8.h),
-                    Container(
                       width: aspectRatio >= 1 ? 40.w : (40.w * aspectRatio),
                       height: aspectRatio <= 1 ? 40.w : (40.w / aspectRatio),
                       decoration: BoxDecoration(
                         color: const Color(0xFF6366F1).withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(4.r),
+
                         border: Border.all(
                           color: const Color(0xFF6366F1).withOpacity(0.4),
                           width: 2,
@@ -278,6 +265,80 @@ class _CanvasPresetScreenState extends State<CanvasPresetScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SizedBox(height: 24.h),
+            _categorySection('Instagram', Icons.camera_alt_rounded, [
+              _presetCard(
+                title: 'Profile Picture',
+                width: 320,
+                height: 320,
+                icon: Icons.person_rounded,
+              ),
+              _presetCard(
+                title: 'Square Post',
+                width: 1080,
+                height: 1080,
+                icon: Icons.crop_square_rounded,
+              ),
+              _presetCard(
+                title: 'Portrait Post',
+                width: 1080,
+                height: 1350,
+                icon: Icons.crop_portrait_rounded,
+              ),
+              _presetCard(
+                title: 'Landscape Post',
+                width: 1080,
+                height: 566,
+                icon: Icons.crop_landscape_rounded,
+              ),
+              _presetCard(
+                title: 'Story',
+                width: 1080,
+                height: 1920,
+                icon: Icons.auto_stories_rounded,
+              ),
+            ]),
+
+            _categorySection('WhatsApp', Icons.chat_bubble_rounded, [
+              _presetCard(
+                title: 'Profile Picture',
+                width: 800,
+                height: 800,
+                icon: Icons.person_rounded,
+              ),
+              _presetCard(
+                title: 'Status',
+                width: 1080,
+                height: 1920,
+                icon: Icons.circle_rounded,
+              ),
+            ]),
+
+            _categorySection('LinkedIn', Icons.business_center_rounded, [
+              _presetCard(
+                title: 'Profile Picture',
+                width: 400,
+                height: 400,
+                icon: Icons.badge_rounded,
+              ),
+              _presetCard(
+                title: 'Cover Banner',
+                width: 1584,
+                height: 396,
+                icon: Icons.view_carousel_rounded,
+              ),
+              _presetCard(
+                title: 'Company Logo',
+                width: 300,
+                height: 300,
+                icon: Icons.business_rounded,
+              ),
+              _presetCard(
+                title: 'Company Cover',
+                width: 1128,
+                height: 191,
+                icon: Icons.dashboard_rounded,
+              ),
+            ]),
 
             _categorySection('General', Icons.apps_rounded, [
               _presetCard(
@@ -315,39 +376,6 @@ class _CanvasPresetScreenState extends State<CanvasPresetScreen> {
               ),
             ]),
 
-            _categorySection('Instagram', Icons.camera_alt_rounded, [
-              _presetCard(
-                title: 'Profile Picture',
-                width: 320,
-                height: 320,
-                icon: Icons.person_rounded,
-              ),
-              _presetCard(
-                title: 'Square Post',
-                width: 1080,
-                height: 1080,
-                icon: Icons.crop_square_rounded,
-              ),
-              _presetCard(
-                title: 'Portrait Post',
-                width: 1080,
-                height: 1350,
-                icon: Icons.crop_portrait_rounded,
-              ),
-              _presetCard(
-                title: 'Landscape Post',
-                width: 1080,
-                height: 566,
-                icon: Icons.crop_landscape_rounded,
-              ),
-              _presetCard(
-                title: 'Story',
-                width: 1080,
-                height: 1920,
-                icon: Icons.auto_stories_rounded,
-              ),
-            ]),
-
             _categorySection('Facebook', Icons.public_rounded, [
               _presetCard(
                 title: 'Profile Picture',
@@ -372,33 +400,6 @@ class _CanvasPresetScreenState extends State<CanvasPresetScreen> {
                 width: 1080,
                 height: 1920,
                 icon: Icons.bolt_rounded,
-              ),
-            ]),
-
-            _categorySection('LinkedIn', Icons.business_center_rounded, [
-              _presetCard(
-                title: 'Profile Picture',
-                width: 400,
-                height: 400,
-                icon: Icons.badge_rounded,
-              ),
-              _presetCard(
-                title: 'Cover Banner',
-                width: 1584,
-                height: 396,
-                icon: Icons.view_carousel_rounded,
-              ),
-              _presetCard(
-                title: 'Company Logo',
-                width: 300,
-                height: 300,
-                icon: Icons.business_rounded,
-              ),
-              _presetCard(
-                title: 'Company Cover',
-                width: 1128,
-                height: 191,
-                icon: Icons.dashboard_rounded,
               ),
             ]),
 
@@ -450,21 +451,6 @@ class _CanvasPresetScreenState extends State<CanvasPresetScreen> {
                 width: 280,
                 height: 280,
                 icon: Icons.account_circle_rounded,
-              ),
-            ]),
-
-            _categorySection('WhatsApp', Icons.chat_bubble_rounded, [
-              _presetCard(
-                title: 'Profile Picture',
-                width: 800,
-                height: 800,
-                icon: Icons.person_rounded,
-              ),
-              _presetCard(
-                title: 'Status',
-                width: 1080,
-                height: 1920,
-                icon: Icons.circle_rounded,
               ),
             ]),
 
@@ -701,52 +687,6 @@ class _CanvasPresetScreenState extends State<CanvasPresetScreen> {
                           ),
                         ),
                         SizedBox(height: 12.h),
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton(
-                            onPressed: _pickBackground,
-                            style: OutlinedButton.styleFrom(
-                              padding: EdgeInsets.symmetric(vertical: 18.h),
-                              side: BorderSide(
-                                color: _bgPath == null
-                                    ? const Color(0xFFE2E8F0)
-                                    : const Color(0xFF10B981),
-                                width: 2,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14.r),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  _bgPath == null
-                                      ? Icons.image_outlined
-                                      : Icons.check_circle_rounded,
-                                  color: _bgPath == null
-                                      ? const Color(0xFF6366F1)
-                                      : const Color(0xFF10B981),
-                                  size: 22.r,
-                                ),
-                                SizedBox(width: 8.w),
-                                Text(
-                                  _bgPath == null
-                                      ? 'Pick Background (Optional)'
-                                      : 'Background Selected',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 16.sp,
-                                    fontWeight: FontWeight.w700,
-                                    color: _bgPath == null
-                                        ? const Color(0xFF6366F1)
-                                        : const Color(0xFF10B981),
-                                    letterSpacing: -0.3,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
                       ],
                     ),
                   ),
