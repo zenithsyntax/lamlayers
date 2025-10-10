@@ -8051,11 +8051,12 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                     ),
                   ),
 
-                  child: Opacity(
-                    opacity: item.opacity.clamp(0.0, 1.0),
-
-                    child: _buildItemContent(item),
-                  ),
+                  child: item.type == CanvasItemType.text
+                      ? _buildItemContent(item)
+                      : Opacity(
+                          opacity: item.opacity.clamp(0.0, 1.0),
+                          child: _buildItemContent(item),
+                        ),
                 ),
 
                 // Add custom selection border for quadrilaterals
@@ -8661,31 +8662,35 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           final Alignment end = Alignment(cx, sy);
 
           // Build the foreground gradient-filled text (no shadows on top layer)
-          final Widget gradientText = ShaderMask(
-            shaderCallback: (bounds) => LinearGradient(
-              colors:
-                  (props['gradientColors'] as List<dynamic>?)
-                      ?.map((e) => (e as HiveColor).toColor())
-                      .toList() ??
-                  [
-                    HiveColor.fromColor(Colors.blue).toColor(),
+          // Use TextStyle.foreground shader instead of ShaderMask to avoid
+          // blending artifacts with shadows.
+          final List<Color> gradientColors =
+              (props['gradientColors'] as List<dynamic>?)
+                  ?.map((e) => (e as HiveColor).toColor())
+                  .toList() ??
+              [
+                HiveColor.fromColor(Colors.blue).toColor(),
+                HiveColor.fromColor(Colors.purple).toColor(),
+              ];
 
-                    HiveColor.fromColor(Colors.purple).toColor(),
-                  ],
+          final String displayText = (props['text'] ?? 'Text') as String;
+          final TextPainter _tp = TextPainter(
+            text: TextSpan(text: displayText, style: baseStyle),
+            maxLines: 1,
+            textAlign: textAlign,
+            textDirection: TextDirection.ltr,
+          )..layout();
 
+          final Rect gradRect = Rect.fromLTWH(0, 0, _tp.width, _tp.height);
+          final Paint fgPaint = Paint()
+            ..shader = LinearGradient(
+              colors: gradientColors,
               begin: begin,
-
               end: end,
-            ).createShader(bounds),
+            ).createShader(gradRect);
 
-            child: _buildTextWithStyle(
-              baseStyle.copyWith(
-                // Ensure solid fill for masking and remove shadows on the top layer
-                color: Colors.white,
-
-                shadows: null,
-              ),
-            ),
+          final Widget gradientText = _buildTextWithStyle(
+            baseStyle.copyWith(color: null, foreground: fgPaint, shadows: null),
           );
 
           if (textHasShadow) {
