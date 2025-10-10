@@ -16,28 +16,28 @@ class GoogleFontsPage extends StatefulWidget {
 
 class _GoogleFontsPageState extends State<GoogleFontsPage> {
   final TextEditingController _searchController = TextEditingController();
-  final String _apiKey = 'AIzaSyBaTQhgkhm6TVOroOQtE6HEw1d2Gpv5SXY'; 
-  
-  // Modern Color Scheme
-  static const Color _primaryBlue = Color(0xFF2563EB);
-  static const Color _lightBlue = Color(0xFF3B82F6);
-  static const Color _accentBlue = Color(0xFF1D4ED8);
-  static const Color _surfaceGray = Color(0xFFF8FAFC);
+  final ScrollController _scrollController = ScrollController();
+  final String _apiKey = 'AIzaSyBaTQhgkhm6TVOroOQtE6HEw1d2Gpv5SXY';
+
+  // Professional Color Scheme
+  static const Color _primaryIndigo = Color(0xFF6366F1);
+  static const Color _primaryPurple = Color(0xFF8B5CF6);
+  static const Color _surfaceGray = Color(0xFFF1F5F9);
   static const Color _cardBackground = Color(0xFFFFFFFF);
   static const Color _textPrimary = Color(0xFF0F172A);
   static const Color _textSecondary = Color(0xFF64748B);
   static const Color _dividerColor = Color(0xFFE2E8F0);
   static const Color _borderColor = Color(0xFFCBD5E1);
-  
+
   List<GoogleFont> _allFonts = [];
   List<GoogleFont> _filteredFonts = [];
   List<GoogleFont> _likedFonts = [];
-  
+
   int _currentPage = 0;
   final int _fontsPerPage = 12;
   bool _isLoading = false;
   bool _showLikedList = false;
-  
+
   @override
   void initState() {
     super.initState();
@@ -48,6 +48,7 @@ class _GoogleFontsPageState extends State<GoogleFontsPage> {
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -55,18 +56,20 @@ class _GoogleFontsPageState extends State<GoogleFontsPage> {
     setState(() {
       _isLoading = true;
     });
-    
+
     try {
       final response = await http.get(
-        Uri.parse('https://www.googleapis.com/webfonts/v1/webfonts?key=$_apiKey&sort=popularity'),
+        Uri.parse(
+          'https://www.googleapis.com/webfonts/v1/webfonts?key=$_apiKey&sort=popularity',
+        ),
       );
-      
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final fonts = (data['items'] as List)
             .map((font) => GoogleFont.fromJson(font))
             .toList();
-        
+
         setState(() {
           _allFonts = fonts;
           _filteredFonts = fonts;
@@ -82,28 +85,104 @@ class _GoogleFontsPageState extends State<GoogleFontsPage> {
 
   void _loadSampleFonts() {
     final sampleFonts = [
-      GoogleFont(family: 'Roboto', variants: ['regular', 'bold'], category: 'sans-serif'),
-      GoogleFont(family: 'Open Sans', variants: ['regular', 'bold'], category: 'sans-serif'),
-      GoogleFont(family: 'Lato', variants: ['regular', 'bold'], category: 'sans-serif'),
-      GoogleFont(family: 'Montserrat', variants: ['regular', 'bold'], category: 'sans-serif'),
-      GoogleFont(family: 'Poppins', variants: ['regular', 'bold'], category: 'sans-serif'),
-      GoogleFont(family: 'Source Sans Pro', variants: ['regular', 'bold'], category: 'sans-serif'),
-      GoogleFont(family: 'Raleway', variants: ['regular', 'bold'], category: 'sans-serif'),
-      GoogleFont(family: 'PT Sans', variants: ['regular', 'bold'], category: 'sans-serif'),
-      GoogleFont(family: 'Nunito', variants: ['regular', 'bold'], category: 'sans-serif'),
-      GoogleFont(family: 'Ubuntu', variants: ['regular', 'bold'], category: 'sans-serif'),
-      GoogleFont(family: 'Inter', variants: ['regular', 'bold'], category: 'sans-serif'),
-      GoogleFont(family: 'Work Sans', variants: ['regular', 'bold'], category: 'sans-serif'),
-      GoogleFont(family: 'Playfair Display', variants: ['regular', 'bold'], category: 'serif'),
-      GoogleFont(family: 'Merriweather', variants: ['regular', 'bold'], category: 'serif'),
-      GoogleFont(family: 'Lora', variants: ['regular', 'bold'], category: 'serif'),
-      GoogleFont(family: 'Crimson Text', variants: ['regular', 'bold'], category: 'serif'),
-      GoogleFont(family: 'Dancing Script', variants: ['regular', 'bold'], category: 'handwriting'),
-      GoogleFont(family: 'Pacifico', variants: ['regular'], category: 'handwriting'),
+      GoogleFont(
+        family: 'Roboto',
+        variants: ['regular', 'bold'],
+        category: 'sans-serif',
+      ),
+      GoogleFont(
+        family: 'Open Sans',
+        variants: ['regular', 'bold'],
+        category: 'sans-serif',
+      ),
+      GoogleFont(
+        family: 'Lato',
+        variants: ['regular', 'bold'],
+        category: 'sans-serif',
+      ),
+      GoogleFont(
+        family: 'Montserrat',
+        variants: ['regular', 'bold'],
+        category: 'sans-serif',
+      ),
+      GoogleFont(
+        family: 'Poppins',
+        variants: ['regular', 'bold'],
+        category: 'sans-serif',
+      ),
+      GoogleFont(
+        family: 'Source Sans Pro',
+        variants: ['regular', 'bold'],
+        category: 'sans-serif',
+      ),
+      GoogleFont(
+        family: 'Raleway',
+        variants: ['regular', 'bold'],
+        category: 'sans-serif',
+      ),
+      GoogleFont(
+        family: 'PT Sans',
+        variants: ['regular', 'bold'],
+        category: 'sans-serif',
+      ),
+      GoogleFont(
+        family: 'Nunito',
+        variants: ['regular', 'bold'],
+        category: 'sans-serif',
+      ),
+      GoogleFont(
+        family: 'Ubuntu',
+        variants: ['regular', 'bold'],
+        category: 'sans-serif',
+      ),
+      GoogleFont(
+        family: 'Inter',
+        variants: ['regular', 'bold'],
+        category: 'sans-serif',
+      ),
+      GoogleFont(
+        family: 'Work Sans',
+        variants: ['regular', 'bold'],
+        category: 'sans-serif',
+      ),
+      GoogleFont(
+        family: 'Playfair Display',
+        variants: ['regular', 'bold'],
+        category: 'serif',
+      ),
+      GoogleFont(
+        family: 'Merriweather',
+        variants: ['regular', 'bold'],
+        category: 'serif',
+      ),
+      GoogleFont(
+        family: 'Lora',
+        variants: ['regular', 'bold'],
+        category: 'serif',
+      ),
+      GoogleFont(
+        family: 'Crimson Text',
+        variants: ['regular', 'bold'],
+        category: 'serif',
+      ),
+      GoogleFont(
+        family: 'Dancing Script',
+        variants: ['regular', 'bold'],
+        category: 'handwriting',
+      ),
+      GoogleFont(
+        family: 'Pacifico',
+        variants: ['regular'],
+        category: 'handwriting',
+      ),
       GoogleFont(family: 'Lobster', variants: ['regular'], category: 'display'),
-      GoogleFont(family: 'Great Vibes', variants: ['regular'], category: 'handwriting'),
+      GoogleFont(
+        family: 'Great Vibes',
+        variants: ['regular'],
+        category: 'handwriting',
+      ),
     ];
-    
+
     setState(() {
       _allFonts = sampleFonts;
       _filteredFonts = sampleFonts;
@@ -123,6 +202,14 @@ class _GoogleFontsPageState extends State<GoogleFontsPage> {
       }
       _currentPage = 0;
     });
+    // Scroll to top when search results change
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0.0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
   }
 
   void _toggleLikeFont(GoogleFont font) {
@@ -152,10 +239,24 @@ class _GoogleFontsPageState extends State<GoogleFontsPage> {
     return (fontsToShow.length / _fontsPerPage).ceil();
   }
 
+  void _goToPage(int page) {
+    setState(() {
+      _currentPage = page;
+    });
+    // Scroll to top when page changes
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0.0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
   TextStyle? _getGoogleFontStyle(String fontFamily, double fontSize) {
     try {
       String fontName = fontFamily.replaceAll(' ', '');
-      
+
       switch (fontName.toLowerCase()) {
         case 'roboto':
           return GoogleFonts.roboto(fontSize: fontSize);
@@ -206,15 +307,15 @@ class _GoogleFontsPageState extends State<GoogleFontsPage> {
   Color _getCategoryColor(String category) {
     switch (category.toLowerCase()) {
       case 'serif':
-        return const Color(0xFF7C3AED);
+        return const Color(0xFF8B5CF6);
       case 'sans-serif':
-        return _primaryBlue;
+        return _primaryIndigo;
       case 'handwriting':
-        return const Color(0xFFDC2626);
+        return const Color(0xFFEC4899);
       case 'display':
-        return const Color(0xFF059669);
+        return const Color(0xFF10B981);
       case 'monospace':
-        return const Color(0xFF9333EA);
+        return const Color(0xFFF59E0B);
       default:
         return _textSecondary;
     }
@@ -225,123 +326,202 @@ class _GoogleFontsPageState extends State<GoogleFontsPage> {
     return Scaffold(
       backgroundColor: _surfaceGray,
       appBar: AppBar(
-        title: Text('Google Fonts', style: GoogleFonts.inter(color: _textPrimary, fontWeight: FontWeight.w600)),
+        elevation: 0,
         backgroundColor: Colors.white,
-        elevation: 0.5,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_rounded, color: _textPrimary),
-          onPressed: () => Navigator.pop(context),
+        surfaceTintColor: Colors.transparent,
+        toolbarHeight: 70.h,
+        leading: Container(
+          margin: EdgeInsets.all(8.w),
+          decoration: BoxDecoration(
+            color: _surfaceGray,
+            borderRadius: BorderRadius.circular(12.r),
+          ),
+          child: IconButton(
+            icon: Icon(
+              Icons.arrow_back_rounded,
+              color: _textPrimary,
+              size: 20.r,
+            ),
+            onPressed: () => Navigator.pop(context),
+          ),
         ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Google Fonts',
+              style: GoogleFonts.inter(
+                fontSize: 20.sp,
+                fontWeight: FontWeight.w700,
+                color: _textPrimary,
+                letterSpacing: -0.4,
+              ),
+            ),
+            SizedBox(height: 2.h),
+            Text(
+              'Choose your perfect typography',
+              style: GoogleFonts.inter(
+                fontSize: 12.sp,
+                fontWeight: FontWeight.w500,
+                color: _textSecondary,
+              ),
+            ),
+          ],
+        ),
+        centerTitle: false,
       ),
       body: SafeArea(
         child: Column(
           children: [
-            // Compact Search Bar
+            // Modern Search Bar
             Container(
-              padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 12.h),
-              color: Colors.white,
+              margin: EdgeInsets.all(16.w),
+              padding: EdgeInsets.all(20.w),
+              decoration: BoxDecoration(
+                color: _cardBackground,
+                borderRadius: BorderRadius.circular(20.r),
+                border: Border.all(color: _dividerColor, width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF0F172A).withOpacity(0.04),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
               child: Row(
                 children: [
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: _surfaceGray,
-                        borderRadius: BorderRadius.circular(12.r),
-                        border: Border.all(color: _borderColor, width: 1),
-                      ),
-                      child: TextField(
-                        controller: _searchController,
-                        decoration: InputDecoration(
-                          hintText: 'Search fonts...',
-                          hintStyle: GoogleFonts.inter(
-                            fontSize: 14.sp,
-                            color: _textSecondary,
-                          ),
-                          prefixIcon: Icon(
-                            Icons.search_rounded,
-                            color: _textSecondary,
-                            size: 20.w,
-                          ),
-                          suffixIcon: _searchController.text.isNotEmpty
-                              ? IconButton(
-                                  icon: Icon(
-                                    Icons.clear_rounded,
-                                    size: 18.w,
-                                    color: _textSecondary,
-                                  ),
-                                  onPressed: () => _searchController.clear(),
-                                )
-                              : null,
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 16.w, 
-                            vertical: 14.h
-                          ),
-                        ),
-                        style: GoogleFonts.inter(
-                          fontSize: 14.sp,
-                          color: _textPrimary,
-                        ),
-                      ),
-                    ),
-                  ),
-                  
-                  SizedBox(width: 12.w),
-                  
-                  // Favorites Toggle
                   Container(
+                    padding: EdgeInsets.all(10.w),
                     decoration: BoxDecoration(
-                      color: _showLikedList ? _primaryBlue : _surfaceGray,
-                      borderRadius: BorderRadius.circular(12.r),
-                      border: Border.all(
-                        color: _showLikedList ? _primaryBlue : _borderColor,
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
                       ),
+                      borderRadius: BorderRadius.circular(12.r),
                     ),
-                    child: IconButton(
-                      onPressed: () {
-                        setState(() {
-                          _showLikedList = !_showLikedList;
-                          _currentPage = 0;
-                          // Sync liked fonts from singleton when toggled
-                          if (_showLikedList) {
-                            final likedFamilies = FontFavorites.instance.likedFamilies;
-                            _likedFonts = _allFonts.where((f) => likedFamilies.contains(f.family)).toList();
-                          }
-                        });
-                      },
-                      icon: Icon(
-                        Icons.favorite_rounded,
-                        color: _showLikedList ? Colors.white : _textSecondary,
-                        size: 20.w,
+                    child: Icon(
+                      Icons.search_rounded,
+                      color: Colors.white,
+                      size: 18.r,
+                    ),
+                  ),
+                  SizedBox(width: 16.w),
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText: 'Search fonts...',
+                        hintStyle: GoogleFonts.inter(
+                          fontSize: 14.sp,
+                          color: _textSecondary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        suffixIcon: _searchController.text.isNotEmpty
+                            ? IconButton(
+                                icon: Icon(
+                                  Icons.clear_rounded,
+                                  size: 18.r,
+                                  color: _textSecondary,
+                                ),
+                                onPressed: () => _searchController.clear(),
+                              )
+                            : null,
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 0,
+                          vertical: 8.h,
+                        ),
+                      ),
+                      style: GoogleFonts.inter(
+                        fontSize: 14.sp,
+                        color: _textPrimary,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
-                  
-                  if (_showLikedList && _likedFonts.isNotEmpty) ...[
-                    SizedBox(width: 8.w),
-                    Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 8.w, 
-                        vertical: 4.h
-                      ),
+                  SizedBox(width: 16.w),
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _showLikedList = !_showLikedList;
+                        _currentPage = 0;
+                        if (_showLikedList) {
+                          final likedFamilies =
+                              FontFavorites.instance.likedFamilies;
+                          _likedFonts = _allFonts
+                              .where((f) => likedFamilies.contains(f.family))
+                              .toList();
+                        }
+                      });
+                      // Scroll to top when switching between all fonts and liked fonts
+                      if (_scrollController.hasClients) {
+                        _scrollController.animateTo(
+                          0.0,
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        );
+                      }
+                    },
+                    child: Container(
+                      padding: EdgeInsets.all(10.w),
                       decoration: BoxDecoration(
-                        color: _primaryBlue,
+                        gradient: _showLikedList
+                            ? const LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [Color(0xFFEC4899), Color(0xFFF97316)],
+                              )
+                            : null,
+                        color: _showLikedList ? null : _surfaceGray,
                         borderRadius: BorderRadius.circular(12.r),
-                      ),
-                      child: Text(
-                        '${_likedFonts.length}',
-                        style: GoogleFonts.inter(
-                          color: Colors.white,
-                          fontSize: 12.sp,
-                          fontWeight: FontWeight.w600,
+                        border: Border.all(
+                          color: _showLikedList
+                              ? Colors.transparent
+                              : _dividerColor,
+                          width: 1.5,
                         ),
                       ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.favorite_rounded,
+                            color: _showLikedList
+                                ? Colors.white
+                                : _textSecondary,
+                            size: 18.r,
+                          ),
+                          if (_showLikedList && _likedFonts.isNotEmpty) ...[
+                            SizedBox(width: 6.w),
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 6.w,
+                                vertical: 2.h,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(8.r),
+                              ),
+                              child: Text(
+                                '${_likedFonts.length}',
+                                style: GoogleFonts.inter(
+                                  color: Colors.white,
+                                  fontSize: 10.sp,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
-                  ],
+                  ),
                 ],
               ),
             ),
-        
+
             // Content Area
             Expanded(
               child: _isLoading
@@ -350,12 +530,68 @@ class _GoogleFontsPageState extends State<GoogleFontsPage> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           CircularProgressIndicator(
-                            color: _primaryBlue,
-                            strokeWidth: 2.5,
+                            color: _primaryIndigo,
+                            strokeWidth: 3,
                           ),
-                          SizedBox(height: 16.h),
+                          SizedBox(height: 20.h),
                           Text(
                             'Loading fonts...',
+                            style: GoogleFonts.inter(
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.w600,
+                              color: _textPrimary,
+                            ),
+                          ),
+                          SizedBox(height: 4.h),
+                          Text(
+                            'Fetching the latest Google Fonts',
+                            style: GoogleFonts.inter(
+                              fontSize: 12.sp,
+                              color: _textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : _getCurrentPageFonts().isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: EdgeInsets.all(24.w),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                              ),
+                              borderRadius: BorderRadius.circular(20.r),
+                            ),
+                            child: Icon(
+                              _showLikedList
+                                  ? Icons.favorite_border_rounded
+                                  : Icons.search_off_rounded,
+                              size: 32.r,
+                              color: Colors.white,
+                            ),
+                          ),
+                          SizedBox(height: 24.h),
+                          Text(
+                            _showLikedList
+                                ? 'No liked fonts yet'
+                                : 'No fonts found',
+                            style: GoogleFonts.inter(
+                              fontSize: 18.sp,
+                              fontWeight: FontWeight.w700,
+                              color: _textPrimary,
+                            ),
+                          ),
+                          SizedBox(height: 8.h),
+                          Text(
+                            _showLikedList
+                                ? 'Start liking fonts to see them here'
+                                : 'Try adjusting your search terms',
                             style: GoogleFonts.inter(
                               fontSize: 14.sp,
                               color: _textSecondary,
@@ -364,186 +600,177 @@ class _GoogleFontsPageState extends State<GoogleFontsPage> {
                         ],
                       ),
                     )
-                  : _getCurrentPageFonts().isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Container(
-                                padding: EdgeInsets.all(24.w),
-                                decoration: BoxDecoration(
-                                  color: _surfaceGray,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: _dividerColor),
-                                ),
-                                child: Icon(
-                                  _showLikedList ? Icons.favorite_border_rounded : Icons.search_off_rounded,
-                                  size: 40.w,
-                                  color: _textSecondary,
-                                ),
+                  : ListView.separated(
+                      controller: _scrollController,
+                      padding: EdgeInsets.all(16.w),
+                      itemCount: _getCurrentPageFonts().length,
+                      separatorBuilder: (context, index) =>
+                          SizedBox(height: 12.h),
+                      itemBuilder: (context, index) {
+                        final font = _getCurrentPageFonts()[index];
+                        final isLiked = FontFavorites.instance.isLiked(
+                          font.family,
+                        );
+                        final googleFontStyle = _getGoogleFontStyle(
+                          font.family,
+                          18.sp,
+                        );
+
+                        return GestureDetector(
+                          onTap: () {
+                            widget.onFontSelected?.call(font.family);
+                            Navigator.pop(
+                              context,
+                              font.family,
+                            ); // Pass the selected font family back
+                          },
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: _cardBackground,
+                              borderRadius: BorderRadius.circular(16.r),
+                              border: Border.all(
+                                color: isLiked
+                                    ? _primaryIndigo.withOpacity(0.3)
+                                    : _dividerColor,
+                                width: isLiked ? 2 : 1,
                               ),
-                              SizedBox(height: 20.h),
-                              Text(
-                                _showLikedList ? 'No liked fonts yet' : 'No fonts found',
-                                style: GoogleFonts.inter(
-                                  fontSize: 16.sp,
-                                  fontWeight: FontWeight.w600,
-                                  color: _textPrimary,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.03),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
                                 ),
-                              ),
-                              SizedBox(height: 8.h),
-                              Text(
-                                _showLikedList 
-                                    ? 'Start liking fonts to see them here'
-                                    : 'Try adjusting your search terms',
-                                style: GoogleFonts.inter(
-                                  fontSize: 14.sp,
-                                  color: _textSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        )
-                      : ListView.separated(
-                          padding: EdgeInsets.all(16.w),
-                          itemCount: _getCurrentPageFonts().length,
-                          separatorBuilder: (context, index) => SizedBox(height: 12.h),
-                          itemBuilder: (context, index) {
-                            final font = _getCurrentPageFonts()[index];
-                            final isLiked = FontFavorites.instance.isLiked(font.family);
-                            final googleFontStyle = _getGoogleFontStyle(font.family, 18.sp);
-                            
-                            return GestureDetector(
-                              onTap: () {
-                                widget.onFontSelected?.call(font.family);
-                                Navigator.pop(context, font.family); // Pass the selected font family back
-                              },
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: _cardBackground,
-                                  borderRadius: BorderRadius.circular(16.r),
-                                  border: Border.all(
-                                    color: isLiked ? _primaryBlue.withOpacity(0.3) : _dividerColor,
-                                    width: isLiked ? 2 : 1,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.03),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: Padding(
-                                  padding: EdgeInsets.all(20.w),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                              ],
+                            ),
+                            child: Padding(
+                              padding: EdgeInsets.all(20.w),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Header Row
+                                  Row(
                                     children: [
-                                      // Header Row
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: Row(
-                                              children: [
-                                                Text(
-                                                  font.family,
-                                                  style: GoogleFonts.inter(
-                                                    fontSize: 16.sp,
-                                                    fontWeight: FontWeight.w600,
-                                                    color: _textPrimary,
-                                                  ),
-                                                ),
-                                                SizedBox(width: 8.w),
-                                                Container(
-                                                  padding: EdgeInsets.symmetric(
-                                                    horizontal: 6.w,
-                                                    vertical: 2.h,
-                                                  ),
-                                                  decoration: BoxDecoration(
-                                                    color: _getCategoryColor(font.category).withOpacity(0.1),
-                                                    borderRadius: BorderRadius.circular(4.r),
-                                                  ),
-                                                  child: Text(
-                                                    font.category,
-                                                    style: GoogleFonts.inter(
-                                                      fontSize: 10.sp,
-                                                      color: _getCategoryColor(font.category),
-                                                      fontWeight: FontWeight.w600,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
+                                      Expanded(
+                                        child: Row(
+                                          children: [
+                                            Text(
+                                              font.family,
+                                              style: GoogleFonts.inter(
+                                                fontSize: 16.sp,
+                                                fontWeight: FontWeight.w600,
+                                                color: _textPrimary,
+                                              ),
                                             ),
-                                          ),
-                                          // Compact Like Button
-                                          GestureDetector(
-                                            onTap: () => _toggleLikeFont(font),
-                                            child: Container(
-                                              padding: EdgeInsets.all(8.w),
+                                            SizedBox(width: 8.w),
+                                            Container(
+                                              padding: EdgeInsets.symmetric(
+                                                horizontal: 6.w,
+                                                vertical: 2.h,
+                                              ),
                                               decoration: BoxDecoration(
-                                                color: isLiked ? _primaryBlue.withOpacity(0.1) : Colors.transparent,
-                                                borderRadius: BorderRadius.circular(8.r),
+                                                color: _getCategoryColor(
+                                                  font.category,
+                                                ).withOpacity(0.1),
+                                                borderRadius:
+                                                    BorderRadius.circular(4.r),
                                               ),
-                                              child: Icon(
-                                                isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                                                color: isLiked ? _primaryBlue : _textSecondary,
-                                                size: 20.w,
+                                              child: Text(
+                                                font.category,
+                                                style: GoogleFonts.inter(
+                                                  fontSize: 10.sp,
+                                                  color: _getCategoryColor(
+                                                    font.category,
+                                                  ),
+                                                  fontWeight: FontWeight.w600,
+                                                ),
                                               ),
                                             ),
+                                          ],
+                                        ),
+                                      ),
+                                      // Compact Like Button
+                                      GestureDetector(
+                                        onTap: () => _toggleLikeFont(font),
+                                        child: Container(
+                                          padding: EdgeInsets.all(8.w),
+                                          decoration: BoxDecoration(
+                                            color: isLiked
+                                                ? _primaryIndigo.withOpacity(
+                                                    0.1,
+                                                  )
+                                                : Colors.transparent,
+                                            borderRadius: BorderRadius.circular(
+                                              8.r,
+                                            ),
                                           ),
-                                        ],
-                                      ),
-                                      
-                                      SizedBox(height: 16.h),
-                                      
-                                      // Font Preview
-                                      Text(
-                                        'The quick brown fox jumps over the lazy dog',
-                                        style: googleFontStyle?.copyWith(
-                                          fontSize: 18.sp,
-                                          color: _textPrimary,
-                                          height: 1.3,
-                                        ) ?? GoogleFonts.inter(
-                                          fontSize: 18.sp,
-                                          color: _textPrimary,
-                                          height: 1.3,
-                                        ),
-                                      ),
-                                      
-                                      SizedBox(height: 8.h),
-                                      
-                                      // Numbers Preview
-                                      Text(
-                                        '1234567890 !@#\$%^&*()',
-                                        style: googleFontStyle?.copyWith(
-                                          fontSize: 14.sp,
-                                          color: _textSecondary,
-                                        ) ?? GoogleFonts.inter(
-                                          fontSize: 14.sp,
-                                          color: _textSecondary,
-                                        ),
-                                      ),
-                                      
-                                      SizedBox(height: 12.h),
-                                      
-                                      // Variants Info
-                                      Text(
-                                        '${font.variants.length} variants',
-                                        style: GoogleFonts.inter(
-                                          fontSize: 12.sp,
-                                          color: _textSecondary,
-                                          fontWeight: FontWeight.w500,
+                                          child: Icon(
+                                            isLiked
+                                                ? Icons.favorite_rounded
+                                                : Icons.favorite_border_rounded,
+                                            color: isLiked
+                                                ? _primaryIndigo
+                                                : _textSecondary,
+                                            size: 20.w,
+                                          ),
                                         ),
                                       ),
                                     ],
                                   ),
-                                ),
+
+                                  SizedBox(height: 16.h),
+
+                                  // Font Preview
+                                  Text(
+                                    'The quick brown fox jumps over the lazy dog',
+                                    style:
+                                        googleFontStyle?.copyWith(
+                                          fontSize: 18.sp,
+                                          color: _textPrimary,
+                                          height: 1.3,
+                                        ) ??
+                                        GoogleFonts.inter(
+                                          fontSize: 18.sp,
+                                          color: _textPrimary,
+                                          height: 1.3,
+                                        ),
+                                  ),
+
+                                  SizedBox(height: 8.h),
+
+                                  // Numbers Preview
+                                  Text(
+                                    '1234567890 !@#\$%^&*()',
+                                    style:
+                                        googleFontStyle?.copyWith(
+                                          fontSize: 14.sp,
+                                          color: _textSecondary,
+                                        ) ??
+                                        GoogleFonts.inter(
+                                          fontSize: 14.sp,
+                                          color: _textSecondary,
+                                        ),
+                                  ),
+
+                                  SizedBox(height: 12.h),
+
+                                  // Variants Info
+                                  Text(
+                                    '${font.variants.length} variants',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12.sp,
+                                      color: _textSecondary,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            );
-                          },
-                        ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
             ),
-        
+
             // Compact Pagination
             if (_getTotalPages() > 1)
               Container(
@@ -557,7 +784,7 @@ class _GoogleFontsPageState extends State<GoogleFontsPage> {
                         height: 44.h,
                         child: ElevatedButton.icon(
                           onPressed: _currentPage > 0
-                              ? () => setState(() => _currentPage--)
+                              ? () => _goToPage(_currentPage - 1)
                               : null,
                           icon: Icon(Icons.chevron_left_rounded, size: 18.w),
                           label: Text(
@@ -568,8 +795,12 @@ class _GoogleFontsPageState extends State<GoogleFontsPage> {
                             ),
                           ),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: _currentPage > 0 ? _primaryBlue : _dividerColor,
-                            foregroundColor: _currentPage > 0 ? Colors.white : _textSecondary,
+                            backgroundColor: _currentPage > 0
+                                ? _primaryIndigo
+                                : _dividerColor,
+                            foregroundColor: _currentPage > 0
+                                ? Colors.white
+                                : _textSecondary,
                             elevation: 0,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10.r),
@@ -578,12 +809,15 @@ class _GoogleFontsPageState extends State<GoogleFontsPage> {
                         ),
                       ),
                     ),
-                    
+
                     SizedBox(width: 16.w),
-                    
+
                     // Page Indicator
                     Container(
-                      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 16.w,
+                        vertical: 12.h,
+                      ),
                       decoration: BoxDecoration(
                         color: _surfaceGray,
                         borderRadius: BorderRadius.circular(10.r),
@@ -594,20 +828,20 @@ class _GoogleFontsPageState extends State<GoogleFontsPage> {
                         style: GoogleFonts.inter(
                           fontSize: 13.sp,
                           fontWeight: FontWeight.w600,
-                          color: _primaryBlue,
+                          color: _primaryIndigo,
                         ),
                       ),
                     ),
-                    
+
                     SizedBox(width: 16.w),
-                    
+
                     // Next Button
                     Expanded(
                       child: Container(
                         height: 44.h,
                         child: ElevatedButton.icon(
                           onPressed: _currentPage < _getTotalPages() - 1
-                              ? () => setState(() => _currentPage++)
+                              ? () => _goToPage(_currentPage + 1)
                               : null,
                           label: Text(
                             'Next',
@@ -618,8 +852,12 @@ class _GoogleFontsPageState extends State<GoogleFontsPage> {
                           ),
                           icon: Icon(Icons.chevron_right_rounded, size: 18.w),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: _currentPage < _getTotalPages() - 1 ? _primaryBlue : _dividerColor,
-                            foregroundColor: _currentPage < _getTotalPages() - 1 ? Colors.white : _textSecondary,
+                            backgroundColor: _currentPage < _getTotalPages() - 1
+                                ? _primaryIndigo
+                                : _dividerColor,
+                            foregroundColor: _currentPage < _getTotalPages() - 1
+                                ? Colors.white
+                                : _textSecondary,
                             elevation: 0,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10.r),
@@ -660,7 +898,9 @@ class GoogleFont {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is GoogleFont && runtimeType == other.runtimeType && family == other.family;
+      other is GoogleFont &&
+          runtimeType == other.runtimeType &&
+          family == other.family;
 
   @override
   int get hashCode => family.hashCode;
