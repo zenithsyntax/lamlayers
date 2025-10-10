@@ -7,6 +7,7 @@ class EnhancedSlider extends StatelessWidget {
   final double min;
   final double max;
   final ValueChanged<double> onChanged;
+  final ValueChanged<double>? onChangeEnd;
   final IconData icon;
   final bool isMini;
   final double step;
@@ -20,6 +21,7 @@ class EnhancedSlider extends StatelessWidget {
     required this.min,
     required this.max,
     required this.onChanged,
+    this.onChangeEnd,
     required this.icon,
     this.isMini = false,
     this.step = 0.1,
@@ -122,6 +124,7 @@ class EnhancedSlider extends StatelessWidget {
                         min: min,
                         max: max,
                         onChanged: onChanged,
+                        onChangeEnd: onChangeEnd,
                       ),
                     ),
                   ),
@@ -236,6 +239,7 @@ class EnhancedSlider extends StatelessWidget {
                     min: min,
                     max: max,
                     onChanged: onChanged,
+                    onChangeEnd: onChangeEnd,
                   ),
                 ),
               ),

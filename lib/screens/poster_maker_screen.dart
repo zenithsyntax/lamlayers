@@ -89,6 +89,14 @@ class PosterMakerScreen extends StatefulWidget {
   State<PosterMakerScreen> createState() => _PosterMakerScreenState();
 }
 
+class _UndoIntent extends Intent {
+  const _UndoIntent();
+}
+
+class _RedoIntent extends Intent {
+  const _RedoIntent();
+}
+
 class DrawingPainter extends CustomPainter {
   final List<DrawingLayer> layers;
 
@@ -2200,6 +2208,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   bool snapToGrid = false;
 
+  // Deprecated: use _currentCanvasZoom() instead of this field
   double canvasZoom = 1.0;
 
   int editTopbarTabIndex = 0; // 0: General, 1: Type
@@ -2207,6 +2216,12 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   final ImagePicker _imagePicker = ImagePicker();
 
   final GlobalKey _canvasRepaintKey = GlobalKey();
+
+  // Controls InteractiveViewer pan/zoom without triggering full rebuilds each frame
+  late final TransformationController _canvasController;
+  AnimationController?
+  _canvasPanZoomController; // short ease-out on gesture end
+  Animation<Matrix4>? _canvasPanZoomAnimation;
 
   // Nudge control timers for press-and-hold behavior
 
@@ -2247,6 +2262,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   CanvasItem? _preDragState;
 
   CanvasItem? _preTransformState;
+  // Snapshot before a nudge interaction (single-tap or press-and-hold)
+  CanvasItem? _preNudgeState;
 
   final List<String> tabTitles = ['Text', 'Images', 'Shapes', 'Drawing'];
 
@@ -2257,6 +2274,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   DrawingMode drawingMode = DrawingMode.disabled;
 
   List<DrawingLayer> drawingLayers = [];
+
+  // Redo stack for drawing strokes while in drawing mode
+  List<DrawingLayer> _drawingRedoStack = [];
 
   Color drawingColor = Colors.black;
 
@@ -2358,6 +2378,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+
+    _canvasController = TransformationController();
 
     _projectBox = Hive.box<PosterProject>('posterProjects');
 
@@ -2472,6 +2494,12 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     }
   }
 
+  double _currentCanvasZoom() {
+    // Reads current InteractiveViewer scale from its matrix; avoids setState thrash
+    final Matrix4 m = _canvasController.value;
+    return m.storage[0]; // same as m.getMaxScaleOnAxis() for uniform scales
+  }
+
   @override
   void dispose() {
     _isDisposing = true;
@@ -2485,6 +2513,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     _selectionController.dispose();
 
     _itemAddController.dispose();
+
+    _canvasPanZoomController?.dispose();
+    _canvasController.dispose();
 
     _cancelNudgeTimers();
 
@@ -3036,29 +3067,131 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   }
 
   void _addAction(CanvasAction action) {
+    // Drop any redo history if new branch is created
     if (currentActionIndex < actionHistory.length - 1) {
       actionHistory.removeRange(currentActionIndex + 1, actionHistory.length);
     }
 
-    actionHistory.add(action);
+    // Compute default merge key if not provided: type + item id
+    String? defaultMergeKey;
+    if (action.mergeKey != null) {
+      defaultMergeKey = action.mergeKey;
+    } else if (action.item != null) {
+      defaultMergeKey = '${action.type}:${action.item!.id}';
+    }
 
+    // Coalesce with previous action if compatible and within time window
+    const Duration mergeWindow = Duration(milliseconds: 350);
+    if (defaultMergeKey != null &&
+        actionHistory.isNotEmpty &&
+        currentActionIndex >= 0) {
+      final CanvasAction previous = actionHistory[currentActionIndex];
+      final CanvasAction candidate = CanvasAction(
+        type: action.type,
+        item: action.item,
+        previousState: previous.previousState ?? action.previousState,
+        timestamp: previous.timestamp,
+        mergeKey: defaultMergeKey,
+        coalescible: action.coalescible,
+        updatedAt: DateTime.now(),
+      );
+
+      final bool canMerge =
+          (previous.mergeKey ??
+                  '${previous.type}:${previous.item?.id ?? ''}') ==
+              defaultMergeKey &&
+          previous.canMergeWith(candidate, mergeWindow);
+
+      if (canMerge && action.type == 'modify' && action.item != null) {
+        // Replace previous with merged action updating the latest item state
+        actionHistory[currentActionIndex] = CanvasAction(
+          type: previous.type,
+          item: action.item, // latest state
+          previousState: previous.previousState ?? action.previousState,
+          timestamp: previous.timestamp,
+          mergeKey: defaultMergeKey,
+          coalescible: previous.coalescible && action.coalescible,
+          updatedAt: DateTime.now(),
+        );
+
+        // Apply the modify immediately
+        final idx = canvasItems.indexWhere((it) => it.id == action.item!.id);
+        if (idx != -1) {
+          canvasItems[idx] = action.item!;
+        }
+        return;
+      }
+    }
+
+    // Otherwise, push as a new action
+    actionHistory.add(
+      CanvasAction(
+        type: action.type,
+        item: action.item,
+        previousState: action.previousState,
+        timestamp: action.timestamp,
+        mergeKey: action.mergeKey ?? defaultMergeKey,
+        coalescible: action.coalescible,
+        updatedAt: DateTime.now(),
+      ),
+    );
     currentActionIndex++;
 
-    if (actionHistory.length > 50) {
+    // Cap history size conservatively
+    const int historyCap = 100;
+    if (actionHistory.length > historyCap) {
       actionHistory.removeAt(0);
-
       currentActionIndex--;
     }
 
     // Apply the action immediately if it's a modify operation
-
     if (action.type == 'modify' && action.item != null) {
       final idx = canvasItems.indexWhere((it) => it.id == action.item!.id);
-
       if (idx != -1) {
         canvasItems[idx] = action.item!;
       }
     }
+  }
+
+  // Records a modify action for the currently selected item after applying a mutation
+  void _modifySelectedDrawingItem(void Function(CanvasItem item) mutate) {
+    if (selectedItem == null || selectedItem!.type != CanvasItemType.drawing) {
+      return;
+    }
+
+    final CanvasItem previous = selectedItem!.copyWith();
+
+    setState(() {
+      mutate(selectedItem!);
+    });
+
+    _addAction(
+      CanvasAction(
+        type: 'modify',
+        item: selectedItem!.copyWith(),
+        previousState: previous,
+        timestamp: DateTime.now(),
+      ),
+    );
+  }
+
+  // Generic mutate helper for any item with undo/redo recording
+  void _mutateItemWithHistory(
+    CanvasItem item,
+    void Function(CanvasItem item) mutate,
+  ) {
+    final CanvasItem previous = item.copyWith();
+    setState(() {
+      mutate(item);
+    });
+    _addAction(
+      CanvasAction(
+        type: 'modify',
+        item: item.copyWith(),
+        previousState: previous,
+        timestamp: DateTime.now(),
+      ),
+    );
   }
 
   void _undo() {
@@ -3807,6 +3940,13 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             (v) => setState(() => selectedItem!.opacity = v),
 
             Icons.opacity_rounded,
+            onChangeEnd: (v) {
+              if (selectedItem != null) {
+                _mutateItemWithHistory(selectedItem!, (it) {
+                  it.opacity = v;
+                });
+              }
+            },
           ),
 
           _miniSlider(
@@ -3821,6 +3961,13 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             (v) => setState(() => selectedItem!.scale = v),
 
             Icons.zoom_out_map_rounded,
+            onChangeEnd: (v) {
+              if (selectedItem != null) {
+                _mutateItemWithHistory(selectedItem!, (it) {
+                  it.scale = v;
+                });
+              }
+            },
           ),
 
           _miniSlider(
@@ -3835,6 +3982,13 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             (v) => setState(() => selectedItem!.rotation = v * 3.14159 / 185),
 
             Icons.rotate_right_rounded,
+            onChangeEnd: (v) {
+              if (selectedItem != null) {
+                _mutateItemWithHistory(selectedItem!, (it) {
+                  it.rotation = v * 3.14159 / 185;
+                });
+              }
+            },
           ),
 
           _miniIconButton(
@@ -3867,6 +4021,20 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             Icons.vertical_align_bottom_rounded,
 
             () => _sendToBack(selectedItem!),
+          ),
+
+          _miniIconButton(
+            selectedItem!.isLocked ? 'Unlock' : 'Lock',
+            selectedItem!.isLocked
+                ? Icons.lock_open_rounded
+                : Icons.lock_rounded,
+            () {
+              if (selectedItem != null) {
+                _mutateItemWithHistory(selectedItem!, (it) {
+                  it.isLocked = !it.isLocked;
+                });
+              }
+            },
           ),
         ];
 
@@ -4486,20 +4654,20 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
               _initialText(),
 
-              (value) => setState(() {
+              (value) => _modifySelectedDrawingItem((item) {
                 final List<Map<String, dynamic>>? _strokes =
-                    (selectedItem!.properties['strokes'] as List<dynamic>?)
+                    (item.properties['strokes'] as List<dynamic>?)
                         ?.map((e) => e as Map<String, dynamic>)
                         .toList();
-
                 if (_strokes != null) {
                   for (final stroke in _strokes) {
-                    if (stroke['tool'] == DrawingTool.textPath) {
+                    final dynamic tool = stroke['tool'];
+                    if (tool == DrawingTool.textPath ||
+                        tool == DrawingTool.textPath.name) {
                       stroke['text'] = value;
                     }
                   }
-
-                  selectedItem!.properties['strokes'] = _strokes;
+                  item.properties['strokes'] = _strokes;
                 }
               }),
             ),
@@ -4513,20 +4681,20 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
               200.0,
 
-              (v) => setState(() {
+              (v) => _modifySelectedDrawingItem((item) {
                 final List<Map<String, dynamic>>? _strokes =
-                    (selectedItem!.properties['strokes'] as List<dynamic>?)
+                    (item.properties['strokes'] as List<dynamic>?)
                         ?.map((e) => e as Map<String, dynamic>)
                         .toList();
-
                 if (_strokes != null) {
                   for (final stroke in _strokes) {
-                    if (stroke['tool'] == DrawingTool.textPath) {
+                    final dynamic tool = stroke['tool'];
+                    if (tool == DrawingTool.textPath ||
+                        tool == DrawingTool.textPath.name) {
                       stroke['fontSize'] = v;
                     }
                   }
-
-                  selectedItem!.properties['strokes'] = _strokes;
+                  item.properties['strokes'] = _strokes;
                 }
               }),
 
@@ -4542,20 +4710,20 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
               20.0,
 
-              (v) => setState(() {
+              (v) => _modifySelectedDrawingItem((item) {
                 final List<Map<String, dynamic>>? _strokes =
-                    (selectedItem!.properties['strokes'] as List<dynamic>?)
+                    (item.properties['strokes'] as List<dynamic>?)
                         ?.map((e) => e as Map<String, dynamic>)
                         .toList();
-
                 if (_strokes != null) {
                   for (final stroke in _strokes) {
-                    if (stroke['tool'] == DrawingTool.textPath) {
+                    final dynamic tool = stroke['tool'];
+                    if (tool == DrawingTool.textPath ||
+                        tool == DrawingTool.textPath.name) {
                       stroke['letterSpacing'] = v;
                     }
                   }
-
-                  selectedItem!.properties['strokes'] = _strokes;
+                  item.properties['strokes'] = _strokes;
                 }
               }),
 
@@ -4564,10 +4732,70 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
             _miniFontButton(
               'Font',
-
               _initialFontFamily(),
-
               () => _showFontSelectionDialog(),
+            ),
+
+            // Bold toggle for text-path strokes
+            _miniToggleIcon(
+              'Bold',
+              Icons.format_bold_rounded,
+              (strokes ?? const []).any(
+                (s) =>
+                    (s['tool'] == DrawingTool.textPath ||
+                        s['tool'] == DrawingTool.textPath.name) &&
+                    s['fontWeight'] == FontWeight.bold,
+              ),
+              () => _modifySelectedDrawingItem((item) {
+                final List<Map<String, dynamic>>? _strokes =
+                    (item.properties['strokes'] as List<dynamic>?)
+                        ?.map((e) => e as Map<String, dynamic>)
+                        .toList();
+                if (_strokes != null) {
+                  for (final stroke in _strokes) {
+                    final dynamic tool = stroke['tool'];
+                    if (tool == DrawingTool.textPath ||
+                        tool == DrawingTool.textPath.name) {
+                      final isBold = stroke['fontWeight'] == FontWeight.bold;
+                      stroke['fontWeight'] = isBold
+                          ? FontWeight.normal
+                          : FontWeight.bold;
+                    }
+                  }
+                  item.properties['strokes'] = _strokes;
+                }
+              }),
+            ),
+
+            // Italic toggle for text-path strokes
+            _miniToggleIcon(
+              'Italic',
+              Icons.format_italic_rounded,
+              (strokes ?? const []).any(
+                (s) =>
+                    (s['tool'] == DrawingTool.textPath ||
+                        s['tool'] == DrawingTool.textPath.name) &&
+                    s['fontStyle'] == FontStyle.italic,
+              ),
+              () => _modifySelectedDrawingItem((item) {
+                final List<Map<String, dynamic>>? _strokes =
+                    (item.properties['strokes'] as List<dynamic>?)
+                        ?.map((e) => e as Map<String, dynamic>)
+                        .toList();
+                if (_strokes != null) {
+                  for (final stroke in _strokes) {
+                    final dynamic tool = stroke['tool'];
+                    if (tool == DrawingTool.textPath ||
+                        tool == DrawingTool.textPath.name) {
+                      final isItalic = stroke['fontStyle'] == FontStyle.italic;
+                      stroke['fontStyle'] = isItalic
+                          ? FontStyle.normal
+                          : FontStyle.italic;
+                    }
+                  }
+                  item.properties['strokes'] = _strokes;
+                }
+              }),
             ),
           ],
         ];
@@ -4752,8 +4980,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
     setState(() {
       // Adjust nudge by current canvas zoom so visual movement feels consistent
-
-      final double zoomAdjusted = canvasZoom == 0 ? 1.0 : canvasZoom;
+      final double currentZoom = _currentCanvasZoom();
+      final double zoomAdjusted = currentZoom == 0 ? 1.0 : currentZoom;
 
       final Offset step = delta * (_nudgeStep / zoomAdjusted);
 
@@ -4778,6 +5006,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
     // Small delay before starting fast repeat, to allow single-tap nudges
 
+    // Capture pre-nudge state if not already captured
+    _preNudgeState ??= selectedItem?.copyWith();
+
     _nudgeInitialDelayTimer = Timer(_nudgeInitialDelay, () {
       _nudgeRepeatTimer = Timer.periodic(_nudgeRepeatInterval, (_) {
         _nudgeSelected(delta);
@@ -4787,6 +5018,17 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   void _endNudgeHold() {
     _cancelNudgeTimers();
+    if (selectedItem != null && _preNudgeState != null) {
+      _addAction(
+        CanvasAction(
+          type: 'modify',
+          item: selectedItem!.copyWith(),
+          previousState: _preNudgeState,
+          timestamp: DateTime.now(),
+        ),
+      );
+    }
+    _preNudgeState = null;
   }
 
   Widget _miniNudgePad() {
@@ -4891,7 +5133,11 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
 
-      onTap: () => _nudgeSelected(deltaDir),
+      onTap: () {
+        _preNudgeState ??= selectedItem?.copyWith();
+        _nudgeSelected(deltaDir);
+        _endNudgeHold();
+      },
 
       onTapDown: (_) => _startNudgeHold(deltaDir),
 
@@ -4928,11 +5174,14 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
     ValueChanged<double> onChanged,
 
-    IconData icon,
-  ) {
+    IconData icon, {
+    ValueChanged<double>? onChangeEnd,
+  }) {
     final Color accent = _currentAccent();
     ValueChanged<double> wrapped = onChanged;
-    if (selectedItem != null) {
+    // Only record continuously if no onChangeEnd is provided;
+    // otherwise the caller will record once on interaction end.
+    if (onChangeEnd == null && selectedItem != null) {
       final CanvasItem previous = selectedItem!.copyWith();
       wrapped = (double v) {
         onChanged(v);
@@ -4953,6 +5202,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       min: min,
       max: max,
       onChanged: wrapped,
+      onChangeEnd: onChangeEnd,
       icon: icon,
       isMini: true,
       step: 0.05,
@@ -5842,28 +6092,30 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
     return GestureDetector(
       onTap: () {
-        setState(() {
-          if (selectedItem == null) return;
+        if (selectedItem == null) return;
 
-          if (selectedItem!.type == CanvasItemType.drawing) {
+        if (selectedItem!.type == CanvasItemType.drawing) {
+          _modifySelectedDrawingItem((item) {
             final List<Map<String, dynamic>>? strokes =
-                (selectedItem!.properties['strokes'] as List<dynamic>?)
+                (item.properties['strokes'] as List<dynamic>?)
                     ?.map((e) => e as Map<String, dynamic>)
                     .toList();
-
             if (strokes != null) {
               for (final stroke in strokes) {
-                if (stroke['tool'] == DrawingTool.textPath) {
+                final dynamic tool = stroke['tool'];
+                if (tool == DrawingTool.textPath ||
+                    tool == DrawingTool.textPath.name) {
                   stroke['fontFamily'] = fontFamily;
                 }
               }
-
-              selectedItem!.properties['strokes'] = strokes;
+              item.properties['strokes'] = strokes;
             }
-          } else {
+          });
+        } else {
+          setState(() {
             selectedItem!.properties['fontFamily'] = fontFamily;
-          }
-        });
+          });
+        }
 
         Navigator.of(context).pop();
       },
@@ -6961,6 +7213,26 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             },
           ),
 
+          // Undo drawing stroke
+          _chipButton(
+            background: Colors.grey.shade200,
+            borderColor: Colors.grey.shade300,
+            icon: Icons.undo_rounded,
+            iconColor: Colors.grey.shade800,
+            label: 'Undo',
+            onTap: _undoLastDrawing,
+          ),
+
+          // Redo drawing stroke
+          _chipButton(
+            background: Colors.grey.shade200,
+            borderColor: Colors.grey.shade300,
+            icon: Icons.redo_rounded,
+            iconColor: Colors.grey.shade800,
+            label: 'Redo',
+            onTap: _redoLastDrawing,
+          ),
+
           _chipToggle(
             active: selectedDrawingTool == DrawingTool.eraser,
             activeBackground: Colors.orange.shade700,
@@ -7327,6 +7599,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       currentDrawingPoints.clear();
     }
 
+    // New drawing activity invalidates redo stack
+    _drawingRedoStack.clear();
+
     if (drawingLayers.isEmpty) return;
 
     // Calculate bounding box over all strokes
@@ -7411,6 +7686,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       drawingLayers.clear();
 
       showDrawingControls = true;
+      _drawingRedoStack.clear();
     });
 
     // Record undo action and persist immediately
@@ -7483,32 +7759,26 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               pickerColor: currentColor,
 
               onColorChanged: (color) {
+                // Always update live drawing color used for new strokes
                 setState(() {
-                  // Always update the live drawing color used for new strokes
-
                   drawingColor = color;
-
-                  // If a drawing item is selected, also update its stored color and strokes
-
-                  if (hasSelectedDrawing) {
-                    selectedItem!.properties['color'] = HiveColor.fromColor(
-                      color,
-                    );
-
+                });
+                // If a drawing item is selected, persist change with history
+                if (hasSelectedDrawing) {
+                  _modifySelectedDrawingItem((item) {
+                    item.properties['color'] = HiveColor.fromColor(color);
                     final List<Map<String, dynamic>>? strokes =
-                        (selectedItem!.properties['strokes'] as List<dynamic>?)
+                        (item.properties['strokes'] as List<dynamic>?)
                             ?.map((e) => e as Map<String, dynamic>)
                             .toList();
-
                     if (strokes != null) {
                       for (final stroke in strokes) {
                         stroke['color'] = HiveColor.fromColor(color);
                       }
-
-                      selectedItem!.properties['strokes'] = strokes;
+                      item.properties['strokes'] = strokes;
                     }
-                  }
-                });
+                  });
+                }
               },
             ),
           ),
@@ -7532,13 +7802,24 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       currentDrawingPoints.clear();
 
       isDrawing = false;
+      _drawingRedoStack.clear();
     });
   }
 
   void _undoLastDrawing() {
     if (drawingLayers.isNotEmpty) {
       setState(() {
-        drawingLayers.removeLast();
+        final removed = drawingLayers.removeLast();
+        _drawingRedoStack.add(removed);
+      });
+    }
+  }
+
+  void _redoLastDrawing() {
+    if (_drawingRedoStack.isNotEmpty) {
+      setState(() {
+        final restored = _drawingRedoStack.removeLast();
+        drawingLayers.add(restored);
       });
     }
   }
@@ -7549,11 +7830,29 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         minScale: 0.005,
 
         maxScale: 3.0,
-
-        onInteractionUpdate: (details) {
-          setState(() {
-            canvasZoom = details.scale;
-          });
+        panEnabled: true,
+        scaleEnabled: true,
+        boundaryMargin: const EdgeInsets.all(double.infinity),
+        transformationController: _canvasController,
+        onInteractionEnd: (_) {
+          // Small ease-out to smooth out abrupt stop; do not change target matrix
+          _canvasPanZoomController?.dispose();
+          _canvasPanZoomController = AnimationController(
+            vsync: this,
+            duration: const Duration(milliseconds: 120),
+          );
+          final Matrix4 begin = _canvasController.value.clone();
+          final Matrix4 end = _canvasController.value.clone();
+          _canvasPanZoomAnimation =
+              Matrix4Tween(begin: begin, end: end).animate(
+                CurvedAnimation(
+                  parent: _canvasPanZoomController!,
+                  curve: Curves.easeOut,
+                ),
+              )..addListener(() {
+                _canvasController.value = _canvasPanZoomAnimation!.value;
+              });
+          _canvasPanZoomController!.forward();
         },
 
         child: Padding(
@@ -7685,11 +7984,12 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             onPanUpdate: (details) {
               if (!item.isLocked && selectedItem == item) {
                 setState(() {
-                  // Normalize by canvas zoom and amplify by item scale so large items
+                  // Normalize by current canvas zoom and amplify by item scale so large items
                   // don't feel sluggish to move.
-                  final double zoomAdjusted = canvasZoom == 0
-                      ? 1.0
-                      : canvasZoom;
+                  final double zoomAdjusted = (() {
+                    final double z = _currentCanvasZoom();
+                    return z == 0 ? 1.0 : z;
+                  })();
                   final double scaleAmplify = (item.scale <= 0)
                       ? 1.0
                       : item.scale;
@@ -9334,29 +9634,21 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               Expanded(
                 child: Slider(
                   value: strokeWidth,
-
                   min: 1.0,
-
                   max: 20.0,
-
                   divisions: 19,
-
                   onChanged: (value) {
-                    setState(() {
-                      selectedItem!.properties['strokeWidth'] = value;
-
+                    _modifySelectedDrawingItem((item) {
+                      item.properties['strokeWidth'] = value;
                       final List<Map<String, dynamic>>? strokes =
-                          (selectedItem!.properties['strokes']
-                                  as List<dynamic>?)
+                          (item.properties['strokes'] as List<dynamic>?)
                               ?.map((e) => e as Map<String, dynamic>)
                               .toList();
-
                       if (strokes != null) {
                         for (final stroke in strokes) {
                           stroke['strokeWidth'] = value;
                         }
-
-                        selectedItem!.properties['strokes'] = strokes;
+                        item.properties['strokes'] = strokes;
                       }
                     });
                   },
@@ -12218,9 +12510,11 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
                 children: [
                   IconButton(
-                    onPressed: () => setState(() {
-                      item.isVisible = !item.isVisible;
-                    }),
+                    onPressed: () {
+                      _mutateItemWithHistory(item, (it) {
+                        it.isVisible = !it.isVisible;
+                      });
+                    },
 
                     icon: Icon(
                       item.isVisible
@@ -13552,69 +13846,116 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF1F5F9),
-      body: SafeArea(
-        child: Stack(
-          children: [
-            // === Canvas always at the bottom ===
-            SizedBox(
-              height: double.infinity,
-              width: double.infinity,
-              child: Column(
+    return Shortcuts(
+      shortcuts: <LogicalKeySet, Intent>{
+        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyZ):
+            const _UndoIntent(),
+        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyY):
+            const _RedoIntent(),
+        LogicalKeySet(
+          LogicalKeyboardKey.control,
+          LogicalKeyboardKey.shift,
+          LogicalKeyboardKey.keyZ,
+        ): const _RedoIntent(),
+      },
+      child: Actions(
+        actions: <Type, Action<Intent>>{
+          _UndoIntent: CallbackAction<_UndoIntent>(
+            onInvoke: (intent) {
+              if (selectedTabIndex == 3 &&
+                  drawingMode != DrawingMode.disabled) {
+                _undoLastDrawing();
+              } else {
+                _undo();
+              }
+              return null;
+            },
+          ),
+          _RedoIntent: CallbackAction<_RedoIntent>(
+            onInvoke: (intent) {
+              if (selectedTabIndex == 3 &&
+                  drawingMode != DrawingMode.disabled) {
+                _redoLastDrawing();
+              } else {
+                _redo();
+              }
+              return null;
+            },
+          ),
+        },
+        child: Focus(
+          autofocus: true,
+          child: Scaffold(
+            backgroundColor: const Color(0xFFF1F5F9),
+            body: SafeArea(
+              child: Stack(
                 children: [
-                  SizedBox(height: 90.h),
-                  _buildCanvas(),
-                  Container(height: 120.h, color: Colors.white),
-                  Container(height: 120.h, color: Colors.white),
+                  // === Canvas always at the bottom ===
+                  SizedBox(
+                    height: double.infinity,
+                    width: double.infinity,
+                    child: Column(
+                      children: [
+                        SizedBox(height: 90.h),
+                        _buildCanvas(),
+                        Container(height: 120.h, color: Colors.white),
+                        Container(height: 120.h, color: Colors.white),
+                      ],
+                    ),
+                  ),
+
+                  // === Action bar at the very top ===
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: _buildActionBar(),
+                  ),
+
+                  // === Top Toolbar (overlayed, not pushing canvas) ===
+                  Positioned(
+                    bottom: selectedItem != null
+                        ? 40.h
+                        : 150.h, // leaves space for the ad banner
+                    left: 0,
+                    right: 0,
+                    child: _buildTopToolbar(),
+                  ),
+
+                  // === Bottom Controls (only if no item selected) ===
+                  if (selectedItem == null)
+                    Positioned(
+                      bottom: 80.h, // leaves space for the ad banner
+                      left: 0,
+                      right: 0,
+                      child: Container(
+                        height: (selectedTabIndex == 3)
+                            ? (showDrawingToolSelection ? 60.h : 110.h)
+                            : 60.h,
+                        padding: EdgeInsets.symmetric(horizontal: 20.w),
+                        decoration: BoxDecoration(color: Colors.white),
+                        child: selectedTabIndex == 3
+                            ? _buildDrawingControls()
+                            : _buildTabContent(),
+                      ),
+                    ),
+
+                  // === Fixed Ad Banner at very bottom ===
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      color: Colors.white,
+                      alignment: Alignment.center,
+                      height: 40.h,
+                      child: const AdBanner320x50(),
+                    ),
+                  ),
                 ],
               ),
             ),
-
-            // === Action bar at the very top ===
-            Positioned(top: 0, left: 0, right: 0, child: _buildActionBar()),
-
-            // === Top Toolbar (overlayed, not pushing canvas) ===
-            Positioned(
-              bottom: selectedItem != null
-                  ? 40.h
-                  : 150.h, // leaves space for the ad banner
-              left: 0,
-              right: 0,
-              child: _buildTopToolbar(),
-            ),
-
-            // === Bottom Controls (only if no item selected) ===
-            if (selectedItem == null)
-              Positioned(
-                bottom: 80.h, // leaves space for the ad banner
-                left: 0,
-                right: 0,
-                child: Container(
-                  height: (selectedTabIndex == 3)
-                      ? (showDrawingToolSelection ? 60.h : 110.h)
-                      : 60.h,
-                  padding: EdgeInsets.symmetric(horizontal: 20.w),
-                  decoration: BoxDecoration(color: Colors.white),
-                  child: selectedTabIndex == 3
-                      ? _buildDrawingControls()
-                      : _buildTabContent(),
-                ),
-              ),
-
-            // === Fixed Ad Banner at very bottom ===
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Container(
-                color: Colors.white,
-                alignment: Alignment.center,
-                height: 40.h,
-                child: const AdBanner320x50(),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

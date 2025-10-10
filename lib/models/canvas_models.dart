@@ -175,10 +175,35 @@ class CanvasAction {
   final CanvasItem? previousState;
   final DateTime timestamp;
 
+  // Optional merge key to coalesce rapid sequential edits (e.g., drags/slider moves)
+  // If null, a default key based on type and item id can be inferred by callers.
+  final String? mergeKey;
+
+  // Whether this action may be merged with a subsequent compatible action
+  final bool coalescible;
+
+  // Tracks the last time this action was updated due to coalescing
+  DateTime? updatedAt;
+
   CanvasAction({
     required this.type,
     this.item,
     this.previousState,
     required this.timestamp,
+    this.mergeKey,
+    this.coalescible = true,
+    this.updatedAt,
   });
+
+  // Determines if this action can merge with another action based on keys and recency
+  bool canMergeWith(CanvasAction next, Duration window) {
+    if (!coalescible || !next.coalescible) return false;
+    final String? aKey = mergeKey;
+    final String? bKey = next.mergeKey;
+    if (aKey == null || bKey == null) return false;
+    if (aKey != bKey) return false;
+    final DateTime lastTime = updatedAt ?? timestamp;
+    final DateTime candidateTime = next.updatedAt ?? next.timestamp;
+    return candidateTime.difference(lastTime).abs() <= window;
+  }
 }
