@@ -5,6 +5,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lamlayers/screens/hive_model.dart';
 import 'package:lamlayers/screens/poster_maker_screen.dart';
+import 'package:lamlayers/screens/scrapbook_flip_book_view.dart';
 
 class ScrapbookManagerScreen extends StatefulWidget {
   final String? scrapbookId;
@@ -201,6 +202,16 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => PosterMakerScreen(projectId: projectId),
+      ),
+    );
+  }
+
+  void _openFlipBookView() {
+    if (_scrapbook == null) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ScrapbookFlipBookView(scrapbook: _scrapbook!),
       ),
     );
   }
@@ -486,6 +497,11 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen> {
           ),
         ),
         actions: [
+          IconButton(
+            icon: Icon(Icons.menu_book_rounded, color: const Color(0xFF64748B)),
+            onPressed: () => _openFlipBookView(),
+            tooltip: 'View as Flip Book',
+          ),
           IconButton(
             icon: Icon(
               _isGridView ? Icons.view_list_rounded : Icons.grid_view_rounded,
