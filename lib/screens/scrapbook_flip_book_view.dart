@@ -54,15 +54,6 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
                 color: const Color(0xFF94A3B8),
                 size: 48.r,
               ),
-              SizedBox(height: 16.h),
-              Text(
-                'Page ${pageIndex + 1}',
-                style: GoogleFonts.inter(
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF64748B),
-                ),
-              ),
             ],
           ),
         ),
@@ -81,26 +72,6 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
           children: [
             // Background image
             Positioned.fill(child: Image.file(File(thumb), fit: BoxFit.cover)),
-            // Page number overlay
-            Positioned(
-              bottom: 16.h,
-              right: 16.w,
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.6),
-                  borderRadius: BorderRadius.circular(16.r),
-                ),
-                child: Text(
-                  'Page ${pageIndex + 1}',
-                  style: GoogleFonts.inter(
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
           ],
         ),
       );
@@ -136,14 +107,6 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
                 color: const Color(0xFF64748B),
               ),
               textAlign: TextAlign.center,
-            ),
-            SizedBox(height: 8.h),
-            Text(
-              'Page ${pageIndex + 1}',
-              style: GoogleFonts.inter(
-                fontSize: 14.sp,
-                color: const Color(0xFF94A3B8),
-              ),
             ),
           ],
         ),
@@ -226,85 +189,125 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF1F5F9),
-      
-     body: SafeArea(
-  child: Center(
-    child: RotatedBox(
-      quarterTurns: 1,
-      child: Container(
-        width: double.infinity,
-            height: double.infinity,
 
-        child: Stack(
-          children: [
+      body: SafeArea(
+        child: Center(
+          child: RotatedBox(
+            quarterTurns: 1,
+            child: Container(
+              width: double.infinity,
+              height: double.infinity,
 
-             // 🟤 Background book cover (below)
-            Center(
-              child: Container(
-                width: MediaQuery.of(context).size.height * 0.82,
-              height: MediaQuery.of(context).size.width * 0.76,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFD7B89C), // light brown wood-like color
-                  borderRadius: BorderRadius.circular(16.r),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 10,
-                      offset: const Offset(4, 4),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+              child: Stack(
+                children: [
+                  // 🟤 Background book cover (below)
+                  Center(
+                    child: Container(
+                      width: MediaQuery.of(context).size.height * 0.82,
+                      height: MediaQuery.of(context).size.width * 0.76,
 
-            Center(
-              child: Container(
-                width: MediaQuery.of(context).size.height * 0.8,
-                height: MediaQuery.of(context).size.width * 0.9,
-                child: Positioned.fill(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12.r),
-                    child: InteractiveBook(
-                      pagesBoundaryIsEnabled: false,
-                  
-                      controller: _pageController,
-                      pageCount: pageIds.length,
-                      aspectRatio: (widget.scrapbook.pageWidth * 2) /
-                          widget.scrapbook.pageHeight,
-                      pageViewMode: PageViewMode.double,
-                      onPageChanged: _onPageChanged,
-                      settings:
-                          FlipSettings(startPageIndex: 0, usePortrait: false),
-                      builder: (context, pageIndex, constraints) {
-                        if (pageIndex >= pageIds.length) {
-                          return Container(
-                            color: Colors.white,
-                            child: Center(
-                              child: Text(
-                                'End of Book',
-                                style: GoogleFonts.inter(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: const Color(0xFF64748B),
+                      child: Stack(
+                        children: [
+                          Center(
+                            child: Container(
+                              width: MediaQuery.of(context).size.height * 0.82,
+                              height: MediaQuery.of(context).size.width * 0.7,
+                              decoration: BoxDecoration(
+                                color: const Color(
+                                  0xFFD7B89C,
+                                ), // light brown wood-like color
+                                borderRadius: BorderRadius.circular(16.r),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.2),
+                                    blurRadius: 10,
+                                    offset: const Offset(4, 4),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+
+                          Align(
+                            alignment: AlignmentGeometry.centerLeft,
+                            child: Container(
+                              width:
+                                  MediaQuery.of(context).size.height *
+                                  0.815 /
+                                  2,
+                              height: MediaQuery.of(context).size.width * 0.71,
+                              decoration: BoxDecoration(
+                                color: const Color.fromARGB(
+                                  255,
+                                  212,
+                                  177,
+                                  146,
+                                ), // light brown wood-like color
+                                borderRadius: BorderRadius.only(
+                                  bottomLeft: Radius.circular(16.r),
+                                  topLeft: Radius.circular(16.r),
                                 ),
                               ),
                             ),
-                          );
-                        }
-                        return _buildPageContent(pageIds[pageIndex], pageIndex);
-                      },
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
+
+                  Center(
+                    child: Container(
+                      width: MediaQuery.of(context).size.height * 0.8,
+                      height: MediaQuery.of(context).size.width * 0.9,
+                      child: Positioned.fill(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12.r),
+                          child: InteractiveBook(
+                            pagesBoundaryIsEnabled: false,
+
+                            controller: _pageController,
+                            pageCount: pageIds.length,
+                            aspectRatio:
+                                (widget.scrapbook.pageWidth * 2) /
+                                widget.scrapbook.pageHeight,
+                            pageViewMode: PageViewMode.double,
+                            onPageChanged: _onPageChanged,
+                            settings: FlipSettings(
+                              startPageIndex: 0,
+                              usePortrait: false,
+                            ),
+                            builder: (context, pageIndex, constraints) {
+                              if (pageIndex >= pageIds.length) {
+                                return Container(
+                                  color: Colors.white,
+                                  child: Center(
+                                    child: Text(
+                                      'End of Book',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color: const Color(0xFF64748B),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }
+                              return _buildPageContent(
+                                pageIds[pageIndex],
+                                pageIndex,
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
       ),
-    ),
-  ),
-),
-
-  );
+    );
   }
 }
