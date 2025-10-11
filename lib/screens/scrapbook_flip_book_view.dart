@@ -226,100 +226,74 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF1F5F9),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF0F172A)),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          widget.scrapbook.name,
-          style: GoogleFonts.inter(
-            fontSize: 20.sp,
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFF0F172A),
-          ),
-        ),
-        actions: [
-          // Page indicator
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-            margin: EdgeInsets.only(right: 16.w),
-            decoration: BoxDecoration(
-              color: const Color(0xFFEC4899).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(16.r),
-            ),
-            child: Text(
-              '${_currentLeftPage + 1}-${_currentRightPage + 1} / ${pageIds.length}',
-              style: GoogleFonts.inter(
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFFEC4899),
-              ),
-            ),
-          ),
-        ],
-      ),
+      
      body: SafeArea(
   child: Center(
     child: RotatedBox(
       quarterTurns: 1,
       child: Container(
-        width: MediaQuery.of(context).size.height * 0.9,
-        height: MediaQuery.of(context).size.width * 0.9,
+        width: double.infinity,
+            height: double.infinity,
+
         child: Stack(
           children: [
-            // 🟤 Background book cover (below)
-            Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFFD7B89C), // light brown wood-like color
-                borderRadius: BorderRadius.circular(16.r),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 10,
-                    offset: const Offset(4, 4),
-                  ),
-                ],
+
+             // 🟤 Background book cover (below)
+            Center(
+              child: Container(
+                width: MediaQuery.of(context).size.height * 0.82,
+              height: MediaQuery.of(context).size.width * 0.76,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFD7B89C), // light brown wood-like color
+                  borderRadius: BorderRadius.circular(16.r),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 10,
+                      offset: const Offset(4, 4),
+                    ),
+                  ],
+                ),
               ),
             ),
 
-            // 📖 Interactive flipbook (above)
-            Positioned.fill(
-              child: Padding(
-                padding: EdgeInsets.all(10.w), // small padding inside cover
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12.r),
-                  child: InteractiveBook(
-                    pagesBoundaryIsEnabled: false,
-                    
-                    controller: _pageController,
-                    pageCount: pageIds.length,
-                    aspectRatio: (widget.scrapbook.pageWidth * 2) /
-                        widget.scrapbook.pageHeight,
-                    pageViewMode: PageViewMode.double,
-                    onPageChanged: _onPageChanged,
-                    settings:
-                        FlipSettings(startPageIndex: 0, usePortrait: false),
-                    builder: (context, pageIndex, constraints) {
-                      if (pageIndex >= pageIds.length) {
-                        return Container(
-                          color: Colors.white,
-                          child: Center(
-                            child: Text(
-                              'End of Book',
-                              style: GoogleFonts.inter(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: const Color(0xFF64748B),
+            Center(
+              child: Container(
+                width: MediaQuery.of(context).size.height * 0.8,
+                height: MediaQuery.of(context).size.width * 0.9,
+                child: Positioned.fill(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12.r),
+                    child: InteractiveBook(
+                      pagesBoundaryIsEnabled: false,
+                  
+                      controller: _pageController,
+                      pageCount: pageIds.length,
+                      aspectRatio: (widget.scrapbook.pageWidth * 2) /
+                          widget.scrapbook.pageHeight,
+                      pageViewMode: PageViewMode.double,
+                      onPageChanged: _onPageChanged,
+                      settings:
+                          FlipSettings(startPageIndex: 0, usePortrait: false),
+                      builder: (context, pageIndex, constraints) {
+                        if (pageIndex >= pageIds.length) {
+                          return Container(
+                            color: Colors.white,
+                            child: Center(
+                              child: Text(
+                                'End of Book',
+                                style: GoogleFonts.inter(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: const Color(0xFF64748B),
+                                ),
                               ),
                             ),
-                          ),
-                        );
-                      }
-                      return _buildPageContent(pageIds[pageIndex], pageIndex);
-                    },
+                          );
+                        }
+                        return _buildPageContent(pageIds[pageIndex], pageIndex);
+                      },
+                    ),
                   ),
                 ),
               ),
