@@ -261,47 +261,76 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
           ),
         ],
       ),
-      body: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.all(16.w),
-          child: InteractiveBook(
-            controller: _pageController,
-            pageCount: pageIds.length,
-            aspectRatio: aspectRatio,
-            pageViewMode: PageViewMode.double,
-            onPageChanged: _onPageChanged,
-            settings: FlipSettings(startPageIndex: 0, usePortrait: false),
-            builder: (context, pageIndex, constraints) {
-              if (pageIndex >= pageIds.length) {
-                return Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        const Color(0xFFF8FAFC),
-                        const Color(0xFFE2E8F0),
-                      ],
-                    ),
+     body: SafeArea(
+  child: Center(
+    child: RotatedBox(
+      quarterTurns: 1,
+      child: Container(
+        width: MediaQuery.of(context).size.height * 0.9,
+        height: MediaQuery.of(context).size.width * 0.9,
+        child: Stack(
+          children: [
+            // 🟤 Background book cover (below)
+            Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFD7B89C), // light brown wood-like color
+                borderRadius: BorderRadius.circular(16.r),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 10,
+                    offset: const Offset(4, 4),
                   ),
-                  child: Center(
-                    child: Text(
-                      'End of Book',
-                      style: GoogleFonts.inter(
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF64748B),
-                      ),
-                    ),
-                  ),
-                );
-              }
+                ],
+              ),
+            ),
 
-              return _buildPageContent(pageIds[pageIndex], pageIndex);
-            },
-          ),
+            // 📖 Interactive flipbook (above)
+            Positioned.fill(
+              child: Padding(
+                padding: EdgeInsets.all(10.w), // small padding inside cover
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12.r),
+                  child: InteractiveBook(
+                    pagesBoundaryIsEnabled: false,
+                    
+                    controller: _pageController,
+                    pageCount: pageIds.length,
+                    aspectRatio: (widget.scrapbook.pageWidth * 2) /
+                        widget.scrapbook.pageHeight,
+                    pageViewMode: PageViewMode.double,
+                    onPageChanged: _onPageChanged,
+                    settings:
+                        FlipSettings(startPageIndex: 0, usePortrait: false),
+                    builder: (context, pageIndex, constraints) {
+                      if (pageIndex >= pageIds.length) {
+                        return Container(
+                          color: Colors.white,
+                          child: Center(
+                            child: Text(
+                              'End of Book',
+                              style: GoogleFonts.inter(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF64748B),
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+                      return _buildPageContent(pageIds[pageIndex], pageIndex);
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
-    );
+    ),
+  ),
+),
+
+  );
   }
 }
