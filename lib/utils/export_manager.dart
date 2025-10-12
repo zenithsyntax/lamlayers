@@ -20,7 +20,7 @@ class ExportManager {
 
     // Android 13+ uses READ_MEDIA_IMAGES for saving to Photos
     final androidInfo = await DeviceInfoPlugin().androidInfo;
-    final int sdkInt = androidInfo.version.sdkInt ?? 33;
+    final int sdkInt = androidInfo.version.sdkInt;
     if (sdkInt >= 33) {
       // On Android 13+ request READ_MEDIA_IMAGES (mapped to Permission.photos)
       final status = await Permission.photos.request();
@@ -231,7 +231,7 @@ class ExportManager {
       }
 
       final String fileName =
-          '${project.name.replaceAll(' ', '_')}_${DateTime.now().millisecondsSinceEpoch}.lamlayer';
+          '${project.name.replaceAll(' ', '_')}_${DateTime.now().millisecondsSinceEpoch}.lamlayers';
       final String filePath = '${targetDir.path}/$fileName';
 
       print('ExportManager: Creating archive file at: $filePath');
@@ -302,13 +302,17 @@ class ExportManager {
     try {
       print('ExportManager: Converting project to JSON...');
 
+      // Generate new project ID and rename project for export to prevent conflicts
+      final String newProjectId = 'p_${DateTime.now().millisecondsSinceEpoch}';
+      final String exportedProjectName = '${project.name} (Exported)';
+
       // Convert project to comprehensive JSON with all data
       final Map<String, dynamic> projectData = {
-        "id": project.id,
-        "name": project.name,
+        "id": newProjectId,
+        "name": exportedProjectName,
         "description": project.description ?? '',
         "createdAt": project.createdAt.toIso8601String(),
-        "lastModified": project.lastModified.toIso8601String(),
+        "lastModified": DateTime.now().toIso8601String(),
         "canvasWidth": project.canvasWidth,
         "canvasHeight": project.canvasHeight,
         "canvasBackgroundColor": {
@@ -601,6 +605,125 @@ class ExportManager {
         }
       }
 
+      // Add text data for text items
+      if (item.type == hive_model.HiveCanvasItemType.text) {
+        print('ExportManager: Processing text item ${item.id}');
+        print(
+          'ExportManager: Text item ${item.id} - all properties: ${item.properties.keys.toList()}',
+        );
+
+        // Ensure text content is properly serialized
+        final textContent = item.properties['text'] as String?;
+        if (textContent != null && textContent.isNotEmpty) {
+          itemData["textContent"] = textContent;
+          print(
+            'ExportManager: Text item ${item.id} - text content: "$textContent"',
+          );
+        } else {
+          print('ExportManager: Text item ${item.id} - no text content found');
+        }
+
+        // Log all text-related properties
+        final textKeys = [
+          'text',
+          'fontSize',
+          'color',
+          'fontWeight',
+          'fontStyle',
+          'textAlign',
+          'hasGradient',
+          'gradientColors',
+          'gradientAngle',
+          'decoration',
+          'letterSpacing',
+          'hasShadow',
+          'shadowColor',
+          'shadowOffset',
+          'shadowBlur',
+          'shadowOpacity',
+          'fontFamily',
+        ];
+        for (final key in textKeys) {
+          if (item.properties.containsKey(key)) {
+            print(
+              'ExportManager: Text item ${item.id} - $key: ${item.properties[key]} (${item.properties[key].runtimeType})',
+            );
+          }
+        }
+
+        // Ensure text properties are properly serialized
+        if (item.properties['textProperties']
+            is hive_model.HiveTextProperties) {
+          final textProps =
+              item.properties['textProperties']
+                  as hive_model.HiveTextProperties;
+          itemData["textProperties"] = {
+            "text": textProps.text,
+            "fontSize": textProps.fontSize,
+            "color": _serializeDynamicValue(textProps.color),
+            "fontWeight": _serializeDynamicValue(textProps.fontWeight),
+            "fontStyle": _serializeDynamicValue(textProps.fontStyle),
+            "textAlign": _serializeDynamicValue(textProps.textAlign),
+            "hasGradient": textProps.hasGradient,
+            "gradientColors": textProps.gradientColors
+                .map(_serializeDynamicValue)
+                .toList(),
+            "gradientAngle": textProps.gradientAngle,
+            "decoration": textProps.decoration,
+            "letterSpacing": textProps.letterSpacing,
+            "hasShadow": textProps.hasShadow,
+            "shadowColor": _serializeDynamicValue(textProps.shadowColor),
+            "shadowOffset": _serializeDynamicValue(textProps.shadowOffset),
+            "shadowBlur": textProps.shadowBlur,
+            "shadowOpacity": textProps.shadowOpacity,
+            "fontFamily": textProps.fontFamily,
+          };
+          print(
+            'ExportManager: Text item ${item.id} - serialized text properties from HiveTextProperties',
+          );
+        } else {
+          // Fallback: serialize individual text properties if textProperties doesn't exist
+          print(
+            'ExportManager: Text item ${item.id} - serializing individual text properties',
+          );
+          final Map<String, dynamic> textPropsMap = {};
+
+          // Copy all text-related properties
+          final textPropertyKeys = [
+            'text',
+            'fontSize',
+            'color',
+            'fontWeight',
+            'fontStyle',
+            'textAlign',
+            'hasGradient',
+            'gradientColors',
+            'gradientAngle',
+            'decoration',
+            'letterSpacing',
+            'hasShadow',
+            'shadowColor',
+            'shadowOffset',
+            'shadowBlur',
+            'shadowOpacity',
+            'fontFamily',
+          ];
+
+          for (final key in textPropertyKeys) {
+            if (item.properties.containsKey(key)) {
+              textPropsMap[key] = _serializeDynamicValue(item.properties[key]);
+            }
+          }
+
+          if (textPropsMap.isNotEmpty) {
+            itemData["textProperties"] = textPropsMap;
+            print(
+              'ExportManager: Text item ${item.id} - serialized ${textPropsMap.length} individual text properties',
+            );
+          }
+        }
+      }
+
       serializedItems.add(itemData);
     }
 
@@ -761,11 +884,45 @@ class ExportManager {
 
   static Future<hive_model.PosterProject?> loadProject(String filePath) async {
     try {
+      print('ExportManager: Loading project from: $filePath');
+
       final file = File(filePath);
-      if (!await file.exists()) return null;
+      if (!await file.exists()) {
+        print('ExportManager: File does not exist: $filePath');
+        return null;
+      }
+
+      // Check file size
+      final fileSize = await file.length();
+      print('ExportManager: File size: $fileSize bytes');
+      if (fileSize == 0) {
+        print('ExportManager: File is empty');
+        return null;
+      }
 
       final bytes = await file.readAsBytes();
-      final archive = ZipDecoder().decodeBytes(bytes);
+      print('ExportManager: Read ${bytes.length} bytes from file');
+
+      // Validate ZIP header
+      if (bytes.length < 4 ||
+          !(bytes[0] == 0x50 &&
+              bytes[1] == 0x4B &&
+              (bytes[2] == 0x03 || bytes[2] == 0x05 || bytes[2] == 0x07) &&
+              (bytes[3] == 0x04 || bytes[3] == 0x06 || bytes[3] == 0x08))) {
+        print('ExportManager: Invalid ZIP file header');
+        return null;
+      }
+
+      Archive archive;
+      try {
+        archive = ZipDecoder().decodeBytes(bytes);
+        print(
+          'ExportManager: Successfully decoded ZIP archive with ${archive.length} files',
+        );
+      } catch (e) {
+        print('ExportManager: Failed to decode ZIP archive: $e');
+        return null;
+      }
 
       // Find project.json
       ArchiveFile? projectFile;
@@ -776,17 +933,70 @@ class ExportManager {
         }
       }
 
-      if (projectFile == null) return null;
+      if (projectFile == null) {
+        print('ExportManager: project.json not found in archive');
+        return null;
+      }
+
+      print('ExportManager: Found project.json (${projectFile.size} bytes)');
 
       // Parse project data
       final projectJson = String.fromCharCodes(projectFile.content);
-      final projectData = jsonDecode(projectJson) as Map<String, dynamic>;
+      print(
+        'ExportManager: Project JSON length: ${projectJson.length} characters',
+      );
+
+      Map<String, dynamic> projectData;
+      try {
+        projectData = jsonDecode(projectJson) as Map<String, dynamic>;
+        print('ExportManager: Successfully parsed JSON data');
+      } catch (e) {
+        print('ExportManager: Failed to parse JSON: $e');
+        return null;
+      }
+
+      // Validate required project data fields
+      final requiredFields = [
+        'name',
+        'canvasWidth',
+        'canvasHeight',
+        'canvasItems',
+        'settings',
+      ];
+      for (final field in requiredFields) {
+        if (!projectData.containsKey(field)) {
+          print('ExportManager: Missing required field: $field');
+          return null;
+        }
+      }
+
+      // Validate canvas dimensions
+      final canvasWidth = projectData['canvasWidth'];
+      final canvasHeight = projectData['canvasHeight'];
+      if (canvasWidth is! num ||
+          canvasHeight is! num ||
+          canvasWidth <= 0 ||
+          canvasHeight <= 0) {
+        print(
+          'ExportManager: Invalid canvas dimensions: ${canvasWidth}x${canvasHeight}',
+        );
+        return null;
+      }
+
+      print('ExportManager: Project validation passed');
 
       // Extract images to temporary directory
       final Directory tempDir = await getTemporaryDirectory();
       final String projectDir =
           '${tempDir.path}/project_${DateTime.now().millisecondsSinceEpoch}';
-      await Directory(projectDir).create(recursive: true);
+
+      try {
+        await Directory(projectDir).create(recursive: true);
+        print('ExportManager: Created temporary directory: $projectDir');
+      } catch (e) {
+        print('ExportManager: Failed to create temporary directory: $e');
+        return null;
+      }
 
       // Decode and save background image
       String? backgroundImagePath;
@@ -794,16 +1004,35 @@ class ExportManager {
         try {
           final backgroundImageData =
               projectData['backgroundImageData'] as String;
-          final backgroundBytes = base64Decode(backgroundImageData);
-          final extension = _getImageFileExtension(null, backgroundBytes);
-          final backgroundFile = File('$projectDir/background.$extension');
-          await backgroundFile.writeAsBytes(backgroundBytes);
-          backgroundImagePath = backgroundFile.path;
-          print(
-            'Successfully decoded background image: ${backgroundBytes.length} bytes as $extension',
-          );
+          if (backgroundImageData.isEmpty) {
+            print('ExportManager: Background image data is empty');
+          } else {
+            // Validate base64 string
+            if (!RegExp(
+              r'^[A-Za-z0-9+/]*={0,2}$',
+            ).hasMatch(backgroundImageData)) {
+              print(
+                'ExportManager: Invalid base64 format for background image',
+              );
+            } else {
+              final backgroundBytes = base64Decode(backgroundImageData);
+              if (backgroundBytes.isEmpty) {
+                print('ExportManager: Background image decoded to empty bytes');
+              } else {
+                final extension = _getImageFileExtension(null, backgroundBytes);
+                final backgroundFile = File(
+                  '$projectDir/background.$extension',
+                );
+                await backgroundFile.writeAsBytes(backgroundBytes);
+                backgroundImagePath = backgroundFile.path;
+                print(
+                  'ExportManager: Successfully decoded background image: ${backgroundBytes.length} bytes as $extension',
+                );
+              }
+            }
+          }
         } catch (e) {
-          print('Error decoding background image: $e');
+          print('ExportManager: Error decoding background image: $e');
         }
       }
 
@@ -812,285 +1041,651 @@ class ExportManager {
       if (projectData['thumbnailData'] != null) {
         try {
           final thumbnailData = projectData['thumbnailData'] as String;
-          final thumbnailBytes = base64Decode(thumbnailData);
-          final extension = _getImageFileExtension(null, thumbnailBytes);
-          final thumbnailFile = File('$projectDir/thumbnail.$extension');
-          await thumbnailFile.writeAsBytes(thumbnailBytes);
-          thumbnailPath = thumbnailFile.path;
-          print(
-            'Successfully decoded thumbnail: ${thumbnailBytes.length} bytes as $extension',
-          );
+          if (thumbnailData.isEmpty) {
+            print('ExportManager: Thumbnail data is empty');
+          } else {
+            // Validate base64 string
+            if (!RegExp(r'^[A-Za-z0-9+/]*={0,2}$').hasMatch(thumbnailData)) {
+              print('ExportManager: Invalid base64 format for thumbnail');
+            } else {
+              final thumbnailBytes = base64Decode(thumbnailData);
+              if (thumbnailBytes.isEmpty) {
+                print('ExportManager: Thumbnail decoded to empty bytes');
+              } else {
+                final extension = _getImageFileExtension(null, thumbnailBytes);
+                final thumbnailFile = File('$projectDir/thumbnail.$extension');
+                await thumbnailFile.writeAsBytes(thumbnailBytes);
+                thumbnailPath = thumbnailFile.path;
+                print(
+                  'ExportManager: Successfully decoded thumbnail: ${thumbnailBytes.length} bytes as $extension',
+                );
+              }
+            }
+          }
         } catch (e) {
-          print('Error decoding thumbnail: $e');
+          print('ExportManager: Error decoding thumbnail: $e');
         }
       }
 
       // Deserialize canvas items
       final List<hive_model.HiveCanvasItem> canvasItems = [];
-      final canvasItemsData = projectData['canvasItems'] as List<dynamic>;
+      final canvasItemsData = projectData['canvasItems'];
+
+      if (canvasItemsData is! List) {
+        print(
+          'ExportManager: canvasItems is not a list: ${canvasItemsData.runtimeType}',
+        );
+        return null;
+      }
+
+      print('ExportManager: Processing ${canvasItemsData.length} canvas items');
 
       for (int i = 0; i < canvasItemsData.length; i++) {
-        final itemData = canvasItemsData[i] as Map<String, dynamic>;
-
-        // Decode image data if present
-        String? imagePath;
-        if (itemData['imageData'] != null) {
-          try {
-            final imageData = itemData['imageData'] as String;
-            final imageBytes = base64Decode(imageData);
-
-            // Determine proper file extension
-            final originalName = itemData['originalImageName'] as String?;
-            final extension = _getImageFileExtension(originalName, imageBytes);
-            final fileName = originalName ?? 'item_${i}_image.$extension';
-            final imageFile = File('$projectDir/$fileName');
-
-            await imageFile.writeAsBytes(imageBytes);
-            imagePath = imageFile.path;
+        try {
+          final itemData = canvasItemsData[i];
+          if (itemData is! Map<String, dynamic>) {
             print(
-              'Successfully decoded image for item ${i}: ${imageBytes.length} bytes as $extension',
+              'ExportManager: Canvas item $i is not a map: ${itemData.runtimeType}',
             );
-          } catch (e) {
-            print('Error decoding image for item ${i}: $e');
-          }
-        }
-
-        // For shape images, prefer keeping base64 instead of writing temp files
-        String? shapeImageBase64;
-        if (itemData['shapeImageData'] != null) {
-          shapeImageBase64 = itemData['shapeImageData'] as String;
-        }
-
-        // Deserialize properties
-        final properties = Map<String, dynamic>.from(
-          itemData['properties'] as Map<String, dynamic>,
-        );
-
-        // Update image path in properties if image was decoded
-        if (imagePath != null) {
-          // Set flat runtime key used by editor
-          properties['filePath'] = imagePath;
-
-          // Also set nested imageProperties when present
-          if (properties['imageProperties'] != null &&
-              properties['imageProperties'] is Map<String, dynamic>) {
-            final imageProps = Map<String, dynamic>.from(
-              properties['imageProperties'] as Map<String, dynamic>,
-            );
-            imageProps['filePath'] = imagePath;
-            properties['imageProperties'] = imageProps;
-          }
-        }
-
-        // For shapes: store base64 directly and also materialize a temp file for code paths
-        // that only read file paths. This maximizes compatibility across versions.
-        if (shapeImageBase64 != null) {
-          if (properties['shapeProperties'] != null &&
-              properties['shapeProperties'] is Map<String, dynamic>) {
-            final shapeProps = Map<String, dynamic>.from(
-              properties['shapeProperties'] as Map<String, dynamic>,
-            );
-            shapeProps['imageBase64'] = shapeImageBase64;
-            shapeProps['imagePath'] = null;
-            properties['shapeProperties'] = shapeProps;
-            // Mirror to flat keys as well to satisfy any code paths reading flat props
-            properties['imageBase64'] = shapeImageBase64;
-            properties['imagePath'] = null;
-          } else {
-            // Flat properties path (runtime uses top-level keys)
-            properties['imageBase64'] = shapeImageBase64;
-            properties['imagePath'] = null;
+            continue;
           }
 
-          // Additionally, persist the image as a temp file and set imagePath, so UIs
-          // that only look for a file path can still load and rasterize it.
-          try {
-            final Uint8List bytes = base64Decode(shapeImageBase64);
-            final String ext = _getImageFileExtension(null, bytes);
-            final File tmp = File('$projectDir/shape_item_${i}_image.$ext');
-            await tmp.writeAsBytes(bytes, flush: true);
-            properties['imagePath'] = tmp.path;
-            if (properties['shapeProperties'] is Map<String, dynamic>) {
-              final sp = Map<String, dynamic>.from(
+          // Validate required item fields
+          final requiredItemFields = [
+            'type',
+            'position',
+            'scale',
+            'rotation',
+            'opacity',
+            'layerIndex',
+            'isVisible',
+            'isLocked',
+          ];
+          bool hasRequiredFields = true;
+          for (final field in requiredItemFields) {
+            if (!itemData.containsKey(field)) {
+              print(
+                'ExportManager: Canvas item $i missing required field: $field',
+              );
+              hasRequiredFields = false;
+            }
+          }
+          if (!hasRequiredFields) continue;
+
+          // Decode image data if present
+          String? imagePath;
+          if (itemData['imageData'] != null) {
+            try {
+              final imageData = itemData['imageData'] as String;
+              if (imageData.isEmpty) {
+                print('ExportManager: Image data for item $i is empty');
+              } else {
+                // Validate base64 string
+                if (!RegExp(r'^[A-Za-z0-9+/]*={0,2}$').hasMatch(imageData)) {
+                  print(
+                    'ExportManager: Invalid base64 format for item $i image',
+                  );
+                } else {
+                  final imageBytes = base64Decode(imageData);
+                  if (imageBytes.isEmpty) {
+                    print(
+                      'ExportManager: Item $i image decoded to empty bytes',
+                    );
+                  } else {
+                    // Determine proper file extension
+                    final originalName =
+                        itemData['originalImageName'] as String?;
+                    final extension = _getImageFileExtension(
+                      originalName,
+                      imageBytes,
+                    );
+                    final fileName =
+                        originalName ?? 'item_${i}_image.$extension';
+                    final imageFile = File('$projectDir/$fileName');
+
+                    await imageFile.writeAsBytes(imageBytes);
+                    imagePath = imageFile.path;
+                    print(
+                      'ExportManager: Successfully decoded image for item ${i}: ${imageBytes.length} bytes as $extension',
+                    );
+                  }
+                }
+              }
+            } catch (e) {
+              print('ExportManager: Error decoding image for item ${i}: $e');
+            }
+          }
+
+          // For shape images, prefer keeping base64 instead of writing temp files
+          String? shapeImageBase64;
+          if (itemData['shapeImageData'] != null) {
+            shapeImageBase64 = itemData['shapeImageData'] as String;
+          }
+
+          // Deserialize properties
+          final properties = Map<String, dynamic>.from(
+            itemData['properties'] as Map<String, dynamic>,
+          );
+
+          // Update image path in properties if image was decoded
+          if (imagePath != null) {
+            // Set flat runtime key used by editor
+            properties['filePath'] = imagePath;
+
+            // Also set nested imageProperties when present
+            if (properties['imageProperties'] != null &&
+                properties['imageProperties'] is Map<String, dynamic>) {
+              final imageProps = Map<String, dynamic>.from(
+                properties['imageProperties'] as Map<String, dynamic>,
+              );
+              imageProps['filePath'] = imagePath;
+              properties['imageProperties'] = imageProps;
+            }
+          }
+
+          // For shapes: store base64 directly and also materialize a temp file for code paths
+          // that only read file paths. This maximizes compatibility across versions.
+          if (shapeImageBase64 != null) {
+            if (properties['shapeProperties'] != null &&
+                properties['shapeProperties'] is Map<String, dynamic>) {
+              final shapeProps = Map<String, dynamic>.from(
                 properties['shapeProperties'] as Map<String, dynamic>,
               );
-              sp['imagePath'] = tmp.path;
-              properties['shapeProperties'] = sp;
+              shapeProps['imageBase64'] = shapeImageBase64;
+              shapeProps['imagePath'] = null;
+              properties['shapeProperties'] = shapeProps;
+              // Mirror to flat keys as well to satisfy any code paths reading flat props
+              properties['imageBase64'] = shapeImageBase64;
+              properties['imagePath'] = null;
+            } else {
+              // Flat properties path (runtime uses top-level keys)
+              properties['imageBase64'] = shapeImageBase64;
+              properties['imagePath'] = null;
             }
-          } catch (e) {
-            print('Warning: failed to materialize shape image file: $e');
-          }
-        }
 
-        // Convert serialized special values (colors, enums, etc.) back
-        _deserializeSpecialValuesInProperties(properties);
-
-        // Normalize shape colors: ensure fillColor/strokeColor are HiveColor
-        // and provide sensible fallback for missing strokeColor
-        if ((itemData['type'] as int) ==
-            hive_model.HiveCanvasItemType.shape.index) {
-          dynamic normalizeColor(dynamic v) {
-            if (v is hive_model.HiveColor) return v;
-            if (v is Color) return hive_model.HiveColor.fromColor(v);
-            if (v is Map) {
-              if (v['value'] is int) {
-                return hive_model.HiveColor(v['value'] as int);
+            // Additionally, persist the image as a temp file and set imagePath, so UIs
+            // that only look for a file path can still load and rasterize it.
+            try {
+              final Uint8List bytes = base64Decode(shapeImageBase64);
+              final String ext = _getImageFileExtension(null, bytes);
+              final File tmp = File('$projectDir/shape_item_${i}_image.$ext');
+              await tmp.writeAsBytes(bytes, flush: true);
+              properties['imagePath'] = tmp.path;
+              if (properties['shapeProperties'] is Map<String, dynamic>) {
+                final sp = Map<String, dynamic>.from(
+                  properties['shapeProperties'] as Map<String, dynamic>,
+                );
+                sp['imagePath'] = tmp.path;
+                properties['shapeProperties'] = sp;
               }
-              final hasChannels =
-                  v.containsKey('red') &&
-                  v.containsKey('green') &&
-                  v.containsKey('blue');
-              if (hasChannels) {
-                final int a = (v['alpha'] is int) ? v['alpha'] as int : 255;
-                final int r = (v['red'] as num).toInt().clamp(0, 255);
-                final int g = (v['green'] as num).toInt().clamp(0, 255);
-                final int b = (v['blue'] as num).toInt().clamp(0, 255);
-                final int argb =
-                    (a & 0xFF) << 24 |
-                    (r & 0xFF) << 16 |
-                    (g & 0xFF) << 8 |
-                    (b & 0xFF);
-                return hive_model.HiveColor(argb);
+            } catch (e) {
+              print('Warning: failed to materialize shape image file: $e');
+            }
+          }
+
+          // Handle text content for text items FIRST, before general deserialization
+          if ((itemData['type'] as int) ==
+              hive_model.HiveCanvasItemType.text.index) {
+            print('ExportManager: Processing text item $i');
+            print(
+              'ExportManager: Text item $i - import data keys: ${itemData.keys.toList()}',
+            );
+
+            // Ensure text content is properly restored
+            final textContent = itemData['textContent'] as String?;
+            if (textContent != null && textContent.isNotEmpty) {
+              properties['text'] = textContent;
+              print(
+                'ExportManager: Text item $i - restored text content: "$textContent"',
+              );
+            } else {
+              // Fallback: try to get text from textProperties
+              if (itemData['textProperties'] is Map<String, dynamic>) {
+                final textPropsData =
+                    itemData['textProperties'] as Map<String, dynamic>;
+                final fallbackText = textPropsData['text'] as String?;
+                if (fallbackText != null && fallbackText.isNotEmpty) {
+                  properties['text'] = fallbackText;
+                  print(
+                    'ExportManager: Text item $i - restored text content from textProperties: "$fallbackText"',
+                  );
+                } else {
+                  print(
+                    'ExportManager: Text item $i - no text content found anywhere',
+                  );
+                }
+              } else {
+                print(
+                  'ExportManager: Text item $i - no text content found in import data',
+                );
               }
             }
-            if (v is int) return hive_model.HiveColor(v);
-            return null;
-          }
 
-          if (properties.containsKey('fillColor')) {
-            final fc = normalizeColor(properties['fillColor']);
-            if (fc != null) properties['fillColor'] = fc;
-          }
-          if (properties.containsKey('strokeColor')) {
-            final sc = normalizeColor(properties['strokeColor']);
-            if (sc != null) properties['strokeColor'] = sc;
-          }
-          // Try alternate/legacy stroke color keys if primary is absent
-          if (properties['strokeColor'] == null) {
-            final List<String> legacyKeys = <String>[
-              'outlineColor',
-              'borderColor',
-              'stroke',
-              'strokeColour',
-              'stroke_color',
-              'border_color',
-            ];
-            for (final String k in legacyKeys) {
-              if (properties.containsKey(k)) {
-                final dynamic raw = properties[k];
-                final dynamic alt = normalizeColor(raw);
-                if (alt != null) {
-                  properties['strokeColor'] = alt;
-                  break;
+            // Log what text properties are available in import data
+            if (itemData['textProperties'] is Map<String, dynamic>) {
+              final textPropsData =
+                  itemData['textProperties'] as Map<String, dynamic>;
+              print(
+                'ExportManager: Text item $i - textProperties keys: ${textPropsData.keys.toList()}',
+              );
+              for (final key in textPropsData.keys) {
+                print(
+                  'ExportManager: Text item $i - textProperties[$key]: ${textPropsData[key]} (${textPropsData[key].runtimeType})',
+                );
+              }
+            } else {
+              print(
+                'ExportManager: Text item $i - no textProperties found in import data',
+              );
+            }
+
+            // Ensure text properties are properly restored
+            if (itemData['textProperties'] is Map<String, dynamic>) {
+              final textPropsData =
+                  itemData['textProperties'] as Map<String, dynamic>;
+              try {
+                final textProps = hive_model.HiveTextProperties(
+                  text: textPropsData['text'] as String? ?? 'Sample Text',
+                  fontSize:
+                      (textPropsData['fontSize'] as num?)?.toDouble() ?? 24.0,
+                  color: textPropsData['color'] is hive_model.HiveColor
+                      ? textPropsData['color'] as hive_model.HiveColor
+                      : hive_model.HiveColor(Colors.black.value),
+                  fontWeight: textPropsData['fontWeight'] is FontWeight
+                      ? textPropsData['fontWeight'] as FontWeight
+                      : FontWeight.normal,
+                  fontStyle: textPropsData['fontStyle'] is FontStyle
+                      ? textPropsData['fontStyle'] as FontStyle
+                      : FontStyle.normal,
+                  textAlign: textPropsData['textAlign'] is TextAlign
+                      ? textPropsData['textAlign'] as TextAlign
+                      : TextAlign.center,
+                  hasGradient: textPropsData['hasGradient'] as bool? ?? false,
+                  gradientColors:
+                      (textPropsData['gradientColors'] as List<dynamic>?)
+                          ?.map(
+                            (e) => e is hive_model.HiveColor
+                                ? e
+                                : hive_model.HiveColor(Colors.black.value),
+                          )
+                          .toList() ??
+                      [],
+                  gradientAngle:
+                      (textPropsData['gradientAngle'] as num?)?.toDouble() ??
+                      0.0,
+                  decoration: textPropsData['decoration'] as int? ?? 0,
+                  letterSpacing:
+                      (textPropsData['letterSpacing'] as num?)?.toDouble() ??
+                      0.0,
+                  hasShadow: textPropsData['hasShadow'] as bool? ?? false,
+                  shadowColor:
+                      textPropsData['shadowColor'] is hive_model.HiveColor
+                      ? textPropsData['shadowColor'] as hive_model.HiveColor
+                      : hive_model.HiveColor(Colors.black.value),
+                  shadowOffset: textPropsData['shadowOffset'] is Offset
+                      ? textPropsData['shadowOffset'] as Offset
+                      : Offset.zero,
+                  shadowBlur:
+                      (textPropsData['shadowBlur'] as num?)?.toDouble() ?? 4.0,
+                  shadowOpacity:
+                      (textPropsData['shadowOpacity'] as num?)?.toDouble() ??
+                      0.6,
+                  fontFamily: textPropsData['fontFamily'] as String?,
+                );
+                properties['textProperties'] = textProps;
+                print('ExportManager: Text item $i - restored text properties');
+
+                // Also restore individual text properties for compatibility
+                final textPropertyKeys = [
+                  'text',
+                  'fontSize',
+                  'color',
+                  'fontWeight',
+                  'fontStyle',
+                  'textAlign',
+                  'hasGradient',
+                  'gradientColors',
+                  'gradientAngle',
+                  'decoration',
+                  'letterSpacing',
+                  'hasShadow',
+                  'shadowColor',
+                  'shadowOffset',
+                  'shadowBlur',
+                  'shadowOpacity',
+                  'fontFamily',
+                ];
+
+                for (final key in textPropertyKeys) {
+                  if (textPropsData.containsKey(key)) {
+                    properties[key] = textPropsData[key];
+                    print(
+                      'ExportManager: Text item $i - restored property[$key]: ${textPropsData[key]}',
+                    );
+                  }
+                }
+                print(
+                  'ExportManager: Text item $i - restored individual text properties for compatibility',
+                );
+
+                // Log final properties state
+                print(
+                  'ExportManager: Text item $i - final properties keys: ${properties.keys.toList()}',
+                );
+                for (final key in textPropertyKeys) {
+                  if (properties.containsKey(key)) {
+                    print(
+                      'ExportManager: Text item $i - final property[$key]: ${properties[key]} (${properties[key].runtimeType})',
+                    );
+                  }
+                }
+              } catch (e) {
+                print(
+                  'ExportManager: Error restoring text properties for item $i: $e',
+                );
+              }
+            }
+
+            // Ensure individual text properties are restored even if textProperties object creation failed
+            if (itemData['textProperties'] is Map<String, dynamic>) {
+              final textPropsData =
+                  itemData['textProperties'] as Map<String, dynamic>;
+              print(
+                'ExportManager: Text item $i - ensuring individual properties are restored',
+              );
+              final textPropertyKeys = [
+                'text',
+                'fontSize',
+                'color',
+                'fontWeight',
+                'fontStyle',
+                'textAlign',
+                'hasGradient',
+                'gradientColors',
+                'gradientAngle',
+                'decoration',
+                'letterSpacing',
+                'hasShadow',
+                'shadowColor',
+                'shadowOffset',
+                'shadowBlur',
+                'shadowOpacity',
+                'fontFamily',
+              ];
+              for (final key in textPropertyKeys) {
+                if (textPropsData.containsKey(key) &&
+                    !properties.containsKey(key)) {
+                  properties[key] = textPropsData[key];
+                  print(
+                    'ExportManager: Text item $i - restored missing property[$key]: ${textPropsData[key]}',
+                  );
                 }
               }
             }
           }
-          // Read mirrored primitive value when available
-          if (properties['strokeColor'] == null &&
-              properties['strokeColorValue'] is int) {
-            properties['strokeColor'] = hive_model.HiveColor(
-              properties['strokeColorValue'] as int,
-            );
-          }
-          // Check nested shapeProperties mirrors
-          if (properties['strokeColor'] == null &&
-              properties['shapeProperties'] is Map<String, dynamic>) {
-            final Map<String, dynamic> sp = Map<String, dynamic>.from(
-              properties['shapeProperties'] as Map,
-            );
-            if (sp.containsKey('strokeColor')) {
-              final dynamic nsc = normalizeColor(sp['strokeColor']);
-              if (nsc != null) properties['strokeColor'] = nsc;
+
+          // Convert serialized special values (colors, enums, etc.) back AFTER text handling
+          print(
+            'ExportManager: Text item $i - before deserialization, properties keys: ${properties.keys.toList()}',
+          );
+          _deserializeSpecialValuesInProperties(properties);
+          print(
+            'ExportManager: Text item $i - after deserialization, properties keys: ${properties.keys.toList()}',
+          );
+
+          // Normalize shape colors: ensure fillColor/strokeColor are HiveColor
+          // and provide sensible fallback for missing strokeColor
+          if ((itemData['type'] as int) ==
+              hive_model.HiveCanvasItemType.shape.index) {
+            dynamic normalizeColor(dynamic v) {
+              if (v is hive_model.HiveColor) return v;
+              if (v is Color) return hive_model.HiveColor.fromColor(v);
+              if (v is Map) {
+                if (v['value'] is int) {
+                  return hive_model.HiveColor(v['value'] as int);
+                }
+                final hasChannels =
+                    v.containsKey('red') &&
+                    v.containsKey('green') &&
+                    v.containsKey('blue');
+                if (hasChannels) {
+                  final int a = (v['alpha'] is int) ? v['alpha'] as int : 255;
+                  final int r = (v['red'] as num).toInt().clamp(0, 255);
+                  final int g = (v['green'] as num).toInt().clamp(0, 255);
+                  final int b = (v['blue'] as num).toInt().clamp(0, 255);
+                  final int argb =
+                      (a & 0xFF) << 24 |
+                      (r & 0xFF) << 16 |
+                      (g & 0xFF) << 8 |
+                      (b & 0xFF);
+                  return hive_model.HiveColor(argb);
+                }
+              }
+              if (v is int) return hive_model.HiveColor(v);
+              return null;
             }
+
+            if (properties.containsKey('fillColor')) {
+              final fc = normalizeColor(properties['fillColor']);
+              if (fc != null) properties['fillColor'] = fc;
+            }
+            if (properties.containsKey('strokeColor')) {
+              final sc = normalizeColor(properties['strokeColor']);
+              if (sc != null) properties['strokeColor'] = sc;
+            }
+            // Try alternate/legacy stroke color keys if primary is absent
+            if (properties['strokeColor'] == null) {
+              final List<String> legacyKeys = <String>[
+                'outlineColor',
+                'borderColor',
+                'stroke',
+                'strokeColour',
+                'stroke_color',
+                'border_color',
+              ];
+              for (final String k in legacyKeys) {
+                if (properties.containsKey(k)) {
+                  final dynamic raw = properties[k];
+                  final dynamic alt = normalizeColor(raw);
+                  if (alt != null) {
+                    properties['strokeColor'] = alt;
+                    break;
+                  }
+                }
+              }
+            }
+            // Read mirrored primitive value when available
             if (properties['strokeColor'] == null &&
-                sp['strokeColorValue'] is int) {
+                properties['strokeColorValue'] is int) {
               properties['strokeColor'] = hive_model.HiveColor(
-                sp['strokeColorValue'] as int,
+                properties['strokeColorValue'] as int,
               );
             }
-          }
-          // If strokeColor missing or invalid, default to black with visible stroke
-          if (properties['strokeColor'] == null ||
-              properties['strokeColor'] is! hive_model.HiveColor) {
-            properties['strokeColor'] = hive_model.HiveColor(
-              Colors.black.value,
-            );
-            // Also default missing/invalid stroke width to a sensible visible width
-            if (properties['strokeWidth'] == null ||
-                (properties['strokeWidth'] is! num)) {
-              properties['strokeWidth'] = 2.0;
+            // Check nested shapeProperties mirrors
+            if (properties['strokeColor'] == null &&
+                properties['shapeProperties'] is Map<String, dynamic>) {
+              final Map<String, dynamic> sp = Map<String, dynamic>.from(
+                properties['shapeProperties'] as Map,
+              );
+              if (sp.containsKey('strokeColor')) {
+                final dynamic nsc = normalizeColor(sp['strokeColor']);
+                if (nsc != null) properties['strokeColor'] = nsc;
+              }
+              if (properties['strokeColor'] == null &&
+                  sp['strokeColorValue'] is int) {
+                properties['strokeColor'] = hive_model.HiveColor(
+                  sp['strokeColorValue'] as int,
+                );
+              }
+            }
+            // If strokeColor missing or invalid, default to black with visible stroke
+            if (properties['strokeColor'] == null ||
+                properties['strokeColor'] is! hive_model.HiveColor) {
+              properties['strokeColor'] = hive_model.HiveColor(
+                Colors.black.value,
+              );
+              // Also default missing/invalid stroke width to a sensible visible width
+              if (properties['strokeWidth'] == null ||
+                  (properties['strokeWidth'] is! num)) {
+                properties['strokeWidth'] = 2.0;
+              }
             }
           }
+
+          // Generate new canvas item ID to prevent conflicts
+          final String newCanvasItemId = DateTime.now().millisecondsSinceEpoch
+              .toString();
+
+          // Validate item type
+          final itemTypeIndex = itemData['type'] as int;
+          if (itemTypeIndex < 0 ||
+              itemTypeIndex >= hive_model.HiveCanvasItemType.values.length) {
+            print(
+              'ExportManager: Invalid item type index $itemTypeIndex for item $i',
+            );
+            continue;
+          }
+
+          // Validate position
+          final positionData = itemData['position'] as Map<String, dynamic>;
+          if (!positionData.containsKey('dx') ||
+              !positionData.containsKey('dy')) {
+            print('ExportManager: Missing position data for item $i');
+            continue;
+          }
+
+          final canvasItem = hive_model.HiveCanvasItem(
+            id: newCanvasItemId,
+            type: hive_model.HiveCanvasItemType.values[itemTypeIndex],
+            position: Offset(
+              (positionData['dx'] as num).toDouble(),
+              (positionData['dy'] as num).toDouble(),
+            ),
+            scale: (itemData['scale'] as num).toDouble(),
+            rotation: (itemData['rotation'] as num).toDouble(),
+            opacity: (itemData['opacity'] as num).toDouble(),
+            layerIndex: (itemData['layerIndex'] as num).toInt(),
+            isVisible: itemData['isVisible'] as bool,
+            isLocked: itemData['isLocked'] as bool,
+            properties: properties,
+            createdAt: DateTime.parse(itemData['createdAt'] as String),
+            lastModified: DateTime.now(),
+            groupId: itemData['groupId'] as String?,
+          );
+
+          canvasItems.add(canvasItem);
+          print('ExportManager: Successfully processed canvas item $i');
+        } catch (e) {
+          print('ExportManager: Error processing canvas item $i: $e');
+          // Continue with next item instead of failing completely
         }
-
-        final canvasItem = hive_model.HiveCanvasItem(
-          id: itemData['id'] as String,
-          type: hive_model.HiveCanvasItemType.values[itemData['type'] as int],
-          position: Offset(
-            (itemData['position'] as Map<String, dynamic>)['dx'] as double,
-            (itemData['position'] as Map<String, dynamic>)['dy'] as double,
-          ),
-          scale: itemData['scale'] as double,
-          rotation: itemData['rotation'] as double,
-          opacity: itemData['opacity'] as double,
-          layerIndex: itemData['layerIndex'] as int,
-          isVisible: itemData['isVisible'] as bool,
-          isLocked: itemData['isLocked'] as bool,
-          properties: properties,
-          createdAt: DateTime.parse(itemData['createdAt'] as String),
-          lastModified: DateTime.parse(itemData['lastModified'] as String),
-          groupId: itemData['groupId'] as String?,
-        );
-
-        canvasItems.add(canvasItem);
       }
 
       // Deserialize settings
-      final settingsData = projectData['settings'] as Map<String, dynamic>;
-      final exportSettingsData =
-          settingsData['exportSettings'] as Map<String, dynamic>;
+      final settingsData = projectData['settings'];
+      if (settingsData is! Map<String, dynamic>) {
+        print(
+          'ExportManager: Settings data is not a map: ${settingsData.runtimeType}',
+        );
+        return null;
+      }
+
+      final exportSettingsData = settingsData['exportSettings'];
+      if (exportSettingsData is! Map<String, dynamic>) {
+        print(
+          'ExportManager: Export settings data is not a map: ${exportSettingsData.runtimeType}',
+        );
+        return null;
+      }
+
+      // Validate export format and quality indices
+      final formatIndex = exportSettingsData['format'] as int;
+      final qualityIndex = exportSettingsData['quality'] as int;
+
+      if (formatIndex < 0 ||
+          formatIndex >= hive_model.ExportFormat.values.length) {
+        print('ExportManager: Invalid export format index: $formatIndex');
+        return null;
+      }
+
+      if (qualityIndex < 0 ||
+          qualityIndex >= hive_model.ExportQuality.values.length) {
+        print('ExportManager: Invalid export quality index: $qualityIndex');
+        return null;
+      }
 
       final settings = hive_model.ProjectSettings(
-        snapToGrid: settingsData['snapToGrid'] as bool,
-        gridSize: settingsData['gridSize'] as double,
-        canvasZoom: settingsData['canvasZoom'] as double,
-        showGrid: settingsData['showGrid'] as bool,
+        snapToGrid: settingsData['snapToGrid'] as bool? ?? false,
+        gridSize: (settingsData['gridSize'] as num?)?.toDouble() ?? 20.0,
+        canvasZoom: (settingsData['canvasZoom'] as num?)?.toDouble() ?? 1.0,
+        showGrid: settingsData['showGrid'] as bool? ?? false,
         exportSettings: hive_model.ExportSettings(
-          format: hive_model
-              .ExportFormat
-              .values[exportSettingsData['format'] as int],
-          quality: hive_model
-              .ExportQuality
-              .values[exportSettingsData['quality'] as int],
-          includeBackground: exportSettingsData['includeBackground'] as bool,
-          pixelRatio: exportSettingsData['pixelRatio'] as double,
+          format: hive_model.ExportFormat.values[formatIndex],
+          quality: hive_model.ExportQuality.values[qualityIndex],
+          includeBackground:
+              exportSettingsData['includeBackground'] as bool? ?? true,
+          pixelRatio:
+              (exportSettingsData['pixelRatio'] as num?)?.toDouble() ?? 1.0,
         ),
       );
 
       // Deserialize canvas background color
-      final colorData =
-          projectData['canvasBackgroundColor'] as Map<String, dynamic>;
-      final canvasBackgroundColor = hive_model.HiveColor(
-        colorData['value'] as int,
+      final colorData = projectData['canvasBackgroundColor'];
+      if (colorData is! Map<String, dynamic>) {
+        print(
+          'ExportManager: Canvas background color data is not a map: ${colorData.runtimeType}',
+        );
+        return null;
+      }
+
+      final colorValue = colorData['value'];
+      if (colorValue is! int) {
+        print(
+          'ExportManager: Canvas background color value is not an int: ${colorValue.runtimeType}',
+        );
+        return null;
+      }
+
+      final canvasBackgroundColor = hive_model.HiveColor(colorValue);
+
+      // Generate new project ID and rename project for import to prevent conflicts
+      final String newProjectId = 'p_${DateTime.now().millisecondsSinceEpoch}';
+      final String originalName = projectData['name'] as String;
+      final String importedProjectName = originalName.contains('(Exported)')
+          ? originalName.replaceAll('(Exported)', '(Imported)')
+          : '$originalName (Imported)';
+
+      // Validate tags
+      final tagsData = projectData['tags'];
+      final List<String> tags = [];
+      if (tagsData is List) {
+        for (final tag in tagsData) {
+          if (tag is String) {
+            tags.add(tag);
+          }
+        }
+      }
+
+      print(
+        'ExportManager: Successfully loaded project with ${canvasItems.length} canvas items',
       );
 
       // Create and return project
       return hive_model.PosterProject(
-        id: projectData['id'] as String,
-        name: projectData['name'] as String,
+        id: newProjectId,
+        name: importedProjectName,
         description: projectData['description'] as String?,
         createdAt: DateTime.parse(projectData['createdAt'] as String),
-        lastModified: DateTime.parse(projectData['lastModified'] as String),
-        canvasWidth: projectData['canvasWidth'] as double,
-        canvasHeight: projectData['canvasHeight'] as double,
+        lastModified: DateTime.now(),
+        canvasWidth: canvasWidth.toDouble(),
+        canvasHeight: canvasHeight.toDouble(),
         canvasBackgroundColor: canvasBackgroundColor,
         backgroundImagePath: backgroundImagePath,
         thumbnailPath: thumbnailPath,
         canvasItems: canvasItems,
         settings: settings,
-        tags: List<String>.from(projectData['tags'] as List<dynamic>),
-        isFavorite: projectData['isFavorite'] as bool,
+        tags: tags,
+        isFavorite: projectData['isFavorite'] as bool? ?? false,
       );
     } catch (e) {
       print('Error loading project: $e');
@@ -1155,6 +1750,9 @@ class ExportManager {
         // Handle maps
         if (value is Map<String, dynamic>) {
           final lowerKey = key.toLowerCase();
+          print(
+            'ExportManager: Deserializing key: $key (lowerKey: $lowerKey), value keys: ${value.keys.toList()}',
+          );
 
           // Generic enum wrapper shape used by _serializeDynamicValue for enums
           // e.g. tool: {"enum": "textPath"}. Convert back to the raw enum name string
@@ -1226,6 +1824,212 @@ class ExportManager {
             final h = (value['height'] as num).toDouble();
             map[key] = hive_model.HiveSize(w, h);
             return;
+          }
+
+          // HiveTextProperties reconstruction
+          if ((lowerKey == 'textproperties' || lowerKey == 'textProperties') &&
+              value.containsKey('text') &&
+              value.containsKey('fontSize') &&
+              value.containsKey('color')) {
+            print('ExportManager: Found textProperties to deserialize: $key');
+            try {
+              // Deserialize nested values first
+              walk(value);
+
+              final textProps = hive_model.HiveTextProperties(
+                text: value['text'] as String? ?? 'Sample Text',
+                fontSize: (value['fontSize'] as num?)?.toDouble() ?? 24.0,
+                color: value['color'] is hive_model.HiveColor
+                    ? value['color'] as hive_model.HiveColor
+                    : hive_model.HiveColor(Colors.black.value),
+                fontWeight: value['fontWeight'] is FontWeight
+                    ? value['fontWeight'] as FontWeight
+                    : FontWeight.normal,
+                fontStyle: value['fontStyle'] is FontStyle
+                    ? value['fontStyle'] as FontStyle
+                    : FontStyle.normal,
+                textAlign: value['textAlign'] is TextAlign
+                    ? value['textAlign'] as TextAlign
+                    : TextAlign.center,
+                hasGradient: value['hasGradient'] as bool? ?? false,
+                gradientColors:
+                    (value['gradientColors'] as List<dynamic>?)
+                        ?.map(
+                          (e) => e is hive_model.HiveColor
+                              ? e
+                              : hive_model.HiveColor(Colors.black.value),
+                        )
+                        .toList() ??
+                    [],
+                gradientAngle:
+                    (value['gradientAngle'] as num?)?.toDouble() ?? 0.0,
+                decoration: value['decoration'] as int? ?? 0,
+                letterSpacing:
+                    (value['letterSpacing'] as num?)?.toDouble() ?? 0.0,
+                hasShadow: value['hasShadow'] as bool? ?? false,
+                shadowColor: value['shadowColor'] is hive_model.HiveColor
+                    ? value['shadowColor'] as hive_model.HiveColor
+                    : hive_model.HiveColor(Colors.black.value),
+                shadowOffset: value['shadowOffset'] is Offset
+                    ? value['shadowOffset'] as Offset
+                    : Offset.zero,
+                shadowBlur: (value['shadowBlur'] as num?)?.toDouble() ?? 4.0,
+                shadowOpacity:
+                    (value['shadowOpacity'] as num?)?.toDouble() ?? 0.6,
+                fontFamily: value['fontFamily'] as String?,
+              );
+              map[key] = textProps;
+
+              // Also populate individual text properties for rendering compatibility
+              // This ensures the rendering code can access text properties directly
+              map['text'] = textProps.text;
+              map['fontSize'] = textProps.fontSize;
+              map['color'] = textProps.color;
+              map['fontWeight'] = textProps.fontWeight;
+              map['fontStyle'] = textProps.fontStyle;
+              map['textAlign'] = textProps.textAlign;
+              map['hasGradient'] = textProps.hasGradient;
+              map['gradientColors'] = textProps.gradientColors;
+              map['gradientAngle'] = textProps.gradientAngle;
+              map['decoration'] = textProps.decoration;
+              map['letterSpacing'] = textProps.letterSpacing;
+              map['hasShadow'] = textProps.hasShadow;
+              map['shadowColor'] = textProps.shadowColor;
+              map['shadowOffset'] = textProps.shadowOffset;
+              map['shadowBlur'] = textProps.shadowBlur;
+              map['shadowOpacity'] = textProps.shadowOpacity;
+              map['fontFamily'] = textProps.fontFamily;
+
+              return;
+            } catch (e) {
+              print('Warning: Failed to deserialize HiveTextProperties: $e');
+            }
+          }
+
+          // HiveImageProperties reconstruction
+          if (lowerKey == 'imageproperties' &&
+              value.containsKey('tint') &&
+              value.containsKey('shadowColor')) {
+            try {
+              // Deserialize nested values first
+              walk(value);
+
+              final imageProps = hive_model.HiveImageProperties(
+                filePath: value['filePath'] as String?,
+                imageUrl: value['imageUrl'] as String?,
+                tint: value['tint'] is hive_model.HiveColor
+                    ? value['tint'] as hive_model.HiveColor
+                    : hive_model.HiveColor(Colors.white.value),
+                blur: (value['blur'] as num?)?.toDouble() ?? 0.0,
+                hasGradient: value['hasGradient'] as bool? ?? false,
+                gradientColors:
+                    (value['gradientColors'] as List<dynamic>?)
+                        ?.map(
+                          (e) => e is hive_model.HiveColor
+                              ? e
+                              : hive_model.HiveColor(Colors.white.value),
+                        )
+                        .toList() ??
+                    [],
+                gradientAngle:
+                    (value['gradientAngle'] as num?)?.toDouble() ?? 0.0,
+                hasShadow: value['hasShadow'] as bool? ?? false,
+                shadowColor: value['shadowColor'] is hive_model.HiveColor
+                    ? value['shadowColor'] as hive_model.HiveColor
+                    : hive_model.HiveColor(Colors.black.value),
+                shadowOffset: value['shadowOffset'] is Offset
+                    ? value['shadowOffset'] as Offset
+                    : Offset.zero,
+                shadowBlur: (value['shadowBlur'] as num?)?.toDouble() ?? 8.0,
+                shadowOpacity:
+                    (value['shadowOpacity'] as num?)?.toDouble() ?? 0.6,
+                intrinsicWidth: (value['intrinsicWidth'] as num?)?.toDouble(),
+                intrinsicHeight: (value['intrinsicHeight'] as num?)?.toDouble(),
+                displayWidth: (value['displayWidth'] as num?)?.toDouble(),
+                displayHeight: (value['displayHeight'] as num?)?.toDouble(),
+              );
+              map[key] = imageProps;
+              return;
+            } catch (e) {
+              print('Warning: Failed to deserialize HiveImageProperties: $e');
+            }
+          }
+
+          // HiveShapeProperties reconstruction
+          if (lowerKey == 'shapeproperties' &&
+              value.containsKey('shape') &&
+              value.containsKey('fillColor') &&
+              value.containsKey('strokeColor')) {
+            try {
+              // Deserialize nested values first
+              walk(value);
+
+              final shapeProps = hive_model.HiveShapeProperties(
+                shape: value['shape'] as String? ?? 'rectangle',
+                fillColor: value['fillColor'] is hive_model.HiveColor
+                    ? value['fillColor'] as hive_model.HiveColor
+                    : hive_model.HiveColor(Colors.blue.value),
+                strokeColor: value['strokeColor'] is hive_model.HiveColor
+                    ? value['strokeColor'] as hive_model.HiveColor
+                    : hive_model.HiveColor(Colors.black.value),
+                strokeWidth: (value['strokeWidth'] as num?)?.toDouble() ?? 2.0,
+                hasGradient: value['hasGradient'] as bool? ?? false,
+                gradientColors:
+                    (value['gradientColors'] as List<dynamic>?)
+                        ?.map(
+                          (e) => e is hive_model.HiveColor
+                              ? e
+                              : hive_model.HiveColor(Colors.blue.value),
+                        )
+                        .toList() ??
+                    [],
+                gradientAngle:
+                    (value['gradientAngle'] as num?)?.toDouble() ?? 0.0,
+                cornerRadius:
+                    (value['cornerRadius'] as num?)?.toDouble() ?? 0.0,
+                hasShadow: value['hasShadow'] as bool? ?? false,
+                shadowColor: value['shadowColor'] is hive_model.HiveColor
+                    ? value['shadowColor'] as hive_model.HiveColor
+                    : hive_model.HiveColor(Colors.black.value),
+                shadowOffset: value['shadowOffset'] is Offset
+                    ? value['shadowOffset'] as Offset
+                    : Offset.zero,
+                shadowBlur: (value['shadowBlur'] as num?)?.toDouble() ?? 8.0,
+                shadowOpacity:
+                    (value['shadowOpacity'] as num?)?.toDouble() ?? 0.6,
+                imagePath: value['imagePath'] as String?,
+                size: value['size'] is hive_model.HiveSize
+                    ? value['size'] as hive_model.HiveSize
+                    : null,
+              );
+              map[key] = shapeProps;
+              return;
+            } catch (e) {
+              print('Warning: Failed to deserialize HiveShapeProperties: $e');
+            }
+          }
+
+          // HiveStickerProperties reconstruction
+          if (lowerKey == 'stickerproperties' &&
+              value.containsKey('iconCodePoint') &&
+              value.containsKey('color')) {
+            try {
+              // Deserialize nested values first
+              walk(value);
+
+              final stickerProps = hive_model.HiveStickerProperties(
+                iconCodePoint: value['iconCodePoint'] as int? ?? 0xe7fd,
+                iconFontFamily: value['iconFontFamily'] as String?,
+                color: value['color'] is hive_model.HiveColor
+                    ? value['color'] as hive_model.HiveColor
+                    : hive_model.HiveColor(Colors.black.value),
+                size: (value['size'] as num?)?.toDouble() ?? 60.0,
+              );
+              map[key] = stickerProps;
+              return;
+            } catch (e) {
+              print('Warning: Failed to deserialize HiveStickerProperties: $e');
+            }
           }
 
           // Recurse for nested maps that didn't match known shapes

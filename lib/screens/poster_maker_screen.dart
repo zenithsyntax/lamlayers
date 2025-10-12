@@ -4022,20 +4022,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
             () => _sendToBack(selectedItem!),
           ),
-
-          _miniIconButton(
-            selectedItem!.isLocked ? 'Unlock' : 'Lock',
-            selectedItem!.isLocked
-                ? Icons.lock_open_rounded
-                : Icons.lock_rounded,
-            () {
-              if (selectedItem != null) {
-                _mutateItemWithHistory(selectedItem!, (it) {
-                  it.isLocked = !it.isLocked;
-                });
-              }
-            },
-          ),
         ];
 
       case 1: // Type specific controls
@@ -7207,26 +7193,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             },
           ),
 
-          // Undo drawing stroke
-          _chipButton(
-            background: Colors.grey.shade200,
-            borderColor: Colors.grey.shade300,
-            icon: Icons.undo_rounded,
-            iconColor: Colors.grey.shade800,
-            label: 'Undo',
-            onTap: _undoLastDrawing,
-          ),
-
-          // Redo drawing stroke
-          _chipButton(
-            background: Colors.grey.shade200,
-            borderColor: Colors.grey.shade300,
-            icon: Icons.redo_rounded,
-            iconColor: Colors.grey.shade800,
-            label: 'Redo',
-            onTap: _redoLastDrawing,
-          ),
-
           _chipToggle(
             active: selectedDrawingTool == DrawingTool.eraser,
             activeBackground: Colors.orange.shade700,
@@ -7798,24 +7764,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       isDrawing = false;
       _drawingRedoStack.clear();
     });
-  }
-
-  void _undoLastDrawing() {
-    if (drawingLayers.isNotEmpty) {
-      setState(() {
-        final removed = drawingLayers.removeLast();
-        _drawingRedoStack.add(removed);
-      });
-    }
-  }
-
-  void _redoLastDrawing() {
-    if (_drawingRedoStack.isNotEmpty) {
-      setState(() {
-        final restored = _drawingRedoStack.removeLast();
-        drawingLayers.add(restored);
-      });
-    }
   }
 
   Widget _buildCanvas() {
@@ -13991,23 +13939,13 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         actions: <Type, Action<Intent>>{
           _UndoIntent: CallbackAction<_UndoIntent>(
             onInvoke: (intent) {
-              if (selectedTabIndex == 3 &&
-                  drawingMode != DrawingMode.disabled) {
-                _undoLastDrawing();
-              } else {
-                _undo();
-              }
+              _undo();
               return null;
             },
           ),
           _RedoIntent: CallbackAction<_RedoIntent>(
             onInvoke: (intent) {
-              if (selectedTabIndex == 3 &&
-                  drawingMode != DrawingMode.disabled) {
-                _redoLastDrawing();
-              } else {
-                _redo();
-              }
+              _redo();
               return null;
             },
           ),

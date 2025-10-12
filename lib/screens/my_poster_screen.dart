@@ -67,9 +67,9 @@ class _MyDesignsScreenState extends State<MyDesignsScreen> {
         final String filePath = result.files.single.path!;
 
         // Validate extension manually
-        if (!filePath.toLowerCase().endsWith('.lamlayer')) {
+        if (!filePath.toLowerCase().endsWith('.lamlayers')) {
           _showErrorMessage(
-            'Please select a .lamlayer file. Selected: ${filePath.split('/').last}',
+            'Please select a .lamlayers file. Selected: ${filePath.split('/').last}',
           );
           return;
         }
@@ -105,7 +105,7 @@ class _MyDesignsScreenState extends State<MyDesignsScreen> {
             _showSuccessMessage('Project loaded successfully!');
           } else {
             _showErrorMessage(
-              'Failed to load project. The file may be corrupted.',
+              'Failed to load project. The file may be corrupted or incomplete.\n\nPossible causes:\n• File was not fully downloaded/transferred\n• File was created with an older version\n• File structure is invalid\n\nPlease try exporting the project again or contact support if the issue persists.',
             );
           }
         } catch (e) {
