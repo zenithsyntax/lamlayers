@@ -19,8 +19,9 @@ class ScrapbookFlipBookView extends StatefulWidget {
 class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
   late Box<PosterProject> _projectBox;
   late PageTurnController _pageController;
-  int _currentLeftPage = 0;
-  int _currentRightPage = 1;
+  // Track current page indices for navigation button state
+  int _currentLeftPage = 0; // ignore: unused_field
+  int _currentRightPage = 1; // ignore: unused_field
 
   @override
   void initState() {
@@ -121,6 +122,19 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
     });
   }
 
+  void _goToPreviousPage() {
+    if (_currentLeftPage > 0) {
+      _pageController.previousPage();
+    }
+  }
+
+  void _goToNextPage() {
+    final pageIds = widget.scrapbook.pageProjectIds;
+    if (_currentRightPage < pageIds.length - 1) {
+      _pageController.nextPage();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final pageIds = widget.scrapbook.pageProjectIds;
@@ -184,8 +198,6 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
 
     // Calculate aspect ratio based on scrapbook page dimensions
     // For dual page mode, we need to account for two pages side by side
-    final aspectRatio =
-        (widget.scrapbook.pageWidth * 2) / widget.scrapbook.pageHeight;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF1F5F9),
@@ -203,7 +215,7 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
                   // 🟤 Background book cover (below)
                   Center(
                     child: Container(
-                      width: MediaQuery.of(context).size.height * 0.82,
+                      width: MediaQuery.of(context).size.height * 0.825,
                       height: MediaQuery.of(context).size.width * 0.76,
 
                       child: Stack(
@@ -239,9 +251,9 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
                               decoration: BoxDecoration(
                                 color: const Color.fromARGB(
                                   255,
-                                  212,
-                                  177,
-                                  146,
+                                  192,
+                                  161,
+                                  134,
                                 ), // light brown wood-like color
                                 borderRadius: BorderRadius.only(
                                   bottomLeft: Radius.circular(16.r),
@@ -297,6 +309,60 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
                                 pageIndex,
                               );
                             },
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Navigation buttons
+                  Positioned(
+                    bottom: 20.h,
+                    left: 20.w,
+                    child: SizedBox(
+                  
+                      child: Center(
+                        child: IconButton(
+                          onPressed: _currentLeftPage > 0
+                              ? _goToPreviousPage
+                              : null,
+                          icon: Icon(
+                            Icons.arrow_back_ios,
+                            color: _currentLeftPage > 0
+                                ? const Color(0xFF0F172A)
+                                : const Color(0xFF94A3B8),
+                            size: 15.r,
+                          ),
+                          padding: EdgeInsets.all(8.w),
+                          constraints: BoxConstraints(
+                            minWidth: 50.w,
+                            minHeight: 50.h,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  Positioned(
+                    bottom: 20.h,
+                    right: 20.w,
+                    child: SizedBox(
+                      child: Center(
+                        child: IconButton(
+                          onPressed: _currentRightPage < pageIds.length - 1
+                              ? _goToNextPage
+                              : null,
+                          icon: Icon(
+                            Icons.arrow_forward_ios,
+                            color: _currentRightPage < pageIds.length - 1
+                                ? const Color(0xFF0F172A)
+                                : const Color(0xFF94A3B8),
+                            size: 15.r,
+                          ),
+                          padding: EdgeInsets.all(8.w),
+                          constraints: BoxConstraints(
+                            minWidth: 50.w,
+                            minHeight: 50.h,
                           ),
                         ),
                       ),
