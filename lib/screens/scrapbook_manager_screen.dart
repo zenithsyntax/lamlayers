@@ -197,6 +197,24 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen> {
     }
   }
 
+  Future<void> _reorderPages(int oldIndex, int newIndex) async {
+    if (_scrapbook == null) return;
+
+    // Don't allow reordering cover (index 0) and back (last index) pages
+    if (oldIndex == 0 || oldIndex == _scrapbook!.pageProjectIds.length - 1)
+      return;
+    if (newIndex == 0 || newIndex == _scrapbook!.pageProjectIds.length - 1)
+      return;
+
+    final ids = List<String>.from(_scrapbook!.pageProjectIds);
+    final item = ids.removeAt(oldIndex);
+    ids.insert(newIndex, item);
+
+    _scrapbook = _scrapbook!.copyWith(pageProjectIds: ids);
+    await _scrapbookBox.put(_scrapbook!.id, _scrapbook!);
+    setState(() {});
+  }
+
   void _editPage(String projectId) {
     Navigator.push(
       context,
@@ -416,6 +434,238 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen> {
     );
   }
 
+  Widget _buildListPageItem(String projectId, int index) {
+    final isCover = index == 0;
+    final isBack = index == _scrapbook!.pageProjectIds.length - 1;
+    final pageNumber = isCover ? 'Cover' : (isBack ? 'Back' : 'Page $index');
+    final isDraggable = !isCover && !isBack;
+
+    return Container(
+      key: ValueKey(projectId),
+      margin: EdgeInsets.only(bottom: 12.h),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16.r),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withOpacity(0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+            spreadRadius: -2,
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _editPage(projectId),
+          borderRadius: BorderRadius.circular(16.r),
+          child: Padding(
+            padding: EdgeInsets.all(16.w),
+            child: Row(
+              children: [
+                // Drag handle
+                if (isDraggable)
+                  Container(
+                    margin: EdgeInsets.only(right: 12.w),
+                    child: Icon(
+                      Icons.drag_handle,
+                      color: const Color(0xFF94A3B8),
+                      size: 20.r,
+                    ),
+                  ),
+                // Page preview
+                Container(
+                  width: 60.w,
+                  height: 60.h,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12.r),
+                    color: const Color(0xFFF8FAFC),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12.r),
+                    child: _previewFor(projectId),
+                  ),
+                ),
+                SizedBox(width: 16.w),
+                // Page info
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        pageNumber,
+                        style: GoogleFonts.inter(
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF0F172A),
+                        ),
+                      ),
+                      SizedBox(height: 4.h),
+                      Text(
+                        isCover
+                            ? 'Front cover of your scrapbook'
+                            : isBack
+                            ? 'Back cover of your scrapbook'
+                            : 'Page content',
+                        style: GoogleFonts.inter(
+                          fontSize: 12.sp,
+                          color: const Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Menu button
+                if (isDraggable)
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.95),
+                      borderRadius: BorderRadius.circular(8.r),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: PopupMenuButton<String>(
+                      onSelected: (v) {
+                        if (v == 'duplicate') _duplicatePage(index);
+                        if (v == 'delete') _deletePage(index);
+                      },
+                      icon: Icon(
+                        Icons.more_horiz,
+                        size: 18.r,
+                        color: const Color(0xFF64748B),
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                      itemBuilder: (context) => [
+                        PopupMenuItem(
+                          value: 'duplicate',
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.content_copy,
+                                size: 18.r,
+                                color: const Color(0xFF64748B),
+                              ),
+                              SizedBox(width: 12.w),
+                              Text(
+                                'Duplicate',
+                                style: GoogleFonts.inter(fontSize: 14.sp),
+                              ),
+                            ],
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.delete_outline,
+                                size: 18.r,
+                                color: const Color(0xFFEF4444),
+                              ),
+                              SizedBox(width: 12.w),
+                              Text(
+                                'Delete',
+                                style: GoogleFonts.inter(
+                                  fontSize: 14.sp,
+                                  color: const Color(0xFFEF4444),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNewPageListItem() {
+    return Container(
+      key: const ValueKey('new_page_item'),
+      margin: EdgeInsets.only(bottom: 12.h),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(
+          color: const Color(0xFFEC4899),
+          width: 2,
+          strokeAlign: BorderSide.strokeAlignInside,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFEC4899).withOpacity(0.1),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _addPage,
+          borderRadius: BorderRadius.circular(16.r),
+          child: Padding(
+            padding: EdgeInsets.all(16.w),
+            child: Row(
+              children: [
+                Container(
+                  width: 60.w,
+                  height: 60.h,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEC4899).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                  child: Icon(
+                    Icons.add,
+                    color: const Color(0xFFEC4899),
+                    size: 24.r,
+                  ),
+                ),
+                SizedBox(width: 16.w),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Add New Page',
+                        style: GoogleFonts.inter(
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF0F172A),
+                        ),
+                      ),
+                      SizedBox(height: 4.h),
+                      Text(
+                        'Create a new page for your scrapbook',
+                        style: GoogleFonts.inter(
+                          fontSize: 12.sp,
+                          color: const Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_scrapbook == null) {
@@ -527,21 +777,41 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen> {
       ),
       body: Padding(
         padding: EdgeInsets.all(20.w),
-        child: GridView.builder(
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: 16.w,
-            mainAxisSpacing: 16.h,
-            childAspectRatio: 0.65,
-          ),
-          itemCount: ids.length + 1,
-          itemBuilder: (context, index) {
-            if (index == ids.length) {
-              return _buildNewPageCard();
-            }
-            return _buildPageCard(ids[index], index);
-          },
-        ),
+        child: _isGridView
+            ? GridView.builder(
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 16.w,
+                  mainAxisSpacing: 16.h,
+                  childAspectRatio: 1,
+                ),
+                itemCount: ids.length + 1,
+                itemBuilder: (context, index) {
+                  if (index == ids.length) {
+                    return _buildNewPageCard();
+                  }
+                  return _buildPageCard(ids[index], index);
+                },
+              )
+            : ReorderableListView.builder(
+                padding: EdgeInsets.zero,
+                itemCount: ids.length + 1,
+                onReorder: (oldIndex, newIndex) {
+                  if (oldIndex < newIndex) {
+                    newIndex -= 1;
+                  }
+                  if (oldIndex == ids.length || newIndex == ids.length) {
+                    return; // Don't reorder the "Add New Page" item
+                  }
+                  _reorderPages(oldIndex, newIndex);
+                },
+                itemBuilder: (context, index) {
+                  if (index == ids.length) {
+                    return _buildNewPageListItem();
+                  }
+                  return _buildListPageItem(ids[index], index);
+                },
+              ),
       ),
     );
   }
