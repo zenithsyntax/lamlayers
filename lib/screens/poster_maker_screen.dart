@@ -1512,7 +1512,8 @@ class _ShapePainter extends CustomPainter {
         ..isAntiAlias = true;
 
       if (hasGradient) {
-        final double rad = gradientAngle * math.pi / 185.0;
+        // Convert degrees to radians properly (360 degrees = 2π radians)
+        final double rad = gradientAngle * math.pi / 180.0;
 
         final double cx = math.cos(rad);
 
@@ -4212,9 +4213,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
           (props['gradientAngle'] as double?) ?? 0.0,
 
-          -185.0,
+          -180.0,
 
-          185.0,
+          180.0,
 
           (v) => setState(() => props['gradientAngle'] = v),
 
@@ -8517,17 +8518,24 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           (baseShadowColor.opacity * textShadowOpacity).clamp(0.0, 1.0),
         );
 
+        // Get the base text color and apply item opacity
+        final Color baseTextColor = textHasGradient
+            ? Colors.white
+            : (props['color'] is HiveColor)
+            ? (props['color'] as HiveColor).toColor()
+            : (props['color'] is Color)
+            ? (props['color'] as Color)
+            : Colors.black;
+
+        final Color effectiveTextColor = textHasGradient
+            ? baseTextColor // Don't apply opacity to gradient text as it uses shader
+            : baseTextColor.withOpacity(item.opacity);
+
         final TextStyle baseStyle = TextStyle(
           fontSize: (props['fontSize'] ?? 24.0) as double,
 
-          // Force solid white text when using ShaderMask gradient so the alpha is solid
-          color: textHasGradient
-              ? Colors.white
-              : (props['color'] is HiveColor)
-              ? (props['color'] as HiveColor).toColor()
-              : (props['color'] is Color)
-              ? (props['color'] as Color)
-              : Colors.black,
+          // Apply opacity to text color
+          color: effectiveTextColor,
 
           fontWeight: _parseFontWeight(props['fontWeight']),
 
@@ -8536,8 +8544,10 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           decoration: _intToTextDecoration((props['decoration'] as int?) ?? 0),
 
           decorationColor: (props['color'] is HiveColor)
-              ? (props['color'] as HiveColor).toColor()
-              : (props['color'] as Color?),
+              ? (props['color'] as HiveColor).toColor().withOpacity(
+                  item.opacity,
+                )
+              : (props['color'] as Color?)?.withOpacity(item.opacity),
 
           letterSpacing: (props['letterSpacing'] as double?) ?? 0.0,
 
@@ -8599,7 +8609,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         if (textHasGradient) {
           final double angle = (props['gradientAngle'] as double?) ?? 0.0;
 
-          final double rad = angle * math.pi / 185.0;
+          // Convert degrees to radians properly (360 degrees = 2π radians)
+          final double rad = angle * math.pi / 180.0;
 
           final double cx = math.cos(rad);
 
@@ -8621,6 +8632,14 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                 HiveColor.fromColor(Colors.purple).toColor(),
               ];
 
+          // Ensure we have at least 2 colors for the gradient
+          final List<Color> safeGradientColors = gradientColors.length >= 2
+              ? gradientColors
+              : [
+                  HiveColor.fromColor(Colors.blue).toColor(),
+                  HiveColor.fromColor(Colors.purple).toColor(),
+                ];
+
           final String displayText = (props['text'] ?? 'Text') as String;
           final TextPainter _tp = TextPainter(
             text: TextSpan(text: displayText, style: baseStyle),
@@ -8632,7 +8651,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           final Rect gradRect = Rect.fromLTWH(0, 0, _tp.width, _tp.height);
           final Paint fgPaint = Paint()
             ..shader = LinearGradient(
-              colors: gradientColors,
+              colors: safeGradientColors,
               begin: begin,
               end: end,
             ).createShader(gradRect);
@@ -8658,6 +8677,11 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           } else {
             textWidget = gradientText;
           }
+        }
+
+        // Apply opacity to the entire text widget for gradient text
+        if (textHasGradient) {
+          textWidget = Opacity(opacity: item.opacity, child: textWidget);
         }
 
         return Container(padding: EdgeInsets.all(16.w), child: textWidget);
@@ -9142,7 +9166,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         );
       } else {
         // Use normal gradient
-        final double rad = gradientAngle * math.pi / 185.0;
+        // Convert degrees to radians properly (360 degrees = 2π radians)
+        final double rad = gradientAngle * math.pi / 180.0;
 
         final double cx = math.cos(rad);
 
@@ -10004,14 +10029,14 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
                     child: Slider(
                       value: ((props['gradientAngle'] as double?) ?? 0.0).clamp(
-                        -185.0,
+                        -180.0,
 
-                        185.0,
+                        180.0,
                       ),
 
-                      min: -185.0,
+                      min: -180.0,
 
-                      max: 185.0,
+                      max: 180.0,
 
                       onChanged: (v) =>
                           setState(() => props['gradientAngle'] = v),
