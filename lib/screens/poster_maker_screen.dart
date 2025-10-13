@@ -7770,12 +7770,15 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   Widget _buildCanvas() {
     return Expanded(
       child: InteractiveViewer(
-        minScale: 0.005,
+        // Prevent extreme zoom-out; keep at least fit-to-screen size
+        minScale: 1.0,
 
         maxScale: 3.0,
         panEnabled: true,
         scaleEnabled: true,
-        boundaryMargin: const EdgeInsets.all(double.infinity),
+        // Do not allow panning beyond the child bounds (no infinite whitespace)
+        boundaryMargin: EdgeInsets.zero,
+        clipBehavior: Clip.hardEdge,
         transformationController: _canvasController,
         onInteractionEnd: (_) {
           // Small ease-out to smooth out abrupt stop; do not change target matrix
