@@ -52,195 +52,468 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
   Future<void> _openEditSheet() async {
     showModalBottomSheet(
       context: context,
-      showDragHandle: true,
-      backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16.r)),
-      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
-            return SafeArea(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.only(bottom: 16.h),
+            return DraggableScrollableSheet(
+              initialChildSize: 0.7,
+              minChildSize: 0.5,
+              maxChildSize: 0.95,
+              builder: (_, scrollController) {
+                return Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 20,
+                        offset: const Offset(0, -5),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      // Drag handle
+                      Container(
+                        margin: EdgeInsets.only(top: 12.h, bottom: 8.h),
+                        width: 40.w,
+                        height: 4.h,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE2E8F0),
+                          borderRadius: BorderRadius.circular(2.r),
+                        ),
+                      ),
+                      
+                      // Header
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 8.h),
+                        child: Row(
+                          children: [
+                            Text(
+                              'Customize Scrapbook',
+                              style: GoogleFonts.inter(
+                                fontSize: 20.sp,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF0F172A),
+                              ),
+                            ),
+                            const Spacer(),
+                            IconButton(
+                              onPressed: () => Navigator.pop(ctx),
+                              icon: const Icon(Icons.close_rounded),
+                              color: const Color(0xFF64748B),
+                              iconSize: 24.r,
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      Divider(height: 1.h, thickness: 1),
+                      
+                      // Content
+                      Expanded(
+                        child: ListView(
+                          controller: scrollController,
+                          padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
+                          children: [
+                            // Background Section
+                            _buildSectionHeader('Background'),
+                            SizedBox(height: 12.h),
+                            _buildOptionCard(
+                              icon: Icons.wallpaper_outlined,
+                              title: 'Choose Image',
+                              subtitle: 'Set a custom background image',
+                              onTap: () async {
+                                final path = await _pickImage();
+                                if (!mounted) return;
+                                Navigator.pop(ctx);
+                                if (path != null) {
+                                  setState(() {
+                                    _scaffoldBgImagePath = path;
+                                  });
+                                }
+                              },
+                            ),
+                            SizedBox(height: 8.h),
+                            _buildOptionCard(
+                              icon: Icons.palette_outlined,
+                              title: 'Choose Color',
+                              subtitle: 'Pick from palette or custom color',
+                              trailing: Container(
+                                width: 32.w,
+                                height: 32.h,
+                                decoration: BoxDecoration(
+                                  color: _scaffoldBgColor,
+                                  borderRadius: BorderRadius.circular(8.r),
+                                  border: Border.all(color: const Color(0xFFE2E8F0), width: 2),
+                                ),
+                              ),
+                              onTap: () => _showColorOptions(
+                                ctx,
+                                'Background Color',
+                                _scaffoldBgColor,
+                                (color) {
+                                  setState(() {
+                                    _scaffoldBgColor = color;
+                                    _scaffoldBgImagePath = null;
+                                  });
+                                },
+                              ),
+                            ),
+                            
+                            SizedBox(height: 24.h),
+                            
+                            // Left Cover Section
+                            _buildSectionHeader('Left Cover'),
+                            SizedBox(height: 12.h),
+                            _buildOptionCard(
+                              icon: Icons.image_outlined,
+                              title: 'Choose Image',
+                              subtitle: 'Set left cover image',
+                              onTap: () async {
+                                final path = await _pickImage();
+                                if (!mounted) return;
+                                Navigator.pop(ctx);
+                                if (path != null) {
+                                  setState(() {
+                                    _leftCoverImagePath = path;
+                                  });
+                                }
+                              },
+                            ),
+                            SizedBox(height: 8.h),
+                            _buildOptionCard(
+                              icon: Icons.palette_outlined,
+                              title: 'Choose Color',
+                              subtitle: 'Pick from palette or custom color',
+                              trailing: Container(
+                                width: 32.w,
+                                height: 32.h,
+                                decoration: BoxDecoration(
+                                  color: _leftCoverColor,
+                                  borderRadius: BorderRadius.circular(8.r),
+                                  border: Border.all(color: const Color(0xFFE2E8F0), width: 2),
+                                ),
+                              ),
+                              onTap: () => _showColorOptions(
+                                ctx,
+                                'Left Cover Color',
+                                _leftCoverColor,
+                                (color) {
+                                  setState(() {
+                                    _leftCoverColor = color;
+                                    _leftCoverImagePath = null;
+                                  });
+                                },
+                              ),
+                            ),
+                            
+                            SizedBox(height: 24.h),
+                            
+                            // Right Cover Section
+                            _buildSectionHeader('Right Cover'),
+                            SizedBox(height: 12.h),
+                            _buildOptionCard(
+                              icon: Icons.image_outlined,
+                              title: 'Choose Image',
+                              subtitle: 'Set right cover image',
+                              onTap: () async {
+                                final path = await _pickImage();
+                                if (!mounted) return;
+                                Navigator.pop(ctx);
+                                if (path != null) {
+                                  setState(() {
+                                    _rightCoverImagePath = path;
+                                  });
+                                }
+                              },
+                            ),
+                            SizedBox(height: 8.h),
+                            _buildOptionCard(
+                              icon: Icons.palette_outlined,
+                              title: 'Choose Color',
+                              subtitle: 'Pick from palette or custom color',
+                              trailing: Container(
+                                width: 32.w,
+                                height: 32.h,
+                                decoration: BoxDecoration(
+                                  color: _rightCoverColor,
+                                  borderRadius: BorderRadius.circular(8.r),
+                                  border: Border.all(color: const Color(0xFFE2E8F0), width: 2),
+                                ),
+                              ),
+                              onTap: () => _showColorOptions(
+                                ctx,
+                                'Right Cover Color',
+                                _rightCoverColor,
+                                (color) {
+                                  setState(() {
+                                    _rightCoverColor = color;
+                                    _rightCoverImagePath = null;
+                                  });
+                                },
+                              ),
+                            ),
+                            
+                            SizedBox(height: 24.h),
+                            
+                            // Navigation Section
+                            _buildSectionHeader('Navigation'),
+                            SizedBox(height: 12.h),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(12.r),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: SwitchListTile(
+                                value: _showArrows,
+                                onChanged: (v) {
+                                  setSheetState(() {});
+                                  setState(() {
+                                    _showArrows = v;
+                                  });
+                                },
+                                secondary: Container(
+                                  padding: EdgeInsets.all(8.r),
+                                  decoration: BoxDecoration(
+                                    color: _showArrows ? const Color(0xFF3B82F6).withOpacity(0.1) : Colors.white,
+                                    borderRadius: BorderRadius.circular(8.r),
+                                  ),
+                                  child: Icon(
+                                    Icons.swap_horiz_rounded,
+                                    color: _showArrows ? const Color(0xFF3B82F6) : const Color(0xFF64748B),
+                                    size: 24.r,
+                                  ),
+                                ),
+                                title: Text(
+                                  'Show page flip arrows',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 15.sp,
+                                    fontWeight: FontWeight.w600,
+                                    color: const Color(0xFF1E293B),
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  'Display navigation arrows on pages',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 13.sp,
+                                    color: const Color(0xFF64748B),
+                                  ),
+                                ),
+                                activeColor: const Color(0xFF3B82F6),
+                              ),
+                            ),
+                            
+                            SizedBox(height: 24.h),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Text(
+      title,
+      style: GoogleFonts.inter(
+        fontSize: 14.sp,
+        fontWeight: FontWeight.w700,
+        color: const Color(0xFF475569),
+        letterSpacing: 0.5,
+      ),
+    );
+  }
+
+  Widget _buildOptionCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+    Widget? trailing,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12.r),
+        child: Container(
+          padding: EdgeInsets.all(16.r),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(12.r),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(10.r),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10.r),
+                ),
+                child: Icon(
+                  icon,
+                  color: const Color(0xFF3B82F6),
+                  size: 24.r,
+                ),
+              ),
+              SizedBox(width: 16.w),
+              Expanded(
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    ListTile(
-                      leading: const Icon(Icons.wallpaper_outlined),
-                      title: const Text('Background: Choose Image'),
-                      onTap: () async {
-                        final path = await _pickImage();
-                        if (!mounted) return;
-                        Navigator.pop(ctx);
-                        if (path != null) {
-                          setState(() {
-                            _scaffoldBgImagePath = path;
-                          });
-                        }
-                      },
+                    Text(
+                      title,
+                      style: GoogleFonts.inter(
+                        fontSize: 15.sp,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF1E293B),
+                      ),
                     ),
-                    ExpansionTile(
-                      leading: const Icon(Icons.format_color_fill_outlined),
-                      title: const Text('Background: Choose Color'),
-                      children: [
-                        ListTile(
-                          title: const Text('Pick from palette'),
-                          onTap: () async {
-                            final color = await _selectColor(
-                              initial: _scaffoldBgColor,
-                            );
-                            if (!mounted) return;
-                            Navigator.pop(ctx);
-                            if (color != null) {
-                              setState(() {
-                                _scaffoldBgColor = color;
-                                _scaffoldBgImagePath = null;
-                              });
-                            }
-                          },
-                        ),
-                        ListTile(
-                          title: const Text('Custom color…'),
-                          onTap: () async {
-                            final color = await _selectCustomColor(
-                              initial: _scaffoldBgColor,
-                            );
-                            if (!mounted) return;
-                            Navigator.pop(ctx);
-                            if (color != null) {
-                              setState(() {
-                                _scaffoldBgColor = color;
-                                _scaffoldBgImagePath = null;
-                              });
-                            }
-                          },
-                        ),
-                      ],
-                    ),
-                    const Divider(height: 1),
-                    ListTile(
-                      leading: const Icon(Icons.image_outlined),
-                      title: const Text('Left Cover: Choose Image'),
-                      onTap: () async {
-                        final path = await _pickImage();
-                        if (!mounted) return;
-                        Navigator.pop(ctx);
-                        if (path != null) {
-                          setState(() {
-                            _leftCoverImagePath = path;
-                          });
-                        }
-                      },
-                    ),
-                    ExpansionTile(
-                      leading: const Icon(Icons.format_color_fill_outlined),
-                      title: const Text('Left Cover: Choose Color'),
-                      children: [
-                        ListTile(
-                          title: const Text('Pick from palette'),
-                          onTap: () async {
-                            final color = await _selectColor(
-                              initial: _leftCoverColor,
-                            );
-                            if (!mounted) return;
-                            Navigator.pop(ctx);
-                            if (color != null) {
-                              setState(() {
-                                _leftCoverColor = color;
-                                _leftCoverImagePath = null;
-                              });
-                            }
-                          },
-                        ),
-                        ListTile(
-                          title: const Text('Custom color…'),
-                          onTap: () async {
-                            final color = await _selectCustomColor(
-                              initial: _leftCoverColor,
-                            );
-                            if (!mounted) return;
-                            Navigator.pop(ctx);
-                            if (color != null) {
-                              setState(() {
-                                _leftCoverColor = color;
-                                _leftCoverImagePath = null;
-                              });
-                            }
-                          },
-                        ),
-                      ],
-                    ),
-                    const Divider(height: 1),
-                    ListTile(
-                      leading: const Icon(Icons.image_outlined),
-                      title: const Text('Right Cover: Choose Image'),
-                      onTap: () async {
-                        final path = await _pickImage();
-                        if (!mounted) return;
-                        Navigator.pop(ctx);
-                        if (path != null) {
-                          setState(() {
-                            _rightCoverImagePath = path;
-                          });
-                        }
-                      },
-                    ),
-                    ExpansionTile(
-                      leading: const Icon(Icons.format_color_fill_outlined),
-                      title: const Text('Right Cover: Choose Color'),
-                      children: [
-                        ListTile(
-                          title: const Text('Pick from palette'),
-                          onTap: () async {
-                            final color = await _selectColor(
-                              initial: _rightCoverColor,
-                            );
-                            if (!mounted) return;
-                            Navigator.pop(ctx);
-                            if (color != null) {
-                              setState(() {
-                                _rightCoverColor = color;
-                                _rightCoverImagePath = null;
-                              });
-                            }
-                          },
-                        ),
-                        ListTile(
-                          title: const Text('Custom color…'),
-                          onTap: () async {
-                            final color = await _selectCustomColor(
-                              initial: _rightCoverColor,
-                            );
-                            if (!mounted) return;
-                            Navigator.pop(ctx);
-                            if (color != null) {
-                              setState(() {
-                                _rightCoverColor = color;
-                                _rightCoverImagePath = null;
-                              });
-                            }
-                          },
-                        ),
-                      ],
-                    ),
-                    const Divider(height: 1),
-                    SwitchListTile(
-                      value: _showArrows,
-                      onChanged: (v) {
-                        setSheetState(() {});
-                        setState(() {
-                          _showArrows = v;
-                        });
-                      },
-                      secondary: const Icon(Icons.swap_horiz_rounded),
-                      title: const Text('Show page flip arrows'),
+                    SizedBox(height: 2.h),
+                    Text(
+                      subtitle,
+                      style: GoogleFonts.inter(
+                        fontSize: 13.sp,
+                        color: const Color(0xFF64748B),
+                      ),
                     ),
                   ],
                 ),
               ),
-            );
-          },
+              if (trailing != null) ...[
+                SizedBox(width: 12.w),
+                trailing,
+              ] else
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: const Color(0xFF94A3B8),
+                  size: 24.r,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showColorOptions(BuildContext parentContext, String title, Color initialColor, Function(Color) onColorSelected) {
+    showModalBottomSheet(
+      context: parentContext,
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                margin: EdgeInsets.only(top: 12.h, bottom: 8.h),
+                width: 40.w,
+                height: 4.h,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE2E8F0),
+                  borderRadius: BorderRadius.circular(2.r),
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
+                child: Text(
+                  title,
+                  style: GoogleFonts.inter(
+                    fontSize: 18.sp,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF0F172A),
+                  ),
+                ),
+              ),
+              Divider(height: 1.h),
+              ListTile(
+                leading: Container(
+                  padding: EdgeInsets.all(8.r),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(8.r),
+                  ),
+                  child: Icon(Icons.palette_outlined, color: const Color(0xFF3B82F6), size: 24.r),
+                ),
+                title: Text(
+                  'Pick from palette',
+                  style: GoogleFonts.inter(
+                    fontSize: 15.sp,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF1E293B),
+                  ),
+                ),
+                subtitle: Text(
+                  'Choose from preset colors',
+                  style: GoogleFonts.inter(
+                    fontSize: 13.sp,
+                    color: const Color(0xFF64748B),
+                  ),
+                ),
+                trailing: Icon(Icons.chevron_right_rounded, color: const Color(0xFF94A3B8)),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final color = await _selectColor(initial: initialColor);
+                  if (!mounted) return;
+                  Navigator.pop(parentContext);
+                  if (color != null) {
+                    onColorSelected(color);
+                  }
+                },
+              ),
+              ListTile(
+                leading: Container(
+                  padding: EdgeInsets.all(8.r),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(8.r),
+                  ),
+                  child: Icon(Icons.colorize_outlined, color: const Color(0xFF8B5CF6), size: 24.r),
+                ),
+                title: Text(
+                  'Custom color',
+                  style: GoogleFonts.inter(
+                    fontSize: 15.sp,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF1E293B),
+                  ),
+                ),
+                subtitle: Text(
+                  'Create your own color',
+                  style: GoogleFonts.inter(
+                    fontSize: 13.sp,
+                    color: const Color(0xFF64748B),
+                  ),
+                ),
+                trailing: Icon(Icons.chevron_right_rounded, color: const Color(0xFF94A3B8)),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final color = await _selectCustomColor(initial: initialColor);
+                  if (!mounted) return;
+                  Navigator.pop(parentContext);
+                  if (color != null) {
+                    onColorSelected(color);
+                  }
+                },
+              ),
+              SizedBox(height: 16.h),
+            ],
+          ),
         );
       },
     );
@@ -258,7 +531,15 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
       builder: (ctx) {
         Color temp = initial;
         return AlertDialog(
-          title: const Text('Pick from palette'),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
+          title: Text(
+            'Pick from palette',
+            style: GoogleFonts.inter(
+              fontSize: 18.sp,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF0F172A),
+            ),
+          ),
           content: SingleChildScrollView(
             child: BlockPicker(
               pickerColor: temp,
@@ -268,11 +549,24 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(null),
-              child: const Text('Cancel'),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.inter(
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF64748B),
+                ),
+              ),
             ),
             FilledButton(
               onPressed: () => Navigator.of(ctx).pop(temp),
-              child: const Text('Select'),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF3B82F6),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r)),
+              ),
+              child: Text(
+                'Select',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+              ),
             ),
           ],
         );
@@ -286,7 +580,15 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
       builder: (ctx) {
         Color temp = initial;
         return AlertDialog(
-          title: const Text('Custom color'),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
+          title: Text(
+            'Custom color',
+            style: GoogleFonts.inter(
+              fontSize: 18.sp,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF0F172A),
+            ),
+          ),
           content: SingleChildScrollView(
             child: ColorPicker(
               pickerColor: temp,
@@ -299,11 +601,24 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(null),
-              child: const Text('Cancel'),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.inter(
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF64748B),
+                ),
+              ),
             ),
             FilledButton(
               onPressed: () => Navigator.of(ctx).pop(temp),
-              child: const Text('Select'),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF3B82F6),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r)),
+              ),
+              child: Text(
+                'Select',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+              ),
             ),
           ],
         );
