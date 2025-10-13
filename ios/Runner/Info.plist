@@ -48,5 +48,47 @@
 	<!-- Sample AdMob App ID for testing. Replace with your real App ID when ready. -->
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-3940256099942544~1458002511</string>
+  
+  <!-- Allow opening custom .lambook documents -->
+  <key>CFBundleDocumentTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleTypeName</key>
+      <string>Lamlayers Project</string>
+      <key>LSHandlerRank</key>
+      <string>Owner</string>
+      <key>LSItemContentTypes</key>
+      <array>
+        <string>com.lamlayers.lambook</string>
+      </array>
+      <key>CFBundleTypeIconFiles</key>
+      <array/>
+      <key>CFBundleTypeRole</key>
+      <string>Editor</string>
+    </dict>
+  </array>
+  <key>UTExportedTypeDeclarations</key>
+  <array>
+    <dict>
+      <key>UTTypeIdentifier</key>
+      <string>com.lamlayers.lambook</string>
+      <key>UTTypeDescription</key>
+      <string>Lamlayers Project</string>
+      <key>UTTypeConformsTo</key>
+      <array>
+        <string>public.data</string>
+        <string>public.item</string>
+      </array>
+      <key>UTTypeTagSpecification</key>
+      <dict>
+        <key>public.filename-extension</key>
+        <array>
+          <string>lambook</string>
+        </array>
+        <key>public.mime-type</key>
+        <string>application/x-lamlayers-lambook</string>
+      </dict>
+    </dict>
+  </array>
 </dict>
 </plist>

@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:lamlayers/screens/hive_model.dart';
 import 'package:lamlayers/scrap_book_page_turn/interactive_book.dart';
+import 'package:lamlayers/utils/export_manager.dart';
 
 class ScrapbookFlipBookView extends StatefulWidget {
   final Scrapbook scrapbook;
@@ -985,6 +986,46 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
                   icon: const Icon(Icons.edit, color: Color(0xFF0F172A)),
                   onPressed: _openEditSheet,
                   tooltip: 'Edit view',
+                ),
+              ),
+            ),
+            // Share button (bottom-left at 8,8)
+            Positioned(
+              bottom: 8,
+              right: 8,
+              child: Material(
+                color: Colors.white,
+                shape: const CircleBorder(),
+                elevation: 2,
+                child: IconButton(
+                  icon: const Icon(Icons.ios_share, color: Color(0xFF0F172A)),
+                  tooltip: 'Share flip book',
+                  onPressed: () async {
+                    final ids = widget.scrapbook.pageProjectIds;
+                    final List<PosterProject> pages = [];
+                    for (final id in ids) {
+                      final p = _projectBox.get(id);
+                      if (p != null) pages.add(p);
+                    }
+
+                    if (pages.isEmpty) return;
+
+                    // Build and share .lambook
+                    final String? path =
+                        await ExportManager.exportScrapbookLambook(
+                          scrapbook: widget.scrapbook,
+                          pages: pages,
+                          scaffoldBgColor: _scaffoldBgColor,
+                          scaffoldBgImagePath: _scaffoldBgImagePath,
+                          leftCoverColor: _leftCoverColor,
+                          leftCoverImagePath: _leftCoverImagePath,
+                          rightCoverColor: _rightCoverColor,
+                          rightCoverImagePath: _rightCoverImagePath,
+                        );
+                    if (path != null) {
+                      await ExportManager.shareLambook(path);
+                    }
+                  },
                 ),
               ),
             ),

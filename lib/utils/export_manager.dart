@@ -284,6 +284,152 @@ class ExportManager {
     }
   }
 
+  // Export a full scrapbook (flip book) into a .lambook archive
+  // This bundles:
+  // - scrapbook.json (book-level metadata: size, background/cover colors or base64 images)
+  // - pages/page_{index}.json for each PosterProject, using the same JSON format as exportProject's project.json
+  static Future<String?> exportScrapbookLambook({
+    required hive_model.Scrapbook scrapbook,
+    required List<hive_model.PosterProject> pages,
+    // View-level customization
+    required Color scaffoldBgColor,
+    String? scaffoldBgImagePath,
+    required Color leftCoverColor,
+    String? leftCoverImagePath,
+    required Color rightCoverColor,
+    String? rightCoverImagePath,
+  }) async {
+    try {
+      final bool hasPerm = await requestPermissions();
+      if (!hasPerm) {
+        // Continue with app dir fallback; sharing will still work
+      }
+
+      // Choose target directory
+      Directory targetDir;
+      if (Platform.isAndroid) {
+        targetDir = Directory('/storage/emulated/0/Download');
+        if (!await targetDir.exists()) {
+          try {
+            await targetDir.create(recursive: true);
+          } catch (_) {}
+        }
+        if (!await _isWritableDirectory(targetDir)) {
+          targetDir =
+              (await getExternalStorageDirectory()) ??
+              await getTemporaryDirectory();
+        }
+      } else {
+        targetDir = await getTemporaryDirectory();
+      }
+
+      final String safeName = scrapbook.name.replaceAll(' ', '_');
+      final String fileName =
+          '${safeName}_${DateTime.now().millisecondsSinceEpoch}.lambook';
+      final String filePath = '${targetDir.path}/$fileName';
+
+      final archive = Archive();
+
+      // Build scrapbook.json
+      final Map<String, dynamic> scrapbookData = {
+        'id': scrapbook.id,
+        'name': scrapbook.name,
+        'createdAt': scrapbook.createdAt.toIso8601String(),
+        'lastModified': DateTime.now().toIso8601String(),
+        'pageWidth': scrapbook.pageWidth,
+        'pageHeight': scrapbook.pageHeight,
+        'scaffoldBackground': await _buildColorOrImagePayload(
+          color: scaffoldBgColor,
+          imagePath: scaffoldBgImagePath,
+        ),
+        'leftCover': await _buildColorOrImagePayload(
+          color: leftCoverColor,
+          imagePath: leftCoverImagePath,
+        ),
+        'rightCover': await _buildColorOrImagePayload(
+          color: rightCoverColor,
+          imagePath: rightCoverImagePath,
+        ),
+        'pageCount': pages.length,
+      };
+
+      final Uint8List scrapbookJsonBytes = Uint8List.fromList(
+        utf8.encode(jsonEncode(scrapbookData)),
+      );
+      archive.addFile(
+        ArchiveFile(
+          'scrapbook.json',
+          scrapbookJsonBytes.length,
+          scrapbookJsonBytes,
+        ),
+      );
+
+      // Add each page as pages/page_{i}.json
+      for (int i = 0; i < pages.length; i++) {
+        final page = pages[i];
+        final Uint8List pageJson = await _projectToJson(page);
+        archive.addFile(
+          ArchiveFile(
+            'pages/page_${i.toString().padLeft(3, '0')}.json',
+            pageJson.length,
+            pageJson,
+          ),
+        );
+      }
+
+      // Write archive
+      final zipBytes = ZipEncoder().encode(archive);
+      final File out = File(filePath);
+      try {
+        await out.writeAsBytes(zipBytes);
+      } catch (_) {
+        final Directory tmp = await getTemporaryDirectory();
+        final String fallback = '${tmp.path}/$fileName';
+        final File fb = File(fallback);
+        await fb.writeAsBytes(zipBytes);
+        return fallback;
+      }
+      return filePath;
+    } catch (e) {
+      print('ExportManager: Error exporting lambook: $e');
+      return null;
+    }
+  }
+
+  // Convenience: share a generated .lambook file path
+  static Future<void> shareLambook(String filePath) async {
+    try {
+      await Share.shareXFiles([
+        XFile(filePath, mimeType: 'application/zip'),
+      ], text: 'Check out my flip book');
+    } catch (e) {
+      print('ExportManager: Error sharing lambook: $e');
+    }
+  }
+
+  static Future<Map<String, dynamic>> _buildColorOrImagePayload({
+    required Color color,
+    String? imagePath,
+  }) async {
+    final Map<String, dynamic> payload = {
+      'color': {
+        'value': color.value,
+        'alpha': (color.value >> 24) & 0xFF,
+        'red': (color.value >> 16) & 0xFF,
+        'green': (color.value >> 8) & 0xFF,
+        'blue': color.value & 0xFF,
+      },
+    };
+    if (imagePath != null && imagePath.isNotEmpty) {
+      final String? base64Data = await _encodeImageToBase64(imagePath);
+      if (base64Data != null) {
+        payload['imageBase64'] = base64Data;
+        payload['originalImageName'] = _basename(imagePath);
+      }
+    }
+    return payload;
+  }
+
   static Future<bool> _isWritableDirectory(Directory dir) async {
     try {
       final String testPath = '${dir.path}/.lamlayers_write_test';
@@ -2081,4 +2227,291 @@ class ExportManager {
     if (weight <= 800) return FontWeight.w800;
     return FontWeight.w900;
   }
+
+  // Parse a project JSON (same shape as export) into a PosterProject, extracting images to a temp directory
+  static Future<hive_model.PosterProject?> _parseProjectFromJson(
+    Map<String, dynamic> projectData,
+    Directory tempDir,
+  ) async {
+    final requiredFields = [
+      'name',
+      'canvasWidth',
+      'canvasHeight',
+      'canvasItems',
+      'settings',
+    ];
+    for (final f in requiredFields) {
+      if (!projectData.containsKey(f)) return null;
+    }
+
+    final canvasWidth = projectData['canvasWidth'];
+    final canvasHeight = projectData['canvasHeight'];
+    if (canvasWidth is! num ||
+        canvasHeight is! num ||
+        canvasWidth <= 0 ||
+        canvasHeight <= 0)
+      return null;
+
+    final String projectDir =
+        '${tempDir.path}/project_${DateTime.now().millisecondsSinceEpoch}';
+    await Directory(projectDir).create(recursive: true);
+
+    String? backgroundImagePath;
+    if (projectData['backgroundImageData'] is String &&
+        (projectData['backgroundImageData'] as String).isNotEmpty) {
+      final data = base64Decode(projectData['backgroundImageData'] as String);
+      final ext = _getImageFileExtension(null, data);
+      final f = File('$projectDir/background.$ext');
+      await f.writeAsBytes(data);
+      backgroundImagePath = f.path;
+    }
+
+    String? thumbnailPath;
+    if (projectData['thumbnailData'] is String &&
+        (projectData['thumbnailData'] as String).isNotEmpty) {
+      final data = base64Decode(projectData['thumbnailData'] as String);
+      final ext = _getImageFileExtension(null, data);
+      final f = File('$projectDir/thumbnail.$ext');
+      await f.writeAsBytes(data);
+      thumbnailPath = f.path;
+    }
+
+    final List<hive_model.HiveCanvasItem> canvasItems = [];
+    final canvasItemsData = projectData['canvasItems'];
+    if (canvasItemsData is! List) return null;
+    for (int i = 0; i < canvasItemsData.length; i++) {
+      try {
+        final itemData = canvasItemsData[i] as Map<String, dynamic>;
+        final properties = Map<String, dynamic>.from(
+          itemData['properties'] as Map<String, dynamic>,
+        );
+        _deserializeSpecialValuesInProperties(properties);
+
+        if (itemData['imageData'] is String &&
+            (itemData['imageData'] as String).isNotEmpty) {
+          final imageBytes = base64Decode(itemData['imageData'] as String);
+          final originalName = itemData['originalImageName'] as String?;
+          final ext = _getImageFileExtension(originalName, imageBytes);
+          final ff = File(
+            '$projectDir/${originalName ?? 'item_${i}_image.$ext'}',
+          );
+          await ff.writeAsBytes(imageBytes);
+          properties['filePath'] = ff.path;
+        }
+
+        final itemTypeIndex = itemData['type'] as int;
+        final positionData = itemData['position'] as Map<String, dynamic>;
+        final canvasItem = hive_model.HiveCanvasItem(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          type: hive_model.HiveCanvasItemType.values[itemTypeIndex],
+          position: Offset(
+            (positionData['dx'] as num).toDouble(),
+            (positionData['dy'] as num).toDouble(),
+          ),
+          scale: (itemData['scale'] as num).toDouble(),
+          rotation: (itemData['rotation'] as num).toDouble(),
+          opacity: (itemData['opacity'] as num).toDouble(),
+          layerIndex: (itemData['layerIndex'] as num).toInt(),
+          isVisible: itemData['isVisible'] as bool,
+          isLocked: itemData['isLocked'] as bool,
+          properties: properties,
+          createdAt:
+              DateTime.tryParse(itemData['createdAt'] as String? ?? '') ??
+              DateTime.now(),
+          lastModified: DateTime.now(),
+          groupId: itemData['groupId'] as String?,
+        );
+        canvasItems.add(canvasItem);
+      } catch (_) {}
+    }
+
+    final settingsData = projectData['settings'] as Map<String, dynamic>;
+    final exportSettingsData =
+        settingsData['exportSettings'] as Map<String, dynamic>;
+    final settings = hive_model.ProjectSettings(
+      snapToGrid: settingsData['snapToGrid'] as bool? ?? false,
+      gridSize: (settingsData['gridSize'] as num?)?.toDouble() ?? 20.0,
+      canvasZoom: (settingsData['canvasZoom'] as num?)?.toDouble() ?? 1.0,
+      showGrid: settingsData['showGrid'] as bool? ?? false,
+      exportSettings: hive_model.ExportSettings(
+        format: hive_model.ExportFormat.values[exportSettingsData['format']],
+        quality: hive_model.ExportQuality.values[exportSettingsData['quality']],
+        includeBackground:
+            exportSettingsData['includeBackground'] as bool? ?? true,
+        pixelRatio:
+            (exportSettingsData['pixelRatio'] as num?)?.toDouble() ?? 1.0,
+      ),
+    );
+
+    final colorData =
+        projectData['canvasBackgroundColor'] as Map<String, dynamic>;
+    final canvasBackgroundColor = hive_model.HiveColor(
+      colorData['value'] as int,
+    );
+
+    final String newProjectId = 'p_${DateTime.now().millisecondsSinceEpoch}';
+    final String originalName =
+        (projectData['name'] as String?) ?? 'Imported Page';
+    final String importedProjectName = originalName.contains('(Exported)')
+        ? originalName.replaceAll('(Exported)', '(Imported)')
+        : '$originalName (Imported)';
+
+    final tagsData = projectData['tags'];
+    final List<String> tags = (tagsData is List)
+        ? tagsData.whereType<String>().toList()
+        : <String>[];
+
+    return hive_model.PosterProject(
+      id: newProjectId,
+      name: importedProjectName,
+      description: projectData['description'] as String?,
+      createdAt:
+          DateTime.tryParse(projectData['createdAt'] as String? ?? '') ??
+          DateTime.now(),
+      lastModified: DateTime.now(),
+      canvasWidth: (canvasWidth).toDouble(),
+      canvasHeight: (canvasHeight).toDouble(),
+      canvasBackgroundColor: canvasBackgroundColor,
+      backgroundImagePath: backgroundImagePath,
+      thumbnailPath: thumbnailPath,
+      canvasItems: canvasItems,
+      settings: settings,
+      tags: tags,
+      isFavorite: projectData['isFavorite'] as bool? ?? false,
+    );
+  }
+
+  // Load a .lambook file (ZIP) into in-memory metadata and pages for read-only viewing
+  static Future<LambookData?> loadLambook(String filePath) async {
+    try {
+      final file = File(filePath);
+      if (!await file.exists()) return null;
+      final bytes = await file.readAsBytes();
+      final Archive archive = ZipDecoder().decodeBytes(bytes);
+
+      ArchiveFile? book;
+      for (final f in archive) {
+        if (f.name == 'scrapbook.json') {
+          book = f;
+          break;
+        }
+      }
+      if (book == null) return null;
+      final Map<String, dynamic> sb =
+          jsonDecode(String.fromCharCodes(book.content))
+              as Map<String, dynamic>;
+
+      Color _readColor(dynamic v) {
+        if (v is Map && v['value'] is int) return Color(v['value'] as int);
+        if (v is int) return Color(v);
+        return const Color(0xFFF1F5F9);
+      }
+
+      final Directory tempDir = await getTemporaryDirectory();
+      final String baseDir =
+          '${tempDir.path}/lambook_${DateTime.now().millisecondsSinceEpoch}';
+      await Directory(baseDir).create(recursive: true);
+
+      Future<String?> _decodeImageFromPayload(
+        Map<String, dynamic>? payload,
+        String name,
+      ) async {
+        if (payload == null) return null;
+        final String? b64 = payload['imageBase64'] as String?;
+        if (b64 == null || b64.isEmpty) return null;
+        final Uint8List data = base64Decode(b64);
+        final String ext = _getImageFileExtension(null, data);
+        final File out = File('$baseDir/$name.$ext');
+        await out.writeAsBytes(data);
+        return out.path;
+      }
+
+      final scaffoldPayload = sb['scaffoldBackground'] as Map<String, dynamic>?;
+      final leftPayload = sb['leftCover'] as Map<String, dynamic>?;
+      final rightPayload = sb['rightCover'] as Map<String, dynamic>?;
+
+      final meta = LambookMeta(
+        id:
+            (sb['id'] as String?) ??
+            's_${DateTime.now().millisecondsSinceEpoch}',
+        name: (sb['name'] as String?) ?? 'Imported Lambook',
+        pageWidth: (sb['pageWidth'] as num?)?.toDouble() ?? 1600,
+        pageHeight: (sb['pageHeight'] as num?)?.toDouble() ?? 1200,
+        scaffoldBgColor: _readColor(scaffoldPayload?['color']),
+        scaffoldBgImagePath: await _decodeImageFromPayload(
+          scaffoldPayload,
+          'scaffold_bg',
+        ),
+        leftCoverColor: _readColor(leftPayload?['color']),
+        leftCoverImagePath: await _decodeImageFromPayload(
+          leftPayload,
+          'left_cover',
+        ),
+        rightCoverColor: _readColor(rightPayload?['color']),
+        rightCoverImagePath: await _decodeImageFromPayload(
+          rightPayload,
+          'right_cover',
+        ),
+      );
+
+      final List<ArchiveFile> pageFiles =
+          archive
+              .where(
+                (f) =>
+                    f.name.startsWith('pages/page_') &&
+                    f.name.endsWith('.json'),
+              )
+              .toList()
+            ..sort((a, b) => a.name.compareTo(b.name));
+
+      final List<hive_model.PosterProject> pages = [];
+      for (final pf in pageFiles) {
+        try {
+          final Map<String, dynamic> pageJson =
+              jsonDecode(String.fromCharCodes(pf.content))
+                  as Map<String, dynamic>;
+          final project = await _parseProjectFromJson(pageJson, tempDir);
+          if (project != null) pages.add(project);
+        } catch (_) {}
+      }
+      if (pages.isEmpty) return null;
+      return LambookData(meta: meta, pages: pages);
+    } catch (e) {
+      print('ExportManager: Error loading lambook: $e');
+      return null;
+    }
+  }
+}
+
+// Minimal metadata for a .lambook to drive the read-only UI
+class LambookMeta {
+  final String id;
+  final String name;
+  final double pageWidth;
+  final double pageHeight;
+  final Color scaffoldBgColor;
+  final String? scaffoldBgImagePath;
+  final Color leftCoverColor;
+  final String? leftCoverImagePath;
+  final Color rightCoverColor;
+  final String? rightCoverImagePath;
+  LambookMeta({
+    required this.id,
+    required this.name,
+    required this.pageWidth,
+    required this.pageHeight,
+    required this.scaffoldBgColor,
+    this.scaffoldBgImagePath,
+    required this.leftCoverColor,
+    this.leftCoverImagePath,
+    required this.rightCoverColor,
+    this.rightCoverImagePath,
+  });
+}
+
+// In-memory parsed .lambook content
+class LambookData {
+  final LambookMeta meta;
+  final List<hive_model.PosterProject> pages;
+  LambookData({required this.meta, required this.pages});
 }
