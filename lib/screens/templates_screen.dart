@@ -145,8 +145,10 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
 
     try {
       // Download template file
-      final String filePath = await TemplateApiService.downloadTemplate(template.templateFile);
-      
+      final String filePath = await TemplateApiService.downloadTemplate(
+        template.templateFile,
+      );
+
       if (!mounted) return;
       Navigator.of(context).pop(); // Close loading dialog
 
@@ -159,14 +161,16 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
 
       // Load the project using ExportManager
       final PosterProject? project = await ExportManager.loadProject(filePath);
-      
+
       if (!mounted) return;
       Navigator.of(context).pop(); // Close loading dialog
 
       if (project != null) {
         // Get Hive box for projects
-        final Box<PosterProject> projectBox = Hive.box<PosterProject>('posterProjects');
-        
+        final Box<PosterProject> projectBox = Hive.box<PosterProject>(
+          'posterProjects',
+        );
+
         // Save the loaded project to Hive
         await projectBox.put(project.id, project);
 
@@ -194,9 +198,7 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
   Widget _buildLoadingDialog(String message) {
     return Dialog(
       backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12.r),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
       child: Padding(
         padding: EdgeInsets.all(24.w),
         child: Column(
@@ -234,9 +236,7 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
         ),
         backgroundColor: const Color(0xFF10B981),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8.r),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r)),
         margin: EdgeInsets.all(16.w),
       ),
     );
@@ -255,9 +255,7 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
         ),
         backgroundColor: const Color(0xFFEF4444),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8.r),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r)),
         margin: EdgeInsets.all(16.w),
         duration: const Duration(seconds: 5),
       ),
@@ -310,107 +308,28 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
   Widget _buildTemplateCard(Template template) {
     return GestureDetector(
       onTap: () => _loadTemplate(template),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12.r),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.vertical(top: Radius.circular(12.r)),
-              child: AspectRatio(
-                aspectRatio: 1.2,
-                child: Stack(
-                  children: [
-                    CachedNetworkImage(
-                      imageUrl: template.imageUrl,
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => Container(
-                        color: const Color(0xFFF1F5F9),
-                        child: const Center(
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Color(0xFF3B82F6),
-                            ),
-                          ),
-                        ),
-                      ),
-                      errorWidget: (context, url, error) => Container(
-                        color: const Color(0xFFF1F5F9),
-                        child: const Icon(
-                          Icons.image_not_supported,
-                          color: Color(0xFF94A3B8),
-                          size: 40,
-                        ),
-                      ),
-                    ),
-                    // Overlay with edit icon
-                    Positioned(
-                      top: 8.h,
-                      right: 8.w,
-                      child: Container(
-                        padding: EdgeInsets.all(6.w),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.6),
-                          borderRadius: BorderRadius.circular(20.r),
-                        ),
-                        child: const Icon(
-                          Icons.edit,
-                          color: Colors.white,
-                          size: 16,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12.r),
+        child: CachedNetworkImage(
+          imageUrl: template.imageUrl,
+          fit: BoxFit.cover,
+          placeholder: (context, url) => Container(
+            color: const Color(0xFFF1F5F9),
+            child: const Center(
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF3B82F6)),
               ),
             ),
-            Padding(
-              padding: EdgeInsets.all(12.w),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    template.category.toUpperCase(),
-                    style: GoogleFonts.inter(
-                      fontSize: 12.sp,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF3B82F6),
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  SizedBox(height: 4.h),
-                  Text(
-                    'Template ${template.id}',
-                    style: GoogleFonts.inter(
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF0F172A),
-                    ),
-                  ),
-                  SizedBox(height: 4.h),
-                  Text(
-                    'Tap to edit',
-                    style: GoogleFonts.inter(
-                      fontSize: 12.sp,
-                      fontWeight: FontWeight.w400,
-                      color: const Color(0xFF94A3B8),
-                    ),
-                  ),
-                ],
-              ),
+          ),
+          errorWidget: (context, url, error) => Container(
+            color: const Color(0xFFF1F5F9),
+            child: const Icon(
+              Icons.image_not_supported,
+              color: Color(0xFF94A3B8),
+              size: 40,
             ),
-          ],
+          ),
         ),
       ),
     );
