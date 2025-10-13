@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:lamlayers/screens/hive_model.dart';
 import 'package:lamlayers/scrap_book_page_turn/interactive_book.dart';
 
@@ -57,115 +58,189 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(16.r)),
       ),
       builder: (ctx) {
-        return SafeArea(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.only(bottom: 16.h),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.wallpaper_outlined),
-                  title: const Text('Background: Choose Image'),
-                  onTap: () async {
-                    final path = await _pickImage();
-                    if (!mounted) return;
-                    Navigator.pop(ctx);
-                    if (path != null) {
-                      setState(() {
-                        _scaffoldBgImagePath = path;
-                      });
-                    }
-                  },
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return SafeArea(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.only(bottom: 16.h),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ListTile(
+                      leading: const Icon(Icons.wallpaper_outlined),
+                      title: const Text('Background: Choose Image'),
+                      onTap: () async {
+                        final path = await _pickImage();
+                        if (!mounted) return;
+                        Navigator.pop(ctx);
+                        if (path != null) {
+                          setState(() {
+                            _scaffoldBgImagePath = path;
+                          });
+                        }
+                      },
+                    ),
+                    ExpansionTile(
+                      leading: const Icon(Icons.format_color_fill_outlined),
+                      title: const Text('Background: Choose Color'),
+                      children: [
+                        ListTile(
+                          title: const Text('Pick from palette'),
+                          onTap: () async {
+                            final color = await _selectColor(
+                              initial: _scaffoldBgColor,
+                            );
+                            if (!mounted) return;
+                            Navigator.pop(ctx);
+                            if (color != null) {
+                              setState(() {
+                                _scaffoldBgColor = color;
+                                _scaffoldBgImagePath = null;
+                              });
+                            }
+                          },
+                        ),
+                        ListTile(
+                          title: const Text('Custom color…'),
+                          onTap: () async {
+                            final color = await _selectCustomColor(
+                              initial: _scaffoldBgColor,
+                            );
+                            if (!mounted) return;
+                            Navigator.pop(ctx);
+                            if (color != null) {
+                              setState(() {
+                                _scaffoldBgColor = color;
+                                _scaffoldBgImagePath = null;
+                              });
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(Icons.image_outlined),
+                      title: const Text('Left Cover: Choose Image'),
+                      onTap: () async {
+                        final path = await _pickImage();
+                        if (!mounted) return;
+                        Navigator.pop(ctx);
+                        if (path != null) {
+                          setState(() {
+                            _leftCoverImagePath = path;
+                          });
+                        }
+                      },
+                    ),
+                    ExpansionTile(
+                      leading: const Icon(Icons.format_color_fill_outlined),
+                      title: const Text('Left Cover: Choose Color'),
+                      children: [
+                        ListTile(
+                          title: const Text('Pick from palette'),
+                          onTap: () async {
+                            final color = await _selectColor(
+                              initial: _leftCoverColor,
+                            );
+                            if (!mounted) return;
+                            Navigator.pop(ctx);
+                            if (color != null) {
+                              setState(() {
+                                _leftCoverColor = color;
+                                _leftCoverImagePath = null;
+                              });
+                            }
+                          },
+                        ),
+                        ListTile(
+                          title: const Text('Custom color…'),
+                          onTap: () async {
+                            final color = await _selectCustomColor(
+                              initial: _leftCoverColor,
+                            );
+                            if (!mounted) return;
+                            Navigator.pop(ctx);
+                            if (color != null) {
+                              setState(() {
+                                _leftCoverColor = color;
+                                _leftCoverImagePath = null;
+                              });
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(Icons.image_outlined),
+                      title: const Text('Right Cover: Choose Image'),
+                      onTap: () async {
+                        final path = await _pickImage();
+                        if (!mounted) return;
+                        Navigator.pop(ctx);
+                        if (path != null) {
+                          setState(() {
+                            _rightCoverImagePath = path;
+                          });
+                        }
+                      },
+                    ),
+                    ExpansionTile(
+                      leading: const Icon(Icons.format_color_fill_outlined),
+                      title: const Text('Right Cover: Choose Color'),
+                      children: [
+                        ListTile(
+                          title: const Text('Pick from palette'),
+                          onTap: () async {
+                            final color = await _selectColor(
+                              initial: _rightCoverColor,
+                            );
+                            if (!mounted) return;
+                            Navigator.pop(ctx);
+                            if (color != null) {
+                              setState(() {
+                                _rightCoverColor = color;
+                                _rightCoverImagePath = null;
+                              });
+                            }
+                          },
+                        ),
+                        ListTile(
+                          title: const Text('Custom color…'),
+                          onTap: () async {
+                            final color = await _selectCustomColor(
+                              initial: _rightCoverColor,
+                            );
+                            if (!mounted) return;
+                            Navigator.pop(ctx);
+                            if (color != null) {
+                              setState(() {
+                                _rightCoverColor = color;
+                                _rightCoverImagePath = null;
+                              });
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                    const Divider(height: 1),
+                    SwitchListTile(
+                      value: _showArrows,
+                      onChanged: (v) {
+                        setSheetState(() {});
+                        setState(() {
+                          _showArrows = v;
+                        });
+                      },
+                      secondary: const Icon(Icons.swap_horiz_rounded),
+                      title: const Text('Show page flip arrows'),
+                    ),
+                  ],
                 ),
-                ListTile(
-                  leading: const Icon(Icons.format_color_fill_outlined),
-                  title: const Text('Background: Choose Color'),
-                  onTap: () async {
-                    final color = await _selectColor(initial: _scaffoldBgColor);
-                    if (!mounted) return;
-                    Navigator.pop(ctx);
-                    if (color != null) {
-                      setState(() {
-                        _scaffoldBgColor = color;
-                        _scaffoldBgImagePath = null;
-                      });
-                    }
-                  },
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.image_outlined),
-                  title: const Text('Left Cover: Choose Image'),
-                  onTap: () async {
-                    final path = await _pickImage();
-                    if (!mounted) return;
-                    Navigator.pop(ctx);
-                    if (path != null) {
-                      setState(() {
-                        _leftCoverImagePath = path;
-                      });
-                    }
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.format_color_fill_outlined),
-                  title: const Text('Left Cover: Choose Color'),
-                  onTap: () async {
-                    final color = await _selectColor(initial: _leftCoverColor);
-                    if (!mounted) return;
-                    Navigator.pop(ctx);
-                    if (color != null) {
-                      setState(() {
-                        _leftCoverColor = color;
-                        _leftCoverImagePath = null;
-                      });
-                    }
-                  },
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.image_outlined),
-                  title: const Text('Right Cover: Choose Image'),
-                  onTap: () async {
-                    final path = await _pickImage();
-                    if (!mounted) return;
-                    Navigator.pop(ctx);
-                    if (path != null) {
-                      setState(() {
-                        _rightCoverImagePath = path;
-                      });
-                    }
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.format_color_fill_outlined),
-                  title: const Text('Right Cover: Choose Color'),
-                  onTap: () async {
-                    final color = await _selectColor(initial: _rightCoverColor);
-                    if (!mounted) return;
-                    Navigator.pop(ctx);
-                    if (color != null) {
-                      setState(() {
-                        _rightCoverColor = color;
-                        _rightCoverImagePath = null;
-                      });
-                    }
-                  },
-                ),
-                const Divider(height: 1),
-                SwitchListTile(
-                  value: _showArrows,
-                  onChanged: (v) {
-                    setState(() {
-                      _showArrows = v;
-                    });
-                  },
-                  secondary: const Icon(Icons.swap_horiz_rounded),
-                  title: const Text('Show page flip arrows'),
-                ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );
@@ -178,50 +253,57 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
   }
 
   Future<Color?> _selectColor({required Color initial}) async {
-    final List<Color> choices = <Color>[
-      const Color(0xFFF1F5F9),
-      const Color(0xFFFFFFFF),
-      const Color(0xFF000000),
-      const Color(0xFFD7B89C),
-      const Color(0xFFC0A186),
-      const Color(0xFFEC4899),
-      const Color(0xFF0EA5E9),
-      const Color(0xFF10B981),
-      const Color(0xFFF59E0B),
-      const Color(0xFF8B5CF6),
-    ];
     return showDialog<Color>(
       context: context,
       builder: (ctx) {
+        Color temp = initial;
         return AlertDialog(
-          title: const Text('Choose a color'),
-          content: SizedBox(
-            width: 300,
-            child: Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: choices
-                  .map(
-                    (c) => GestureDetector(
-                      onTap: () => Navigator.of(ctx).pop(c),
-                      child: Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: c,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.black12),
-                        ),
-                      ),
-                    ),
-                  )
-                  .toList(),
+          title: const Text('Pick from palette'),
+          content: SingleChildScrollView(
+            child: BlockPicker(
+              pickerColor: temp,
+              onColorChanged: (c) => temp = c,
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(null),
               child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(temp),
+              child: const Text('Select'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<Color?> _selectCustomColor({required Color initial}) async {
+    return showDialog<Color>(
+      context: context,
+      builder: (ctx) {
+        Color temp = initial;
+        return AlertDialog(
+          title: const Text('Custom color'),
+          content: SingleChildScrollView(
+            child: ColorPicker(
+              pickerColor: temp,
+              onColorChanged: (c) => temp = c,
+              enableAlpha: false,
+              labelTypes: const [],
+              pickerAreaHeightPercent: 0.7,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(null),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(temp),
+              child: const Text('Select'),
             ),
           ],
         );
