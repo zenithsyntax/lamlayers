@@ -1010,20 +1010,34 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
 
                     if (pages.isEmpty) return;
 
-                    // Build and share .lambook
-                    final String? path =
-                        await ExportManager.exportScrapbookLambook(
-                          scrapbook: widget.scrapbook,
-                          pages: pages,
-                          scaffoldBgColor: _scaffoldBgColor,
-                          scaffoldBgImagePath: _scaffoldBgImagePath,
-                          leftCoverColor: _leftCoverColor,
-                          leftCoverImagePath: _leftCoverImagePath,
-                          rightCoverColor: _rightCoverColor,
-                          rightCoverImagePath: _rightCoverImagePath,
-                        );
-                    if (path != null) {
-                      await ExportManager.shareLambook(path);
+                    // Show progress indicator while exporting
+                    showDialog(
+                      context: context,
+                      barrierDismissible: false,
+                      builder: (_) =>
+                          const Center(child: CircularProgressIndicator()),
+                    );
+
+                    try {
+                      // Build and share .lambook
+                      final String? path =
+                          await ExportManager.exportScrapbookLambook(
+                            scrapbook: widget.scrapbook,
+                            pages: pages,
+                            scaffoldBgColor: _scaffoldBgColor,
+                            scaffoldBgImagePath: _scaffoldBgImagePath,
+                            leftCoverColor: _leftCoverColor,
+                            leftCoverImagePath: _leftCoverImagePath,
+                            rightCoverColor: _rightCoverColor,
+                            rightCoverImagePath: _rightCoverImagePath,
+                          );
+                      if (path != null) {
+                        await ExportManager.shareLambook(path);
+                      }
+                    } finally {
+                      if (mounted) {
+                        Navigator.of(context, rootNavigator: true).pop();
+                      }
                     }
                   },
                 ),

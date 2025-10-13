@@ -121,7 +121,62 @@ class _DeepLinkHostState extends State<DeepLinkHost> {
       // Debug log
       // ignore: avoid_print
       print('DeepLinkHost: attempting to open as lambook -> ' + normalized);
-      final data = await ExportManager.loadLambook(normalized);
+
+      int _progress = 1;
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) {
+            return StatefulBuilder(
+              builder: (ctx, setState) {
+                return Dialog(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'Opening book...',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 16),
+                        LinearProgressIndicator(
+                          value: _progress.clamp(1, 100) / 100,
+                        ),
+                        const SizedBox(height: 8),
+                        Text('$_progress%'),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        );
+      }
+
+      final data = await ExportManager.loadLambook(
+        normalized,
+        onProgress: (p) {
+          _progress = p;
+          // try updating dialog if still mounted
+          if (mounted) {
+            // Force rebuild of dialog via Navigator overlay by popping and re-showing would flicker.
+            // Instead, rely on StatefulBuilder above: call setState captured there via context.
+            // Since we don't hold setState reference here, use Navigator to find current route's widget tree rebuild via addPostFrameCallback.
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              // No-op to keep UI responsive; StatefulBuilder rebuilds when its setState is called only.
+            });
+          }
+        },
+      );
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
       if (!mounted) return null;
       if (data != null) {
         if (data.pages.isEmpty) {

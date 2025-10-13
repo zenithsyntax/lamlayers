@@ -2382,12 +2382,27 @@ class ExportManager {
   }
 
   // Load a .lambook file (ZIP) into in-memory metadata and pages for read-only viewing
-  static Future<LambookData?> loadLambook(String filePath) async {
+  // Optionally reports progress from 1..100 via onProgress
+  static Future<LambookData?> loadLambook(
+    String filePath, {
+    void Function(int percent)? onProgress,
+  }) async {
     try {
+      void report(int p) {
+        if (onProgress != null) {
+          // Clamp to [1, 100] and report
+          final int clamped = p.clamp(1, 100);
+          onProgress(clamped);
+        }
+      }
+
+      report(1);
       final file = File(filePath);
       if (!await file.exists()) return null;
       final bytes = await file.readAsBytes();
+      report(10);
       final Archive archive = ZipDecoder().decodeBytes(bytes);
+      report(25);
 
       ArchiveFile? book;
       for (final f in archive) {
@@ -2397,9 +2412,11 @@ class ExportManager {
         }
       }
       if (book == null) return null;
+      report(30);
       final Map<String, dynamic> sb =
           jsonDecode(String.fromCharCodes(book.content))
               as Map<String, dynamic>;
+      report(35);
 
       Color _readColor(dynamic v) {
         if (v is Map && v['value'] is int) return Color(v['value'] as int);
@@ -2411,6 +2428,7 @@ class ExportManager {
       final String baseDir =
           '${tempDir.path}/lambook_${DateTime.now().millisecondsSinceEpoch}';
       await Directory(baseDir).create(recursive: true);
+      report(40);
 
       Future<String?> _decodeImageFromPayload(
         Map<String, dynamic>? payload,
@@ -2453,6 +2471,7 @@ class ExportManager {
           'right_cover',
         ),
       );
+      report(55);
 
       final List<ArchiveFile> pageFiles =
           archive
@@ -2465,6 +2484,8 @@ class ExportManager {
             ..sort((a, b) => a.name.compareTo(b.name));
 
       final List<hive_model.PosterProject> pages = [];
+      final int pageCount = pageFiles.length == 0 ? 1 : pageFiles.length;
+      int processed = 0;
       for (final pf in pageFiles) {
         try {
           final Map<String, dynamic> pageJson =
@@ -2473,8 +2494,13 @@ class ExportManager {
           final project = await _parseProjectFromJson(pageJson, tempDir);
           if (project != null) pages.add(project);
         } catch (_) {}
+        processed += 1;
+        // Allocate 40% of progress to page processing (55 -> 95)
+        final int percent = 55 + ((processed * 40) / pageCount).round();
+        report(percent);
       }
       if (pages.isEmpty) return null;
+      report(100);
       return LambookData(meta: meta, pages: pages);
     } catch (e) {
       print('ExportManager: Error loading lambook: $e');
