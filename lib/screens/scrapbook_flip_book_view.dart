@@ -65,7 +65,9 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
                 return Container(
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(24.r),
+                    ),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.1),
@@ -86,10 +88,13 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
                           borderRadius: BorderRadius.circular(2.r),
                         ),
                       ),
-                      
+
                       // Header
                       Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 8.h),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 20.w,
+                          vertical: 8.h,
+                        ),
                         child: Row(
                           children: [
                             Text(
@@ -110,22 +115,26 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
                           ],
                         ),
                       ),
-                      
+
                       Divider(height: 1.h, thickness: 1),
-                      
+
                       // Content
                       Expanded(
                         child: ListView(
                           controller: scrollController,
-                          padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 20.w,
+                            vertical: 16.h,
+                          ),
                           children: [
                             // Background Section
                             _buildSectionHeader('Background'),
                             SizedBox(height: 12.h),
-                            _buildOptionCard(
+                            _buildOptionCardWithRemove(
                               icon: Icons.wallpaper_outlined,
                               title: 'Choose Image',
                               subtitle: 'Set a custom background image',
+                              hasImage: _scaffoldBgImagePath != null,
                               onTap: () async {
                                 final path = await _pickImage();
                                 if (!mounted) return;
@@ -135,6 +144,12 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
                                     _scaffoldBgImagePath = path;
                                   });
                                 }
+                              },
+                              onRemove: () {
+                                setState(() {
+                                  _scaffoldBgImagePath = null;
+                                });
+                                Navigator.pop(ctx);
                               },
                             ),
                             SizedBox(height: 8.h),
@@ -148,7 +163,10 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
                                 decoration: BoxDecoration(
                                   color: _scaffoldBgColor,
                                   borderRadius: BorderRadius.circular(8.r),
-                                  border: Border.all(color: const Color(0xFFE2E8F0), width: 2),
+                                  border: Border.all(
+                                    color: const Color(0xFFE2E8F0),
+                                    width: 2,
+                                  ),
                                 ),
                               ),
                               onTap: () => _showColorOptions(
@@ -163,16 +181,17 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
                                 },
                               ),
                             ),
-                            
+
                             SizedBox(height: 24.h),
-                            
+
                             // Left Cover Section
                             _buildSectionHeader('Left Cover'),
                             SizedBox(height: 12.h),
-                            _buildOptionCard(
+                            _buildOptionCardWithRemove(
                               icon: Icons.image_outlined,
                               title: 'Choose Image',
                               subtitle: 'Set left cover image',
+                              hasImage: _leftCoverImagePath != null,
                               onTap: () async {
                                 final path = await _pickImage();
                                 if (!mounted) return;
@@ -182,6 +201,12 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
                                     _leftCoverImagePath = path;
                                   });
                                 }
+                              },
+                              onRemove: () {
+                                setState(() {
+                                  _leftCoverImagePath = null;
+                                });
+                                Navigator.pop(ctx);
                               },
                             ),
                             SizedBox(height: 8.h),
@@ -195,7 +220,10 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
                                 decoration: BoxDecoration(
                                   color: _leftCoverColor,
                                   borderRadius: BorderRadius.circular(8.r),
-                                  border: Border.all(color: const Color(0xFFE2E8F0), width: 2),
+                                  border: Border.all(
+                                    color: const Color(0xFFE2E8F0),
+                                    width: 2,
+                                  ),
                                 ),
                               ),
                               onTap: () => _showColorOptions(
@@ -210,16 +238,17 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
                                 },
                               ),
                             ),
-                            
+
                             SizedBox(height: 24.h),
-                            
+
                             // Right Cover Section
                             _buildSectionHeader('Right Cover'),
                             SizedBox(height: 12.h),
-                            _buildOptionCard(
+                            _buildOptionCardWithRemove(
                               icon: Icons.image_outlined,
                               title: 'Choose Image',
                               subtitle: 'Set right cover image',
+                              hasImage: _rightCoverImagePath != null,
                               onTap: () async {
                                 final path = await _pickImage();
                                 if (!mounted) return;
@@ -229,6 +258,12 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
                                     _rightCoverImagePath = path;
                                   });
                                 }
+                              },
+                              onRemove: () {
+                                setState(() {
+                                  _rightCoverImagePath = null;
+                                });
+                                Navigator.pop(ctx);
                               },
                             ),
                             SizedBox(height: 8.h),
@@ -242,7 +277,10 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
                                 decoration: BoxDecoration(
                                   color: _rightCoverColor,
                                   borderRadius: BorderRadius.circular(8.r),
-                                  border: Border.all(color: const Color(0xFFE2E8F0), width: 2),
+                                  border: Border.all(
+                                    color: const Color(0xFFE2E8F0),
+                                    width: 2,
+                                  ),
                                 ),
                               ),
                               onTap: () => _showColorOptions(
@@ -257,9 +295,9 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
                                 },
                               ),
                             ),
-                            
+
                             SizedBox(height: 24.h),
-                            
+
                             // Navigation Section
                             _buildSectionHeader('Navigation'),
                             SizedBox(height: 12.h),
@@ -267,7 +305,9 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
                               decoration: BoxDecoration(
                                 color: const Color(0xFFF8FAFC),
                                 borderRadius: BorderRadius.circular(12.r),
-                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                                border: Border.all(
+                                  color: const Color(0xFFE2E8F0),
+                                ),
                               ),
                               child: SwitchListTile(
                                 value: _showArrows,
@@ -280,12 +320,18 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
                                 secondary: Container(
                                   padding: EdgeInsets.all(8.r),
                                   decoration: BoxDecoration(
-                                    color: _showArrows ? const Color(0xFF3B82F6).withOpacity(0.1) : Colors.white,
+                                    color: _showArrows
+                                        ? const Color(
+                                            0xFF3B82F6,
+                                          ).withOpacity(0.1)
+                                        : Colors.white,
                                     borderRadius: BorderRadius.circular(8.r),
                                   ),
                                   child: Icon(
                                     Icons.swap_horiz_rounded,
-                                    color: _showArrows ? const Color(0xFF3B82F6) : const Color(0xFF64748B),
+                                    color: _showArrows
+                                        ? const Color(0xFF3B82F6)
+                                        : const Color(0xFF64748B),
                                     size: 24.r,
                                   ),
                                 ),
@@ -307,7 +353,7 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
                                 activeColor: const Color(0xFF3B82F6),
                               ),
                             ),
-                            
+
                             SizedBox(height: 24.h),
                           ],
                         ),
@@ -362,11 +408,7 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(10.r),
                 ),
-                child: Icon(
-                  icon,
-                  color: const Color(0xFF3B82F6),
-                  size: 24.r,
-                ),
+                child: Icon(icon, color: const Color(0xFF3B82F6), size: 24.r),
               ),
               SizedBox(width: 16.w),
               Expanded(
@@ -408,7 +450,114 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
     );
   }
 
-  void _showColorOptions(BuildContext parentContext, String title, Color initialColor, Function(Color) onColorSelected) {
+  Widget _buildOptionCardWithRemove({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+    required bool hasImage,
+    required VoidCallback onRemove,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(12.r),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: InkWell(
+                onTap: onTap,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(12.r),
+                  bottomLeft: Radius.circular(12.r),
+                  topRight: hasImage ? Radius.zero : Radius.circular(12.r),
+                  bottomRight: hasImage ? Radius.zero : Radius.circular(12.r),
+                ),
+                child: Container(
+                  padding: EdgeInsets.all(16.r),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(10.r),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(10.r),
+                        ),
+                        child: Icon(
+                          icon,
+                          color: const Color(0xFF3B82F6),
+                          size: 24.r,
+                        ),
+                      ),
+                      SizedBox(width: 16.w),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              title,
+                              style: GoogleFonts.inter(
+                                fontSize: 15.sp,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF1E293B),
+                              ),
+                            ),
+                            SizedBox(height: 2.h),
+                            Text(
+                              subtitle,
+                              style: GoogleFonts.inter(
+                                fontSize: 13.sp,
+                                color: const Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (!hasImage)
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          color: const Color(0xFF94A3B8),
+                          size: 24.r,
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            if (hasImage)
+              Container(width: 1, height: 60.h, color: const Color(0xFFE2E8F0)),
+            if (hasImage)
+              InkWell(
+                onTap: onRemove,
+                borderRadius: BorderRadius.only(
+                  topRight: Radius.circular(12.r),
+                  bottomRight: Radius.circular(12.r),
+                ),
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: 16.w),
+                  child: Icon(
+                    Icons.delete_outline,
+                    color: const Color(0xFFEF4444),
+                    size: 24.r,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showColorOptions(
+    BuildContext parentContext,
+    String title,
+    Color initialColor,
+    Function(Color) onColorSelected,
+  ) {
     showModalBottomSheet(
       context: parentContext,
       backgroundColor: Colors.white,
@@ -448,7 +597,11 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
                     color: const Color(0xFFF8FAFC),
                     borderRadius: BorderRadius.circular(8.r),
                   ),
-                  child: Icon(Icons.palette_outlined, color: const Color(0xFF3B82F6), size: 24.r),
+                  child: Icon(
+                    Icons.palette_outlined,
+                    color: const Color(0xFF3B82F6),
+                    size: 24.r,
+                  ),
                 ),
                 title: Text(
                   'Pick from palette',
@@ -465,7 +618,10 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
                     color: const Color(0xFF64748B),
                   ),
                 ),
-                trailing: Icon(Icons.chevron_right_rounded, color: const Color(0xFF94A3B8)),
+                trailing: Icon(
+                  Icons.chevron_right_rounded,
+                  color: const Color(0xFF94A3B8),
+                ),
                 onTap: () async {
                   Navigator.pop(ctx);
                   final color = await _selectColor(initial: initialColor);
@@ -483,7 +639,11 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
                     color: const Color(0xFFF8FAFC),
                     borderRadius: BorderRadius.circular(8.r),
                   ),
-                  child: Icon(Icons.colorize_outlined, color: const Color(0xFF8B5CF6), size: 24.r),
+                  child: Icon(
+                    Icons.colorize_outlined,
+                    color: const Color(0xFF8B5CF6),
+                    size: 24.r,
+                  ),
                 ),
                 title: Text(
                   'Custom color',
@@ -500,7 +660,10 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
                     color: const Color(0xFF64748B),
                   ),
                 ),
-                trailing: Icon(Icons.chevron_right_rounded, color: const Color(0xFF94A3B8)),
+                trailing: Icon(
+                  Icons.chevron_right_rounded,
+                  color: const Color(0xFF94A3B8),
+                ),
                 onTap: () async {
                   Navigator.pop(ctx);
                   final color = await _selectCustomColor(initial: initialColor);
@@ -531,7 +694,9 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
       builder: (ctx) {
         Color temp = initial;
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16.r),
+          ),
           title: Text(
             'Pick from palette',
             style: GoogleFonts.inter(
@@ -561,7 +726,9 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
               onPressed: () => Navigator.of(ctx).pop(temp),
               style: FilledButton.styleFrom(
                 backgroundColor: const Color(0xFF3B82F6),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8.r),
+                ),
               ),
               child: Text(
                 'Select',
@@ -580,7 +747,9 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
       builder: (ctx) {
         Color temp = initial;
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16.r),
+          ),
           title: Text(
             'Custom color',
             style: GoogleFonts.inter(
@@ -613,7 +782,9 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
               onPressed: () => Navigator.of(ctx).pop(temp),
               style: FilledButton.styleFrom(
                 backgroundColor: const Color(0xFF3B82F6),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8.r),
+                ),
               ),
               child: Text(
                 'Select',
@@ -805,7 +976,7 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
               ),
             Positioned(
               top: 8,
-              left: 8,
+              right: 8,
               child: Material(
                 color: Colors.white,
                 shape: const CircleBorder(),
