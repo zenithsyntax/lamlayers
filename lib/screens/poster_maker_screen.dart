@@ -41,7 +41,6 @@ import 'package:flutter/services.dart';
 
 import 'package:lamlayers/screens/add_images.dart';
 
-import 'package:lamlayers/screens/settings_screen.dart';
 import 'package:lamlayers/widgets/export_dialog.dart' as export_dialog;
 import 'package:lamlayers/utils/export_manager.dart';
 import 'package:lamlayers/screens/hive_model.dart' as hive_model;
@@ -64,12 +63,9 @@ import 'package:image_editor_plus/image_editor_plus.dart';
 
 import 'package:lamlayers/utils/image_stroke_processor.dart';
 
-import 'package:lamlayers/utils/image_stroke_processor_v2.dart';
-
 import 'package:http/http.dart' as http;
 
 import 'package:image_background_remover/image_background_remover.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 class PosterMakerScreen extends StatefulWidget {
   final String? projectId;
@@ -12375,7 +12371,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                         ),
                         elevation: 0,
                       ),
-                      child: const Text('Save & Exit'),
+                      child: const Text('Save & Exit', style: TextStyle(color: Colors.white),),
                     ),
                   ],
                 ),
@@ -13995,8 +13991,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                         children: [
                           SizedBox(height: 90.h),
                           _buildCanvas(),
-                          Container(height: 120.h, color: Colors.white),
-                          Container(height: 120.h, color: Colors.white),
+                          Container(height: 90.h, color: Colors.white),
+                          Container(height: 90.h, color: Colors.white),
                         ],
                       ),
                     ),
@@ -14012,8 +14008,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                     // === Top Toolbar (overlayed, not pushing canvas) ===
                     Positioned(
                       bottom: selectedItem != null
-                          ? 40.h
-                          : 150.h, // leaves space for the ad banner
+                          ? 20.h
+                          : 100.h, // leaves space for the ad banner
                       left: 0,
                       right: 0,
                       child: _buildTopToolbar(),
@@ -14022,14 +14018,14 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                     // === Bottom Controls (only if no item selected) ===
                     if (selectedItem == null)
                       Positioned(
-                        bottom: 80.h, // leaves space for the ad banner
+                        bottom: 60.h, // leaves space for the ad banner
                         left: 0,
                         right: 0,
                         child: Container(
                           height: (selectedTabIndex == 3)
-                              ? (showDrawingToolSelection ? 60.h : 110.h)
-                              : 60.h,
-                          padding: EdgeInsets.symmetric(horizontal: 20.w),
+                              ? (showDrawingToolSelection ? 40.h : 100.h)
+                              : 40.h,
+                          padding: EdgeInsets.symmetric(horizontal: 10.w),
                           decoration: BoxDecoration(color: Colors.white),
                           child: selectedTabIndex == 3
                               ? _buildDrawingControls()
@@ -14037,19 +14033,17 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                         ),
                       ),
 
-                    // === Fixed Ad Banner at very bottom ===
-                    Positioned(
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      child: Container(
-                        color: Colors.white,
-                        alignment: Alignment.center,
-                        height: 40.h,
-                        child: const AdBanner320x50(),
-                      ),
-                    ),
+                    // Ad banner moved to bottomNavigationBar to keep it mounted
                   ],
+                ),
+              ),
+              bottomNavigationBar: SafeArea(
+                top: false,
+                child: Container(
+                  color: Colors.white,
+                  alignment: Alignment.center,
+                  height: 50.h,
+                  child: const AdBanner320x50(),
                 ),
               ),
             ),

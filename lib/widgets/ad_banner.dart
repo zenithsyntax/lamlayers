@@ -12,7 +12,8 @@ class AdBanner320x50 extends StatefulWidget {
 
 class _AdBanner320x50State extends State<AdBanner320x50> {
   BannerAd? _bannerAd;
-  bool _isLoaded = false;
+  AdWidget? _adWidget;
+  final ValueNotifier<bool> _isLoadedNotifier = ValueNotifier<bool>(false);
 
   @override
   void initState() {
@@ -23,10 +24,18 @@ class _AdBanner320x50State extends State<AdBanner320x50> {
           ? 'ca-app-pub-3940256099942544/6300978111' // Android test banner
           : 'ca-app-pub-3940256099942544/2934735716', // iOS test banner
       listener: BannerAdListener(
-        onAdLoaded: (ad) => setState(() => _isLoaded = true),
+        onAdLoaded: (ad) {
+          // Create a single AdWidget for this instance.
+          if (_adWidget == null && _bannerAd != null) {
+            _adWidget = AdWidget(ad: _bannerAd!);
+          }
+          _isLoadedNotifier.value = true;
+        },
         onAdFailedToLoad: (ad, error) {
           ad.dispose();
-          setState(() => _isLoaded = false);
+          _bannerAd = null;
+          _adWidget = null;
+          _isLoadedNotifier.value = false;
         },
       ),
       request: const AdRequest(),
@@ -41,7 +50,12 @@ class _AdBanner320x50State extends State<AdBanner320x50> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_isLoaded || _bannerAd == null) return const SizedBox.shrink();
-    return SizedBox(width: 320, height: 50, child: AdWidget(ad: _bannerAd!));
+    return ValueListenableBuilder<bool>(
+      valueListenable: _isLoadedNotifier,
+      builder: (context, isLoaded, _) {
+        if (!isLoaded || _adWidget == null) return const SizedBox.shrink();
+        return SizedBox(width: 320, height: 50, child: _adWidget);
+      },
+    );
   }
 }
