@@ -4,15 +4,23 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:lamlayers/utils/export_manager.dart';
 import 'package:lamlayers/scrap_book_page_turn/interactive_book.dart';
 
-class LambookReaderScreen extends StatelessWidget {
+class LambookReaderScreen extends StatefulWidget {
   final LambookData lambook;
   const LambookReaderScreen({Key? key, required this.lambook})
     : super(key: key);
 
   @override
+  State<LambookReaderScreen> createState() => _LambookReaderScreenState();
+}
+
+class _LambookReaderScreenState extends State<LambookReaderScreen> {
+  final PageTurnController _pageTurnController = PageTurnController();
+  bool _isControllerReady = false;
+
+  @override
   Widget build(BuildContext context) {
-    final meta = lambook.meta;
-    final pages = lambook.pages;
+    final meta = widget.lambook.meta;
+    final pages = widget.lambook.pages;
 
     return Scaffold(
       backgroundColor: meta.scaffoldBgColor,
@@ -117,12 +125,16 @@ class LambookReaderScreen extends StatelessWidget {
                             borderRadius: BorderRadius.circular(12.r),
                             child: InteractiveBook(
                               pagesBoundaryIsEnabled: false,
-                              controller: PageTurnController(),
+                              controller: _pageTurnController,
                               pageCount: pages.length,
                               aspectRatio:
                                   (meta.pageWidth * 2) / meta.pageHeight,
                               pageViewMode: PageViewMode.double,
-                              onPageChanged: (_, __) {},
+                              onPageChanged: (index, __) {
+                                setState(() {
+                                  _isControllerReady = true;
+                                });
+                              },
                               settings: FlipSettings(
                                 startPageIndex: 0,
                                 usePortrait: false,
@@ -165,12 +177,76 @@ class LambookReaderScreen extends StatelessWidget {
                         ),
                       ),
                     ),
+                    // Left/Right page flip buttons overlay
+                    Align(
+                      alignment: Alignment.bottomLeft,
+                      child: Padding(
+                        padding: EdgeInsets.only(left: 50.w, bottom: 10.h),
+                        child: _NavButton(
+                          icon: Icons.arrow_back_ios_new,
+                          onPressed:
+                              (_isControllerReady &&
+                                  _pageTurnController.hasPreviousPage)
+                              ? () {
+                                  _pageTurnController.previousPage();
+                                }
+                              : null,
+                        ),
+                      ),
+                    ),
+                    Align(
+                      alignment: Alignment.bottomRight,
+                      child: Padding(
+                        padding: EdgeInsets.only(right: 50.w, bottom: 10.h),
+                        child: _NavButton(
+                          icon: Icons.arrow_forward_ios,
+                          onPressed:
+                              (_isControllerReady &&
+                                  _pageTurnController.hasNextPage)
+                              ? () {
+                                  _pageTurnController.nextPage();
+                                }
+                              : null,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _NavButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback? onPressed;
+  const _NavButton({required this.icon, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPressed,
+        customBorder: const CircleBorder(),
+        child: Ink(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.black.withOpacity(0.25),
+          ),
+          child: Padding(
+            padding: EdgeInsets.all(10.w),
+            child: Icon(
+              icon,
+              color: onPressed == null ? Colors.white38 : Colors.white,
+              size: 22.w,
+            ),
+          ),
+        ),
       ),
     );
   }
