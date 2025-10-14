@@ -8,6 +8,9 @@ import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:lamlayers/screens/hive_model.dart';
 import 'package:lamlayers/scrap_book_page_turn/interactive_book.dart';
 import 'package:lamlayers/utils/export_manager.dart';
+import 'package:lamlayers/services/google_drive_share_service.dart';
+import 'package:lamlayers/utils/share_config.dart';
+import 'package:share_plus/share_plus.dart';
 
 class ScrapbookFlipBookView extends StatefulWidget {
   final Scrapbook scrapbook;
@@ -1001,44 +1004,144 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
                   icon: const Icon(Icons.ios_share, color: Color(0xFF0F172A)),
                   tooltip: 'Share flip book',
                   onPressed: () async {
-                    final ids = widget.scrapbook.pageProjectIds;
-                    final List<PosterProject> pages = [];
-                    for (final id in ids) {
-                      final p = _projectBox.get(id);
-                      if (p != null) pages.add(p);
-                    }
-
-                    if (pages.isEmpty) return;
-
-                    // Show progress indicator while exporting
-                    showDialog(
+                    // Present actions: Share file (existing) or Share Link (new)
+                    showModalBottomSheet(
                       context: context,
-                      barrierDismissible: false,
-                      builder: (_) =>
-                          const Center(child: CircularProgressIndicator()),
-                    );
+                      showDragHandle: true,
+                      builder: (ctx) {
+                        return SafeArea(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ListTile(
+                                leading: const Icon(
+                                  Icons.insert_drive_file_outlined,
+                                ),
+                                title: const Text('Share file (.lambook)'),
+                                onTap: () async {
+                                  Navigator.pop(ctx);
+                                  final ids = widget.scrapbook.pageProjectIds;
+                                  final List<PosterProject> pages = [];
+                                  for (final id in ids) {
+                                    final p = _projectBox.get(id);
+                                    if (p != null) pages.add(p);
+                                  }
+                                  if (pages.isEmpty) return;
+                                  showDialog(
+                                    context: context,
+                                    barrierDismissible: false,
+                                    builder: (_) => const Center(
+                                      child: CircularProgressIndicator(),
+                                    ),
+                                  );
+                                  try {
+                                    final String? path =
+                                        await ExportManager.exportScrapbookLambook(
+                                          scrapbook: widget.scrapbook,
+                                          pages: pages,
+                                          scaffoldBgColor: _scaffoldBgColor,
+                                          scaffoldBgImagePath:
+                                              _scaffoldBgImagePath,
+                                          leftCoverColor: _leftCoverColor,
+                                          leftCoverImagePath:
+                                              _leftCoverImagePath,
+                                          rightCoverColor: _rightCoverColor,
+                                          rightCoverImagePath:
+                                              _rightCoverImagePath,
+                                        );
+                                    if (path != null) {
+                                      await ExportManager.shareLambook(path);
+                                    }
+                                  } finally {
+                                    if (mounted) {
+                                      Navigator.of(
+                                        context,
+                                        rootNavigator: true,
+                                      ).pop();
+                                    }
+                                  }
+                                },
+                              ),
+                              ListTile(
+                                leading: const Icon(Icons.link),
+                                title: const Text('Share Link'),
+                                subtitle: const Text(
+                                  'Upload to Google Drive and share a web link',
+                                ),
+                                onTap: () async {
+                                  Navigator.pop(ctx);
+                                  final ids = widget.scrapbook.pageProjectIds;
+                                  final List<PosterProject> pages = [];
+                                  for (final id in ids) {
+                                    final p = _projectBox.get(id);
+                                    if (p != null) pages.add(p);
+                                  }
+                                  if (pages.isEmpty) return;
+                                  showDialog(
+                                    context: context,
+                                    barrierDismissible: false,
+                                    builder: (_) => const Center(
+                                      child: CircularProgressIndicator(),
+                                    ),
+                                  );
+                                  try {
+                                    // 1) Export .lambook locally
+                                    final String? path =
+                                        await ExportManager.exportScrapbookLambook(
+                                          scrapbook: widget.scrapbook,
+                                          pages: pages,
+                                          scaffoldBgColor: _scaffoldBgColor,
+                                          scaffoldBgImagePath:
+                                              _scaffoldBgImagePath,
+                                          leftCoverColor: _leftCoverColor,
+                                          leftCoverImagePath:
+                                              _leftCoverImagePath,
+                                          rightCoverColor: _rightCoverColor,
+                                          rightCoverImagePath:
+                                              _rightCoverImagePath,
+                                        );
+                                    if (path == null) return;
 
-                    try {
-                      // Build and share .lambook
-                      final String? path =
-                          await ExportManager.exportScrapbookLambook(
-                            scrapbook: widget.scrapbook,
-                            pages: pages,
-                            scaffoldBgColor: _scaffoldBgColor,
-                            scaffoldBgImagePath: _scaffoldBgImagePath,
-                            leftCoverColor: _leftCoverColor,
-                            leftCoverImagePath: _leftCoverImagePath,
-                            rightCoverColor: _rightCoverColor,
-                            rightCoverImagePath: _rightCoverImagePath,
-                          );
-                      if (path != null) {
-                        await ExportManager.shareLambook(path);
-                      }
-                    } finally {
-                      if (mounted) {
-                        Navigator.of(context, rootNavigator: true).pop();
-                      }
-                    }
+                                    // 2) Upload to Google Drive and make public
+                                    final fileBytes = await File(
+                                      path,
+                                    ).readAsBytes();
+                                    final driveService =
+                                        GoogleDriveShareService();
+                                    final fileId = await driveService
+                                        .uploadAndMakePublic(
+                                          fileName:
+                                              widget.scrapbook.name.endsWith(
+                                                '.lambook',
+                                              )
+                                              ? widget.scrapbook.name
+                                              : '${widget.scrapbook.name}.lambook',
+                                          bytes: fileBytes,
+                                          mimeType: 'application/octet-stream',
+                                        );
+
+                                    // 3) Build web viewer URL
+                                    final viewerUrl =
+                                        'https://$firebaseWebDomain/?file='
+                                        'https://drive.google.com/uc?id=$fileId&export=download';
+
+                                    await Share.share(viewerUrl);
+                                  } catch (_) {
+                                  } finally {
+                                    if (mounted) {
+                                      Navigator.of(
+                                        context,
+                                        rootNavigator: true,
+                                      ).pop();
+                                    }
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    );
                   },
                 ),
               ),

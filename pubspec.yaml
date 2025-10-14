@@ -56,6 +56,8 @@ dependencies:
   saver_gallery: ^3.0.0
   device_info_plus: ^11.1.0
   http: ^1.2.2
+  google_sign_in: ^6.2.1
+  googleapis: ^13.2.0
 
 dev_dependencies:
   flutter_test:

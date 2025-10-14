@@ -1,4 +1,4 @@
-package com.example.lamlayers
+package com.zenithsyntax.lamlayers
 
 import android.content.Intent
 import android.net.Uri
