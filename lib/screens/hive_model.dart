@@ -250,7 +250,7 @@ class ExportSettings {
   double pixelRatio;
 
   ExportSettings({
-    this.format = ExportFormat.png,
+    this.format = ExportFormat.jpg,
     this.quality = ExportQuality.high,
     this.includeBackground = true,
     this.pixelRatio = 3.0,
@@ -813,10 +813,10 @@ class UserPreferences {
 
   UserPreferences({
     this.autoSave = true,
-    this.autoSaveInterval = 30,
+    this.autoSaveInterval = 5,
     this.showGrid = false,
     this.snapToGrid = false,
-    this.defaultExportFormat = ExportFormat.png,
+    this.defaultExportFormat = ExportFormat.jpg,
     this.defaultExportQuality = ExportQuality.high,
     this.recentColors = const [],
     this.recentFonts = const [],
