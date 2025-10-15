@@ -508,14 +508,11 @@ class DrawingPainter extends CustomPainter {
 
     const dashSpace = 4.0;
 
-    // Simplified dotted line drawing for better performance
-
-    for (int i = 0; i < points.length - 1; i += 2) {
-      // Skip every other point for performance
-
+    // Draw dotted segments across all consecutive points and avoid partial end dashes
+    for (int i = 0; i < points.length - 1; i++) {
       final start = points[i];
 
-      final end = i + 1 < points.length ? points[i + 1] : points.last;
+      final end = points[i + 1];
 
       final distance = (end - start).distance;
 
@@ -525,12 +522,10 @@ class DrawingPainter extends CustomPainter {
 
       double currentDistance = 0.0;
 
-      while (currentDistance < distance) {
+      while (currentDistance + dashLength <= distance) {
         final dashStart = start + normalized * currentDistance;
 
-        final dashEnd =
-            start +
-            normalized * (currentDistance + dashLength).clamp(0.0, distance);
+        final dashEnd = start + normalized * (currentDistance + dashLength);
 
         canvas.drawLine(dashStart, dashEnd, paint);
 
@@ -7550,6 +7545,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           fontFamily: selectedDrawingTool == DrawingTool.textPath
               ? _currentPathFontFamily
               : null,
+          letterSpacing: selectedDrawingTool == DrawingTool.textPath
+              ? _currentPathLetterSpacing
+              : null,
         ),
       );
 
@@ -7569,6 +7567,10 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
     final bounds = _calculateDrawingBounds(allPoints);
 
+    // Add visual-only padding so selection border doesn't sit on top of strokes
+    const double visualPadding = 8.0;
+    final Offset paddingOffset = const Offset(visualPadding, visualPadding);
+
     // Serialize strokes relative to top-left bounds
 
     final strokes = drawingLayers
@@ -7576,7 +7578,10 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           (l) => {
             'tool': l.tool.name,
 
-            'points': l.points.map((p) => p - bounds.topLeft).toList(),
+            // Rebase points relative to padded origin to avoid shifting content
+            'points': l.points
+                .map((p) => (p - bounds.topLeft) + paddingOffset)
+                .toList(),
 
             'color': HiveColor.fromColor(l.color),
 
@@ -7608,7 +7613,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
       type: CanvasItemType.drawing,
 
-      position: bounds.topLeft,
+      // Shift position outward by padding so border stays outside content
+      position: bounds.topLeft - paddingOffset,
 
       scale: 1.0,
 
@@ -7625,9 +7631,10 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       properties: {
         'strokes': strokes,
 
-        'width': bounds.width,
+        // Expand size to include visual padding on all sides
+        'width': bounds.width + visualPadding * 2,
 
-        'height': bounds.height,
+        'height': bounds.height + visualPadding * 2,
       },
 
       createdAt: DateTime.now(),
@@ -7676,19 +7683,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       maxY = math.max(maxY, point.dy);
     }
 
-    // Add some padding
-
-    const padding = 10.0;
-
-    return Rect.fromLTRB(
-      minX - padding,
-
-      minY - padding,
-
-      maxX + padding,
-
-      maxY + padding,
-    );
+    // Return tight bounds (no padding) so saved item aligns with live drawing
+    return Rect.fromLTRB(minX, minY, maxX, maxY);
   }
 
   // Drawing control helper methods
@@ -12371,7 +12367,10 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                         ),
                         elevation: 0,
                       ),
-                      child: const Text('Save & Exit', style: TextStyle(color: Colors.white),),
+                      child: const Text(
+                        'Save & Exit',
+                        style: TextStyle(color: Colors.white),
+                      ),
                     ),
                   ],
                 ),
