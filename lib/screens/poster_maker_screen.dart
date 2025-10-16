@@ -13350,7 +13350,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       }
     }
 
-    return [Colors.lightBlue, Colors.blueAccent];
+    return [Colors.lightBlue, Colors.purple];
   }
 
   Future<void> _editSelectedImage() async {
