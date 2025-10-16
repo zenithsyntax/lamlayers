@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lottie/lottie.dart';
 import 'dart:io';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -54,11 +55,28 @@ class _HomePageState extends State<HomePage>
     return 'Good Evening';
   }
 
-  IconData _getGreetingIcon() {
+  Widget _getGreetingAnimation() {
     final hour = DateTime.now().hour;
-    if (hour < 12) return Icons.wb_sunny_rounded;
-    if (hour < 17) return Icons.wb_cloudy_rounded;
-    return Icons.nightlight_round;
+    String assetPath;
+    if (hour < 12) {
+      assetPath = 'assets/icons/morning.json';
+    } else if (hour < 17) {
+      assetPath = 'assets/icons/afternoon.json';
+    } else {
+      assetPath = 'assets/icons/night.json';
+    }
+
+    return SizedBox(
+      height: 20.h,
+      width: 20.w,
+      child: Lottie.asset(
+        assetPath,
+        repeat: true,
+        reverse: false,
+        animate: true,
+        fit: BoxFit.contain,
+      ),
+    );
   }
 
   String _getRandomQuote() {
@@ -1413,34 +1431,7 @@ class _HomePageState extends State<HomePage>
                     letterSpacing: -0.5,
                   ),
                 ),
-                if (_isBoxReady && _projectBox.isNotEmpty)
-                  TextButton(
-                    onPressed: () {},
-                    style: TextButton.styleFrom(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 12.w,
-                        vertical: 6.h,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Text(
-                          'View All',
-                          style: GoogleFonts.inter(
-                            fontSize: 13.sp,
-                            fontWeight: FontWeight.w500,
-                            color: const Color(0xFF6366F1),
-                          ),
-                        ),
-                        SizedBox(width: 4.w),
-                        Icon(
-                          Icons.arrow_forward_ios,
-                          size: 12.r,
-                          color: const Color(0xFF6366F1),
-                        ),
-                      ],
-                    ),
-                  ),
+               
               ],
             ),
           ),
@@ -1814,16 +1805,12 @@ class _HomePageState extends State<HomePage>
             Container(
               height: 70.h,
               width: 70.w,
-              
+
               child: ClipRRect(
-                child: Image.asset(
-                  'assets/icons/lamlayers_logo.png',
-    
-                 
-                ),
+                child: Image.asset('assets/icons/lamlayers_logo.png'),
               ),
             ),
-          
+
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
@@ -1831,7 +1818,7 @@ class _HomePageState extends State<HomePage>
                 Text(
                   'Lamlayers',
                   style: GoogleFonts.inter(
-                    fontSize: 22.sp,
+                    fontSize: 25.sp,
                     fontWeight: FontWeight.w800,
                     color: const Color(0xFF0F172A),
                     letterSpacing: -0.8,
@@ -1841,11 +1828,7 @@ class _HomePageState extends State<HomePage>
                 SizedBox(height: 4.h),
                 Row(
                   children: [
-                    Icon(
-                      _getGreetingIcon(),
-                      size: 15.r,
-                      color: const Color(0xFF6366F1),
-                    ),
+                    _getGreetingAnimation(),
                     SizedBox(width: 6.w),
                     Text(
                       _getGreeting(),
@@ -1897,8 +1880,8 @@ class _HomePageState extends State<HomePage>
                       fontWeight: FontWeight.w500,
                     ),
                     tabs: const [
-                      Tab(text: 'Poster Making'),
-                      Tab(text: 'Scrapbook'),
+                      Tab(text: 'Design'),
+                      Tab(text: 'Lambook'),
                       Tab(text: 'Settings'),
                     ],
                   ),
