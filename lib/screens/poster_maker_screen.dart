@@ -654,6 +654,9 @@ class _SelectionBorderPainter extends CustomPainter {
 
   final Offset bottomRight;
 
+  // Pixel scale factor = item.scale * canvasZoom. Used to keep stroke in screen pixels.
+  final double pixelScale;
+
   _SelectionBorderPainter({
     required this.topLeft,
 
@@ -662,6 +665,7 @@ class _SelectionBorderPainter extends CustomPainter {
     required this.bottomLeft,
 
     required this.bottomRight,
+    required this.pixelScale,
   });
 
   @override
@@ -669,7 +673,7 @@ class _SelectionBorderPainter extends CustomPainter {
     final Paint borderPaint = Paint()
       ..color = Colors.blue.shade400
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0
+      ..strokeWidth = (pixelScale == 0) ? 2.0 : 2.0 / pixelScale
       ..isAntiAlias = true;
 
     final Path borderPath = Path();
@@ -8124,33 +8128,43 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               clipBehavior: Clip.none,
 
               children: [
-                Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color:
-                          (isSelected &&
-                              item.type == CanvasItemType.shape &&
-                              ((item.properties['shape'] as String?) ==
-                                      'rectangle' ||
-                                  (item.properties['shape'] as String?) ==
-                                      'square'))
-                          ? Colors
-                                .transparent // Hide default border for quadrilaterals
-                          : (isSelected
-                                ? Colors.blue.shade400
-                                : Colors.transparent),
+                (() {
+                  final double selectionStroke =
+                      (2.0 /
+                      (() {
+                        final double z = _currentCanvasZoom();
+                        final double s = item.scale <= 0 ? 1.0 : item.scale;
+                        final double ps = (z == 0 ? 1.0 : z) * s;
+                        return ps == 0 ? 1.0 : ps;
+                      })());
 
-                      width: 2,
+                  final bool hideDefaultForQuad =
+                      (isSelected &&
+                      item.type == CanvasItemType.shape &&
+                      ((item.properties['shape'] as String?) == 'rectangle' ||
+                          (item.properties['shape'] as String?) == 'square'));
+
+                  return Container(
+                    // Counteract the inside-painting border shift by padding when not selected
+                    padding: EdgeInsets.all(isSelected ? 0 : selectionStroke),
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: hideDefaultForQuad
+                            ? Colors.transparent
+                            : (isSelected
+                                  ? Colors.blue.shade400
+                                  : Colors.transparent),
+                        width: isSelected ? selectionStroke : 0,
+                      ),
                     ),
-                  ),
-
-                  child: item.type == CanvasItemType.text
-                      ? _buildItemContent(item)
-                      : Opacity(
-                          opacity: item.opacity.clamp(0.0, 1.0),
-                          child: _buildItemContent(item),
-                        ),
-                ),
+                    child: item.type == CanvasItemType.text
+                        ? _buildItemContent(item)
+                        : Opacity(
+                            opacity: item.opacity.clamp(0.0, 1.0),
+                            child: _buildItemContent(item),
+                          ),
+                  );
+                })(),
 
                 // Add custom selection border for quadrilaterals
                 if (isSelected &&
@@ -8224,6 +8238,12 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           bottomLeft: Offset(bottomLeftX, bottomLeftY),
 
           bottomRight: Offset(bottomRightX, bottomRightY),
+          pixelScale: (() {
+            final double z = _currentCanvasZoom();
+            final double s = item.scale <= 0 ? 1.0 : item.scale;
+            final double ps = (z == 0 ? 1.0 : z) * s;
+            return ps == 0 ? 1.0 : ps;
+          })(),
         ),
       ),
     );
@@ -8236,7 +8256,14 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           border: Border.all(
             color: Colors.blue.shade400.withOpacity(0.6),
 
-            width: 2,
+            width:
+                (2.0 /
+                (() {
+                  final double z = _currentCanvasZoom();
+                  final double s = item.scale <= 0 ? 1.0 : item.scale;
+                  final double ps = (z == 0 ? 1.0 : z) * s;
+                  return ps == 0 ? 1.0 : ps;
+                })()),
           ),
 
           borderRadius: BorderRadius.circular(8.r),
