@@ -6904,6 +6904,11 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         );
 
         currentDrawingPoints.clear();
+
+        // Reset path text so the user is prompted again for new text next time
+        if (selectedDrawingTool == DrawingTool.textPath) {
+          _currentPathText = null;
+        }
       }
     });
   }
