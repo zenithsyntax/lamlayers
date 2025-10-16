@@ -13979,132 +13979,483 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     showDialog(
       context: context,
 
+      barrierDismissible: true,
+
       builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Stroke Settings'),
+        builder: (context, setDialogState) => Dialog(
+          backgroundColor: Colors.transparent,
 
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
+          insetPadding: EdgeInsets.all(20.w),
 
-            children: [
-              // Stroke width slider
-              Text('Stroke Width: $strokeWidth'),
+          child: Container(
+            width: double.infinity,
 
-              Slider(
-                value: strokeWidth.toDouble(),
+            decoration: BoxDecoration(
+              color: Colors.white,
 
-                min: 1,
+              borderRadius: BorderRadius.circular(24.r),
 
-                max: 50,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.12),
 
-                divisions: 49,
+                  blurRadius: 20,
 
-                onChanged: (value) {
-                  setDialogState(() {
-                    strokeWidth = value.round();
-                  });
-                },
-              ),
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
 
-              SizedBox(height: 16.h),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
 
-              // Threshold slider
-              Text('Threshold: $threshold'),
+              children: [
+                // Header
+                Container(
+                  padding: EdgeInsets.all(20.w),
 
-              Slider(
-                value: threshold.toDouble(),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.purple.shade400, Colors.purple.shade600],
+                    ),
 
-                min: 0,
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(24.r),
 
-                max: 255,
+                      topRight: Radius.circular(24.r),
+                    ),
+                  ),
 
-                divisions: 255,
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.border_outer_rounded,
 
-                onChanged: (value) {
-                  setDialogState(() {
-                    threshold = value.round();
-                  });
-                },
-              ),
+                        color: Colors.white,
 
-              SizedBox(height: 16.h),
+                        size: 24.sp,
+                      ),
 
-              // Stroke color picker
-              const Text('Stroke Color:'),
+                      SizedBox(width: 12.w),
 
-              SizedBox(height: 8.h),
+                      Text(
+                        'Stroke Settings',
 
-              GestureDetector(
-                onTap: () {
-                  showDialog(
-                    context: context,
+                        style: TextStyle(
+                          fontSize: 18.sp,
 
-                    builder: (context) => AlertDialog(
-                      title: const Text('Pick Stroke Color'),
+                          fontWeight: FontWeight.bold,
 
-                      content: SingleChildScrollView(
-                        child: ColorPicker(
-                          pickerColor: strokeColor,
-
-                          onColorChanged: (color) {
-                            setDialogState(() {
-                              strokeColor = color;
-                            });
-                          },
+                          color: Colors.white,
                         ),
                       ),
 
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
+                      const Spacer(),
 
-                          child: const Text('Done'),
+                      GestureDetector(
+                        onTap: () => Navigator.of(context).pop(),
+
+                        child: Container(
+                          padding: EdgeInsets.all(8.w),
+
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+
+                            borderRadius: BorderRadius.circular(8.r),
+                          ),
+
+                          child: Icon(
+                            Icons.close_rounded,
+
+                            color: Colors.white,
+
+                            size: 20.sp,
+                          ),
                         ),
-                      ],
-                    ),
-                  );
-                },
-
-                child: Container(
-                  width: 50,
-
-                  height: 50,
-
-                  decoration: BoxDecoration(
-                    color: strokeColor,
-
-                    border: Border.all(color: Colors.grey),
-
-                    borderRadius: BorderRadius.circular(8),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ],
+
+                // Content
+                Padding(
+                  padding: EdgeInsets.all(20.w),
+
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+
+                    crossAxisAlignment: CrossAxisAlignment.start,
+
+                    children: [
+                      // Width
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.line_weight_rounded,
+                            color: Colors.grey[700],
+                            size: 18.sp,
+                          ),
+
+                          SizedBox(width: 8.w),
+
+                          Text(
+                            'Width',
+
+                            style: TextStyle(
+                              fontSize: 14.sp,
+
+                              fontWeight: FontWeight.w600,
+
+                              color: Colors.grey[800],
+                            ),
+                          ),
+
+                          const Spacer(),
+
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 10.w,
+                              vertical: 6.h,
+                            ),
+
+                            decoration: BoxDecoration(
+                              color: Colors.purple.withOpacity(0.08),
+
+                              borderRadius: BorderRadius.circular(8.r),
+                            ),
+
+                            child: Text(
+                              '$strokeWidth px',
+
+                              style: TextStyle(
+                                fontSize: 12.sp,
+
+                                fontWeight: FontWeight.w600,
+
+                                color: Colors.purple.shade700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      Slider(
+                        value: strokeWidth.toDouble(),
+
+                        min: 1,
+
+                        max: 50,
+
+                        divisions: 49,
+
+                        activeColor: Colors.purple.shade400,
+
+                        onChanged: (value) {
+                          setDialogState(() {
+                            strokeWidth = value.round();
+                          });
+                        },
+                      ),
+
+                      SizedBox(height: 8.h),
+
+                      // Threshold
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.tune_rounded,
+                            color: Colors.grey[700],
+                            size: 18.sp,
+                          ),
+
+                          SizedBox(width: 8.w),
+
+                          Text(
+                            'Threshold',
+
+                            style: TextStyle(
+                              fontSize: 14.sp,
+
+                              fontWeight: FontWeight.w600,
+
+                              color: Colors.grey[800],
+                            ),
+                          ),
+
+                          const Spacer(),
+
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 10.w,
+                              vertical: 6.h,
+                            ),
+
+                            decoration: BoxDecoration(
+                              color: Colors.blue.withOpacity(0.08),
+
+                              borderRadius: BorderRadius.circular(8.r),
+                            ),
+
+                            child: Text(
+                              '$threshold',
+
+                              style: TextStyle(
+                                fontSize: 12.sp,
+
+                                fontWeight: FontWeight.w600,
+
+                                color: Colors.blue.shade700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      Slider(
+                        value: threshold.toDouble(),
+
+                        min: 0,
+
+                        max: 255,
+
+                        divisions: 255,
+
+                        activeColor: Colors.blue.shade400,
+
+                        onChanged: (value) {
+                          setDialogState(() {
+                            threshold = value.round();
+                          });
+                        },
+                      ),
+
+                      SizedBox(height: 12.h),
+
+                      // Color
+                      Text(
+                        'Color',
+
+                        style: TextStyle(
+                          fontSize: 14.sp,
+
+                          fontWeight: FontWeight.w600,
+
+                          color: Colors.grey[800],
+                        ),
+                      ),
+
+                      SizedBox(height: 10.h),
+
+                      Row(
+                        children: [
+                          // Current color preview
+                          Container(
+                            width: 40.w,
+
+                            height: 40.w,
+
+                            decoration: BoxDecoration(
+                              color: strokeColor,
+
+                              borderRadius: BorderRadius.circular(10.r),
+
+                              border: Border.all(color: Colors.grey.shade300),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.06),
+
+                                  blurRadius: 6,
+
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          SizedBox(width: 12.w),
+
+                          Expanded(
+                            child: Wrap(
+                              spacing: 8.w,
+
+                              runSpacing: 8.h,
+
+                              children: [
+                                ...[
+                                  Colors.black,
+                                  Colors.white,
+                                  Colors.red.shade400,
+                                  Colors.orange.shade400,
+                                  Colors.yellow.shade600,
+                                  Colors.green.shade500,
+                                  Colors.blue.shade500,
+                                  Colors.purple.shade500,
+                                  Colors.pink.shade400,
+                                  Colors.brown.shade500,
+                                ].map((c) {
+                                  final bool selected =
+                                      c.value == strokeColor.value;
+                                  return GestureDetector(
+                                    onTap: () {
+                                      setDialogState(() {
+                                        strokeColor = c;
+                                      });
+                                    },
+                                    child: Container(
+                                      width: 28.w,
+
+                                      height: 28.w,
+
+                                      decoration: BoxDecoration(
+                                        color: c,
+
+                                        borderRadius: BorderRadius.circular(
+                                          8.r,
+                                        ),
+
+                                        border: Border.all(
+                                          color: selected
+                                              ? Colors.purple
+                                              : Colors.grey.shade300,
+
+                                          width: selected ? 2 : 1,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+
+                                GestureDetector(
+                                  onTap: () {
+                                    showDialog(
+                                      context: context,
+
+                                      builder: (context) => AlertDialog(
+                                        title: const Text('Pick Stroke Color'),
+
+                                        content: SingleChildScrollView(
+                                          child: ColorPicker(
+                                            pickerColor: strokeColor,
+
+                                            onColorChanged: (color) {
+                                              setDialogState(() {
+                                                strokeColor = color;
+                                              });
+                                            },
+                                          ),
+                                        ),
+
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context),
+
+                                            child: const Text('Done'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                  child: Container(
+                                    width: 28.w,
+
+                                    height: 28.w,
+
+                                    alignment: Alignment.center,
+
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.shade200,
+
+                                      borderRadius: BorderRadius.circular(8.r),
+
+                                      border: Border.all(
+                                        color: Colors.grey.shade300,
+                                      ),
+                                    ),
+
+                                    child: Icon(
+                                      Icons.add_rounded,
+                                      size: 18.sp,
+                                      color: Colors.grey[700],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Actions
+                Container(
+                  padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 20.h),
+
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(context),
+
+                          style: OutlinedButton.styleFrom(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12.r),
+                            ),
+                            side: BorderSide(color: Colors.grey.shade300),
+                            padding: EdgeInsets.symmetric(vertical: 12.h),
+                          ),
+
+                          child: Text(
+                            'Cancel',
+                            style: TextStyle(fontSize: 14.sp),
+                          ),
+                        ),
+                      ),
+
+                      SizedBox(width: 12.w),
+
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+
+                            _applyStrokeToSelectedImage(
+                              strokeWidth: strokeWidth,
+
+                              strokeColor: strokeColor,
+
+                              threshold: threshold,
+                            );
+                          },
+
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.purple.shade500,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12.r),
+                            ),
+                            padding: EdgeInsets.symmetric(vertical: 12.h),
+                            elevation: 0,
+                          ),
+
+                          child: Text(
+                            'Apply Stroke',
+
+                            style: TextStyle(
+                              fontSize: 14.sp,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-
-              child: const Text('Cancel'),
-            ),
-
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-
-                _applyStrokeToSelectedImage(
-                  strokeWidth: strokeWidth,
-
-                  strokeColor: strokeColor,
-
-                  threshold: threshold,
-                );
-              },
-
-              child: const Text('Apply Stroke'),
-            ),
-          ],
         ),
       ),
     );
