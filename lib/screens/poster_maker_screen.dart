@@ -13007,11 +13007,30 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   }
 
   Future<void> _exportPoster() async {
-    // Show export options dialog
+    // Read user preferences from Hive
+    final Box<hive_model.UserPreferences> userPreferencesBox =
+        Hive.box<hive_model.UserPreferences>('userPreferences');
+    final hive_model.UserPreferences? userPrefs = userPreferencesBox.get(
+      'user_prefs_id',
+    );
+
+    // Convert Hive preferences to export dialog enums
+    final export_dialog.ExportFormat initialFormat = userPrefs != null
+        ? _convertToDialogFormat(userPrefs.defaultExportFormat)
+        : export_dialog.ExportFormat.jpg;
+
+    final export_dialog.ExportClarity initialClarity = userPrefs != null
+        ? _convertToDialogClarity(userPrefs.defaultExportQuality)
+        : export_dialog.ExportClarity.high;
+
+    // Show export options dialog with initial values from preferences
     final export_dialog.ExportOptions? options =
         await showDialog<export_dialog.ExportOptions>(
           context: context,
-          builder: (context) => const export_dialog.ExportDialog(),
+          builder: (context) => export_dialog.ExportDialog(
+            initialFormat: initialFormat,
+            initialClarity: initialClarity,
+          ),
         );
 
     if (options == null) return;
@@ -13419,6 +13438,35 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         return hive_model.ExportQuality.medium;
       case export_dialog.ExportClarity.low:
         return hive_model.ExportQuality.low;
+    }
+  }
+
+  // Convert from Hive model enums to export dialog enums
+  export_dialog.ExportFormat _convertToDialogFormat(
+    hive_model.ExportFormat format,
+  ) {
+    switch (format) {
+      case hive_model.ExportFormat.png:
+        return export_dialog.ExportFormat.png;
+      case hive_model.ExportFormat.jpg:
+        return export_dialog.ExportFormat.jpg;
+      default:
+        return export_dialog.ExportFormat.jpg;
+    }
+  }
+
+  export_dialog.ExportClarity _convertToDialogClarity(
+    hive_model.ExportQuality quality,
+  ) {
+    switch (quality) {
+      case hive_model.ExportQuality.high:
+        return export_dialog.ExportClarity.high;
+      case hive_model.ExportQuality.medium:
+        return export_dialog.ExportClarity.medium;
+      case hive_model.ExportQuality.low:
+        return export_dialog.ExportClarity.low;
+      default:
+        return export_dialog.ExportClarity.high;
     }
   }
 

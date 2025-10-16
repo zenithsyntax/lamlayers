@@ -21,22 +21,31 @@ class ExportOptions {
 }
 
 class ExportDialog extends StatefulWidget {
-  const ExportDialog({Key? key}) : super(key: key);
+  final ExportFormat? initialFormat;
+  final ExportClarity? initialClarity;
+
+  const ExportDialog({Key? key, this.initialFormat, this.initialClarity})
+    : super(key: key);
 
   @override
   State<ExportDialog> createState() => _ExportDialogState();
 }
 
 class _ExportDialogState extends State<ExportDialog> {
-  ExportFormat _selectedFormat = ExportFormat.png;
-  ExportClarity _selectedClarity = ExportClarity.high;
+  late ExportFormat _selectedFormat;
+  late ExportClarity _selectedClarity;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedFormat = widget.initialFormat ?? ExportFormat.jpg;
+    _selectedClarity = widget.initialClarity ?? ExportClarity.high;
+  }
 
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20.r),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
       child: Container(
         padding: EdgeInsets.all(24.w),
         decoration: BoxDecoration(
@@ -232,11 +241,7 @@ class _ExportDialogState extends State<ExportDialog> {
     );
   }
 
-  Widget _buildClarityOption(
-    ExportClarity clarity,
-    String label,
-    Color color,
-  ) {
+  Widget _buildClarityOption(ExportClarity clarity, String label, Color color) {
     final isSelected = _selectedClarity == clarity;
     return GestureDetector(
       onTap: () => setState(() => _selectedClarity = clarity),
@@ -271,11 +276,13 @@ class _ExportDialogState extends State<ExportDialog> {
   ) {
     return GestureDetector(
       onTap: () {
-        Navigator.of(context).pop(ExportOptions(
-          format: _selectedFormat,
-          clarity: _selectedClarity,
-          type: type,
-        ));
+        Navigator.of(context).pop(
+          ExportOptions(
+            format: _selectedFormat,
+            clarity: _selectedClarity,
+            type: type,
+          ),
+        );
       },
       child: Container(
         padding: EdgeInsets.symmetric(vertical: 16.h, horizontal: 12.w),
@@ -292,11 +299,7 @@ class _ExportDialogState extends State<ExportDialog> {
         ),
         child: Column(
           children: [
-            Icon(
-              icon,
-              color: Colors.white,
-              size: 24.sp,
-            ),
+            Icon(icon, color: Colors.white, size: 24.sp),
             SizedBox(height: 8.h),
             Text(
               label,
