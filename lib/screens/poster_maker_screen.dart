@@ -2365,6 +2365,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   bool _isAutoSaving = false;
   bool _isDisposing = false;
   late final InterstitialAdManager _exportAd;
+  double _lastCanvasScale = 1.0; 
 
   @override
   void initState() {
@@ -3355,12 +3356,16 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   }
 
   void _addCanvasItem(CanvasItemType type, {Map<String, dynamic>? properties}) {
+    // Place new items at a fixed small offset within the canvas so they're visible
+    // regardless of current scale or pending layout calculations.
+    final Offset centerPosition = const Offset(50, 50);
+
     final newItem = CanvasItem(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
 
       type: type,
 
-      position: Offset(100.w, 100.h),
+      position: centerPosition,
 
       properties: properties ?? _getDefaultProperties(type),
 
@@ -3382,6 +3387,29 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     );
 
     _itemAddController.forward().then((_) => _itemAddController.reset());
+
+    // Ensure the canvas recenters so the new item is visible.
+    _recenterCanvasView();
+  }
+
+  void _recenterCanvasView() {
+    final Matrix4 begin = _canvasController.value.clone();
+    final Matrix4 end = Matrix4.identity();
+    _canvasPanZoomController?.dispose();
+    _canvasPanZoomController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 180),
+    );
+    _canvasPanZoomAnimation =
+        Matrix4Tween(begin: begin, end: end).animate(
+          CurvedAnimation(
+            parent: _canvasPanZoomController!,
+            curve: Curves.easeOut,
+          ),
+        )..addListener(() {
+          _canvasController.value = _canvasPanZoomAnimation!.value;
+        });
+    _canvasPanZoomController!.forward();
   }
 
   Map<String, dynamic> _getDefaultProperties(CanvasItemType type) {
@@ -7890,6 +7918,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               final double availW = constraints.maxWidth;
               final double availH = constraints.maxHeight;
               final double scale = math.min(availW / cw, availH / ch);
+              _lastCanvasScale = scale;
               final double displayW = cw * scale;
               final double displayH = ch * scale;
 
