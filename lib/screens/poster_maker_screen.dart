@@ -7948,7 +7948,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                             onTap: _deselectItem,
                             child: CustomPaint(
                               painter: CanvasGridPainter(
-                                showGrid: snapToGrid,
+                                // Hide grid during export/when UI is suppressed
+                                showGrid: snapToGrid && !_suppressSelectionUI,
                                 gridSize: 20.0,
                               ),
                               child: Stack(
