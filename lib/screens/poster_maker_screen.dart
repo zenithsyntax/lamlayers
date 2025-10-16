@@ -14330,29 +14330,324 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                                     showDialog(
                                       context: context,
 
-                                      builder: (context) => AlertDialog(
-                                        title: const Text('Pick Stroke Color'),
+                                      barrierDismissible: true,
 
-                                        content: SingleChildScrollView(
-                                          child: ColorPicker(
-                                            pickerColor: strokeColor,
+                                      builder: (context) => Dialog(
+                                        backgroundColor: Colors.transparent,
 
-                                            onColorChanged: (color) {
-                                              setDialogState(() {
-                                                strokeColor = color;
-                                              });
-                                            },
+                                        insetPadding: EdgeInsets.all(20.w),
+
+                                        child: Container(
+                                          width: double.infinity,
+
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+
+                                            borderRadius: BorderRadius.circular(
+                                              24.r,
+                                            ),
+
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withOpacity(
+                                                  0.12,
+                                                ),
+
+                                                blurRadius: 20,
+
+                                                offset: const Offset(0, 8),
+                                              ),
+                                            ],
+                                          ),
+
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+
+                                            children: [
+                                              // Header
+                                              Container(
+                                                padding: EdgeInsets.all(20.w),
+
+                                                decoration: BoxDecoration(
+                                                  gradient: LinearGradient(
+                                                    colors: [
+                                                      Colors.purple.shade400,
+                                                      Colors.purple.shade600,
+                                                    ],
+                                                  ),
+
+                                                  borderRadius:
+                                                      BorderRadius.only(
+                                                        topLeft:
+                                                            Radius.circular(
+                                                              24.r,
+                                                            ),
+
+                                                        topRight:
+                                                            Radius.circular(
+                                                              24.r,
+                                                            ),
+                                                      ),
+                                                ),
+
+                                                child: Row(
+                                                  children: [
+                                                    Icon(
+                                                      Icons.color_lens_rounded,
+
+                                                      color: Colors.white,
+
+                                                      size: 24.sp,
+                                                    ),
+
+                                                    SizedBox(width: 12.w),
+
+                                                    Text(
+                                                      'Pick Stroke Color',
+
+                                                      style: TextStyle(
+                                                        fontSize: 18.sp,
+
+                                                        fontWeight:
+                                                            FontWeight.bold,
+
+                                                        color: Colors.white,
+                                                      ),
+                                                    ),
+
+                                                    const Spacer(),
+
+                                                    GestureDetector(
+                                                      onTap: () => Navigator.of(
+                                                        context,
+                                                      ).pop(),
+
+                                                      child: Container(
+                                                        padding: EdgeInsets.all(
+                                                          8.w,
+                                                        ),
+
+                                                        decoration: BoxDecoration(
+                                                          color: Colors.white
+                                                              .withOpacity(0.2),
+
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                8.r,
+                                                              ),
+                                                        ),
+
+                                                        child: Icon(
+                                                          Icons.close_rounded,
+
+                                                          color: Colors.white,
+
+                                                          size: 20.sp,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+
+                                              // Content
+                                              Padding(
+                                                padding: EdgeInsets.all(20.w),
+
+                                                child: Column(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+
+                                                  children: [
+                                                    // Live preview chip
+                                                    Row(
+                                                      children: [
+                                                        Container(
+                                                          width: 36.w,
+
+                                                          height: 36.w,
+
+                                                          decoration: BoxDecoration(
+                                                            color: strokeColor,
+
+                                                            borderRadius:
+                                                                BorderRadius.circular(
+                                                                  10.r,
+                                                                ),
+
+                                                            border: Border.all(
+                                                              color: Colors
+                                                                  .grey
+                                                                  .shade300,
+                                                            ),
+                                                          ),
+                                                        ),
+
+                                                        SizedBox(width: 10.w),
+
+                                                        Expanded(
+                                                          child: Container(
+                                                            padding:
+                                                                EdgeInsets.symmetric(
+                                                                  horizontal:
+                                                                      10.w,
+                                                                  vertical: 8.h,
+                                                                ),
+
+                                                            decoration: BoxDecoration(
+                                                              color: Colors
+                                                                  .grey
+                                                                  .shade100,
+
+                                                              borderRadius:
+                                                                  BorderRadius.circular(
+                                                                    10.r,
+                                                                  ),
+
+                                                              border: Border.all(
+                                                                color: Colors
+                                                                    .grey
+                                                                    .shade300,
+                                                              ),
+                                                            ),
+
+                                                            child: Text(
+                                                              '#${strokeColor.value.toRadixString(16).padLeft(8, '0').toUpperCase()}',
+
+                                                              textAlign:
+                                                                  TextAlign
+                                                                      .center,
+
+                                                              style: TextStyle(
+                                                                fontSize: 12.sp,
+                                                                letterSpacing:
+                                                                    0.5,
+                                                                color: Colors
+                                                                    .grey
+                                                                    .shade700,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+
+                                                    SizedBox(height: 16.h),
+
+                                                    // Color picker
+                                                    SingleChildScrollView(
+                                                      child: ColorPicker(
+                                                        pickerColor:
+                                                            strokeColor,
+
+                                                        onColorChanged:
+                                                            (color) {
+                                                              setDialogState(
+                                                                () {
+                                                                  strokeColor =
+                                                                      color;
+                                                                },
+                                                              );
+                                                            },
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+
+                                              // Actions
+                                              Container(
+                                                padding: EdgeInsets.fromLTRB(
+                                                  20.w,
+                                                  0,
+                                                  20.w,
+                                                  20.h,
+                                                ),
+
+                                                child: Row(
+                                                  children: [
+                                                    Expanded(
+                                                      child: OutlinedButton(
+                                                        onPressed: () =>
+                                                            Navigator.pop(
+                                                              context,
+                                                            ),
+
+                                                        style: OutlinedButton.styleFrom(
+                                                          shape: RoundedRectangleBorder(
+                                                            borderRadius:
+                                                                BorderRadius.circular(
+                                                                  12.r,
+                                                                ),
+                                                          ),
+                                                          side: BorderSide(
+                                                            color: Colors
+                                                                .grey
+                                                                .shade300,
+                                                          ),
+                                                          padding:
+                                                              EdgeInsets.symmetric(
+                                                                vertical: 12.h,
+                                                              ),
+                                                        ),
+
+                                                        child: Text(
+                                                          'Cancel',
+                                                          style: TextStyle(
+                                                            fontSize: 14.sp,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+
+                                                    SizedBox(width: 12.w),
+
+                                                    Expanded(
+                                                      child: ElevatedButton(
+                                                        onPressed: () =>
+                                                            Navigator.pop(
+                                                              context,
+                                                            ),
+
+                                                        style: ElevatedButton.styleFrom(
+                                                          backgroundColor:
+                                                              Colors
+                                                                  .purple
+                                                                  .shade500,
+                                                          shape: RoundedRectangleBorder(
+                                                            borderRadius:
+                                                                BorderRadius.circular(
+                                                                  12.r,
+                                                                ),
+                                                          ),
+                                                          padding:
+                                                              EdgeInsets.symmetric(
+                                                                vertical: 12.h,
+                                                              ),
+                                                          elevation: 0,
+                                                        ),
+
+                                                        child: Text(
+                                                          'Done',
+
+                                                          style: TextStyle(
+                                                            fontSize: 14.sp,
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                            color: Colors.white,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ),
-
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () =>
-                                                Navigator.pop(context),
-
-                                            child: const Text('Done'),
-                                          ),
-                                        ],
                                       ),
                                     );
                                   },
