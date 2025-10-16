@@ -13804,19 +13804,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     );
 
     try {
-      // Store previous state for undo
-
-      final CanvasItem previous = CanvasItem(
-        id: selectedItem!.id,
-
-        type: selectedItem!.type,
-
-        properties: Map<String, dynamic>.from(selectedItem!.properties),
-
-        createdAt: selectedItem!.createdAt,
-
-        lastModified: selectedItem!.lastModified,
-      );
+      // Store previous state for undo (full deep copy including transforms)
+      final CanvasItem previous = selectedItem!.copyWith();
 
       // Get image bytes
 
@@ -13910,11 +13899,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       _addAction(
         CanvasAction(
           type: 'modify',
-
-          item: selectedItem,
-
+          item: selectedItem!
+              .copyWith(), // store a snapshot, not a live reference
           previousState: previous,
-
           timestamp: DateTime.now(),
         ),
       );
