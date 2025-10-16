@@ -97,47 +97,99 @@ class _HomePageState extends State<HomePage>
       context: context,
       builder: (ctx) => Dialog(
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20.r),
+          borderRadius: BorderRadius.circular(24.r),
         ),
-        child: Padding(
-          padding: EdgeInsets.all(20.w),
+        child: Container(
+          padding: EdgeInsets.all(24.w),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Name your Scrapbook',
+                'Name your Lambook',
                 style: GoogleFonts.inter(
-                  fontSize: 18.sp,
+                  fontSize: 20.sp,
                   fontWeight: FontWeight.w600,
+                  color: const Color(0xFF0F172A),
+                  letterSpacing: -0.5,
                 ),
               ),
-              SizedBox(height: 12.h),
+              SizedBox(height: 8.h),
+              Text(
+                'You can change this later in settings.',
+                style: GoogleFonts.inter(
+                  fontSize: 13.sp,
+                  color: const Color(0xFF64748B),
+                ),
+              ),
+              SizedBox(height: 20.h),
               TextField(
                 controller: controller,
                 autofocus: true,
+                style: GoogleFonts.inter(fontSize: 15.sp),
                 decoration: InputDecoration(
                   hintText: 'e.g. Planner 1',
+                  hintStyle: GoogleFonts.inter(color: const Color(0xFF94A3B8)),
                   filled: true,
                   fillColor: const Color(0xFFF8FAFC),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12.r),
                     borderSide: BorderSide.none,
                   ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12.r),
+                    borderSide: BorderSide(color: const Color(0xFFE2E8F0)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12.r),
+                    borderSide: BorderSide(
+                      color: const Color(0xFFEC4899),
+                      width: 2,
+                    ),
+                  ),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 16.w,
+                    vertical: 14.h,
+                  ),
                 ),
               ),
-              SizedBox(height: 16.h),
+              SizedBox(height: 24.h),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   TextButton(
                     onPressed: () => Navigator.pop(ctx),
-                    child: const Text('Cancel'),
+                    child: Text(
+                      'Cancel',
+                      style: GoogleFonts.inter(
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w500,
+                        color: const Color(0xFF64748B),
+                      ),
+                    ),
                   ),
                   SizedBox(width: 8.w),
                   ElevatedButton(
                     onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-                    child: const Text('Create'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFEC4899),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 24.w,
+                        vertical: 12.h,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10.r),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: Text(
+                      'Create',
+                      style: GoogleFonts.inter(
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -564,12 +616,21 @@ class _HomePageState extends State<HomePage>
                   size: 20.r,
                   color: const Color(0xFF64748B),
                 ),
+                tooltip: 'More options',
+                elevation: 6,
+                color: Colors.white,
+                shadowColor: Colors.black.withOpacity(0.08),
+                surfaceTintColor: Colors.transparent,
+                offset: Offset(0, 6.h),
+                constraints: BoxConstraints(minWidth: 160.w),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12.r),
+                  side: const BorderSide(color: Color(0xFFE2E8F0)),
                 ),
                 itemBuilder: (context) => [
                   PopupMenuItem(
                     value: 'rename',
+                    height: 40.h,
                     child: Row(
                       children: [
                         Icon(
@@ -585,8 +646,10 @@ class _HomePageState extends State<HomePage>
                       ],
                     ),
                   ),
+                  const PopupMenuDivider(height: 1),
                   PopupMenuItem(
                     value: 'delete',
+                    height: 40.h,
                     child: Row(
                       children: [
                         Icon(
@@ -1234,12 +1297,21 @@ class _HomePageState extends State<HomePage>
                   size: 20.r,
                   color: const Color(0xFF64748B),
                 ),
+                tooltip: 'More options',
+                elevation: 6,
+                color: Colors.white,
+                shadowColor: Colors.black.withOpacity(0.08),
+                surfaceTintColor: Colors.transparent,
+                offset: Offset(0, 6.h),
+                constraints: BoxConstraints(minWidth: 160.w),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12.r),
+                  side: const BorderSide(color: Color(0xFFE2E8F0)),
                 ),
                 itemBuilder: (context) => [
                   PopupMenuItem(
                     value: 'rename',
+                    height: 40.h,
                     child: Row(
                       children: [
                         Icon(
@@ -1255,8 +1327,10 @@ class _HomePageState extends State<HomePage>
                       ],
                     ),
                   ),
+                  const PopupMenuDivider(height: 1),
                   PopupMenuItem(
                     value: 'delete',
+                    height: 40.h,
                     child: Row(
                       children: [
                         Icon(
@@ -1431,7 +1505,6 @@ class _HomePageState extends State<HomePage>
                     letterSpacing: -0.5,
                   ),
                 ),
-               
               ],
             ),
           ),

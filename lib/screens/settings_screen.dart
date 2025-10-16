@@ -28,11 +28,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
-        backgroundColor: Colors.blue.shade600,
-        foregroundColor: Colors.white,
-      ),
+
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -88,120 +84,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Canvas Settings',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  SwitchListTile(
-                    title: const Text('Show Grid'),
-                    subtitle: const Text('Display grid lines on canvas'),
-                    value: userPreferences.showGrid,
-                    onChanged: (value) {
-                      setState(() {
-                        userPreferences.showGrid = value;
-                        _updatePreferences();
-                      });
-                    },
-                  ),
-                  SwitchListTile(
-                    title: const Text('Snap to Grid'),
-                    subtitle: const Text('Align items to grid lines'),
-                    value: userPreferences.snapToGrid,
-                    onChanged: (value) {
-                      setState(() {
-                        userPreferences.snapToGrid = value;
-                        _updatePreferences();
-                      });
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Export Settings',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  ListTile(
-                    title: const Text('Default Export Format'),
-                    subtitle: Text(
-                      _getFormatName(userPreferences.defaultExportFormat),
-                    ),
-                    trailing: const Icon(Icons.arrow_forward_ios),
-                    onTap: () => _showFormatDialog(),
-                  ),
-                  ListTile(
-                    title: const Text('Default Export Quality'),
-                    subtitle: Text(
-                      _getQualityName(userPreferences.defaultExportQuality),
-                    ),
-                    trailing: const Icon(Icons.arrow_forward_ios),
-                    onTap: () => _showQualityDialog(),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Appearance',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  SwitchListTile(
-                    title: const Text('Dark Mode'),
-                    subtitle: const Text('Use dark theme'),
-                    value: userPreferences.darkMode,
-                    onChanged: (value) {
-                      setState(() {
-                        userPreferences.darkMode = value;
-                        _updatePreferences();
-                      });
-                    },
-                  ),
-                  SwitchListTile(
-                    title: const Text('Haptic Feedback'),
-                    subtitle: const Text('Vibrate on interactions'),
-                    value: userPreferences.enableHapticFeedback,
-                    onChanged: (value) {
-                      setState(() {
-                        userPreferences.enableHapticFeedback = value;
-                        _updatePreferences();
-                      });
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
+         
         ],
       ),
     );

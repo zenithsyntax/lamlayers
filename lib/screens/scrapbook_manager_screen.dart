@@ -318,12 +318,21 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen> {
                             size: 18.r,
                             color: const Color(0xFF64748B),
                           ),
+                          tooltip: 'More options',
+                          elevation: 6,
+                          color: Colors.white,
+                          shadowColor: Colors.black.withOpacity(0.08),
+                          surfaceTintColor: Colors.transparent,
+                          offset: Offset(0, 6.h),
+                          constraints: BoxConstraints(minWidth: 170.w),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12.r),
+                            side: const BorderSide(color: Color(0xFFE2E8F0)),
                           ),
                           itemBuilder: (context) => [
                             PopupMenuItem(
                               value: 'duplicate',
+                              height: 40.h,
                               child: Row(
                                 children: [
                                   Icon(
@@ -339,8 +348,10 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen> {
                                 ],
                               ),
                             ),
+                            const PopupMenuDivider(height: 1),
                             PopupMenuItem(
                               value: 'delete',
+                              height: 40.h,
                               child: Row(
                                 children: [
                                   Icon(

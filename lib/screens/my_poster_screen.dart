@@ -415,14 +415,57 @@ class _MyDesignsScreenState extends State<MyDesignsScreen> {
                   _deleteProject(project);
                 }
               },
+              tooltip: 'More options',
+              elevation: 6,
+              color: Colors.white,
+              shadowColor: Colors.black.withOpacity(0.08),
+              surfaceTintColor: Colors.transparent,
+              offset: Offset(0, 6.h),
+              constraints: BoxConstraints(minWidth: 160.w),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12.r),
+                side: const BorderSide(color: Color(0xFFE0E0E0)),
+              ),
               itemBuilder: (context) => [
                 PopupMenuItem(
                   value: 'rename',
-                  child: Text('Rename', style: GoogleFonts.poppins()),
+                  height: 40.h,
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.edit_outlined,
+                        size: 18.r,
+                        color: const Color(0xFF757575),
+                      ),
+                      SizedBox(width: 12.w),
+                      Text(
+                        'Rename',
+                        style: GoogleFonts.poppins(fontSize: 14.sp),
+                      ),
+                    ],
+                  ),
                 ),
+                const PopupMenuDivider(height: 1),
                 PopupMenuItem(
                   value: 'delete',
-                  child: Text('Delete', style: GoogleFonts.poppins()),
+                  height: 40.h,
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.delete_outline,
+                        size: 18.r,
+                        color: const Color(0xFFEF5350),
+                      ),
+                      SizedBox(width: 12.w),
+                      Text(
+                        'Delete',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14.sp,
+                          color: const Color(0xFFEF5350),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
