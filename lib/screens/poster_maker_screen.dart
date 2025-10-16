@@ -536,32 +536,43 @@ class DrawingPainter extends CustomPainter {
     }
   }
 
-  void _drawArrowhead(Canvas canvas, Paint paint, Offset start, Offset end) {
-    final arrowLength = 15.0;
+  // Unified arrowhead drawing to ensure consistent appearance across live drawing,
+  // committed layers, and export. Arrow size scales with the paint's strokeWidth.
+  void _drawArrowheadUnified(
+    Canvas canvas,
+    Paint paint,
+    Offset start,
+    Offset end,
+  ) {
+    final double direction = (end - start).direction;
+    final double arrowLength = (paint.strokeWidth * 2).clamp(6.0, 40.0);
+    final double arrowAngle = math.pi / 6; // 30 degrees
 
-    final arrowAngle = 0.5;
+    final Offset arrowPoint1 =
+        end +
+        Offset(
+          -arrowLength * math.cos(direction - arrowAngle),
+          -arrowLength * math.sin(direction - arrowAngle),
+        );
 
-    final direction = _normalize(end - start);
+    final Offset arrowPoint2 =
+        end +
+        Offset(
+          -arrowLength * math.cos(direction + arrowAngle),
+          -arrowLength * math.sin(direction + arrowAngle),
+        );
 
-    final perpendicular = Offset(-direction.dy, direction.dx);
-
-    final arrowPoint1 =
-        end -
-        direction * arrowLength +
-        perpendicular * arrowLength * arrowAngle;
-
-    final arrowPoint2 =
-        end -
-        direction * arrowLength -
-        perpendicular * arrowLength * arrowAngle;
-
-    final path = Path()
+    final Path path = Path()
       ..moveTo(end.dx, end.dy)
       ..lineTo(arrowPoint1.dx, arrowPoint1.dy)
       ..moveTo(end.dx, end.dy)
       ..lineTo(arrowPoint2.dx, arrowPoint2.dy);
 
     canvas.drawPath(path, paint);
+  }
+
+  void _drawArrowhead(Canvas canvas, Paint paint, Offset start, Offset end) {
+    _drawArrowheadUnified(canvas, paint, start, end);
   }
 
   void _drawTriangle(Canvas canvas, Paint paint, Offset start, Offset end) {
@@ -836,35 +847,7 @@ class _DrawingItemPainter extends CustomPainter {
   }
 
   void _drawArrowhead(Canvas canvas, Paint paint, Offset start, Offset end) {
-    final direction = (end - start).direction;
-
-    final arrowLength = strokeWidth * 2;
-
-    final arrowAngle = math.pi / 6; // 30 degrees
-
-    final arrowPoint1 =
-        end +
-        Offset(
-          -arrowLength * math.cos(direction - arrowAngle),
-
-          -arrowLength * math.sin(direction - arrowAngle),
-        );
-
-    final arrowPoint2 =
-        end +
-        Offset(
-          -arrowLength * math.cos(direction + arrowAngle),
-
-          -arrowLength * math.sin(direction + arrowAngle),
-        );
-
-    final path = Path()
-      ..moveTo(end.dx, end.dy)
-      ..lineTo(arrowPoint1.dx, arrowPoint1.dy)
-      ..moveTo(end.dx, end.dy)
-      ..lineTo(arrowPoint2.dx, arrowPoint2.dy);
-
-    canvas.drawPath(path, paint);
+    _drawArrowheadUnified(canvas, paint, start, end);
   }
 
   void _drawTriangle(Canvas canvas, Paint paint, Offset start, Offset end) {
@@ -1263,27 +1246,7 @@ class _MultiStrokeDrawingPainter extends CustomPainter {
   }
 
   void _drawArrowhead(Canvas canvas, Paint paint, Offset start, Offset end) {
-    const double arrowHeadLength = 12.0;
-
-    const double arrowHeadAngle = 25 * math.pi / 180;
-
-    final angle = math.atan2(end.dy - start.dy, end.dx - start.dx);
-
-    final path = Path()
-      ..moveTo(end.dx, end.dy)
-      ..lineTo(
-        end.dx - arrowHeadLength * math.cos(angle - arrowHeadAngle),
-
-        end.dy - arrowHeadLength * math.sin(angle - arrowHeadAngle),
-      )
-      ..moveTo(end.dx, end.dy)
-      ..lineTo(
-        end.dx - arrowHeadLength * math.cos(angle + arrowHeadAngle),
-
-        end.dy - arrowHeadLength * math.sin(angle + arrowHeadAngle),
-      );
-
-    canvas.drawPath(path, paint);
+    _drawArrowheadUnified(canvas, paint, start, end);
   }
 
   void _drawTriangle(Canvas canvas, Paint paint, Offset start, Offset end) {
@@ -1311,6 +1274,39 @@ class _MultiStrokeDrawingPainter extends CustomPainter {
 }
 
 // Robust parsing helpers for loaded project data
+void _drawArrowheadUnified(
+  Canvas canvas,
+  Paint paint,
+  Offset start,
+  Offset end,
+) {
+  final double direction = (end - start).direction;
+  final double arrowLength = (paint.strokeWidth * 2).clamp(6.0, 40.0);
+  final double arrowAngle = math.pi / 6; // 30 degrees
+
+  final Offset arrowPoint1 =
+      end +
+      Offset(
+        -arrowLength * math.cos(direction - arrowAngle),
+        -arrowLength * math.sin(direction - arrowAngle),
+      );
+
+  final Offset arrowPoint2 =
+      end +
+      Offset(
+        -arrowLength * math.cos(direction + arrowAngle),
+        -arrowLength * math.sin(direction + arrowAngle),
+      );
+
+  final Path path = Path()
+    ..moveTo(end.dx, end.dy)
+    ..lineTo(arrowPoint1.dx, arrowPoint1.dy)
+    ..moveTo(end.dx, end.dy)
+    ..lineTo(arrowPoint2.dx, arrowPoint2.dy);
+
+  canvas.drawPath(path, paint);
+}
+
 Offset? _parseOffset(dynamic value) {
   if (value == null) return null;
   if (value is Offset) return value;
