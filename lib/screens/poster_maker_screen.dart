@@ -8011,8 +8011,17 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                   final double scaleAmplify = (item.scale <= 0)
                       ? 1.0
                       : item.scale;
-                  final Offset canvasDelta =
+                  // details.delta is in the widget's local (rotated) space.
+                  // Convert it to parent/canvas space by rotating by the item's angle.
+                  final Offset localDelta =
                       details.delta * (scaleAmplify / zoomAdjusted);
+                  final double a = item.rotation;
+                  final double cosA = math.cos(a);
+                  final double sinA = math.sin(a);
+                  final Offset canvasDelta = Offset(
+                    localDelta.dx * cosA - localDelta.dy * sinA,
+                    localDelta.dx * sinA + localDelta.dy * cosA,
+                  );
 
                   Offset newPosition = item.position + canvasDelta;
 
