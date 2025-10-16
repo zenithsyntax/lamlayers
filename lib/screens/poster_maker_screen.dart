@@ -2365,7 +2365,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   bool _isAutoSaving = false;
   bool _isDisposing = false;
   late final InterstitialAdManager _exportAd;
-  double _lastCanvasScale = 1.0; 
+  double _lastCanvasScale = 1.0;
+  bool _isProjectLoading = false;
 
   @override
   void initState() {
@@ -2628,13 +2629,25 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   }
 
   Future<void> _loadProjectData() async {
-    if (_currentProject != null) {
+    if (_currentProject == null) return;
+    if (mounted) {
+      setState(() {
+        _isProjectLoading = true;
+      });
+    }
+    try {
       canvasItems = await _convertHiveItemsToCanvas(
         _currentProject!.canvasItems,
       );
 
       if (mounted) {
         setState(() {});
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProjectLoading = false;
+        });
       }
     }
   }
@@ -7991,6 +8004,16 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                                           _currentPathLetterSpacing,
                                     ),
                                   ),
+                                ),
+                              ),
+                            ),
+
+                          if (_isProjectLoading)
+                            Positioned.fill(
+                              child: Container(
+                                color: Colors.black.withOpacity(0.2),
+                                child: const Center(
+                                  child: CircularProgressIndicator(),
                                 ),
                               ),
                             ),
