@@ -1812,29 +1812,18 @@ class _HomePageState extends State<HomePage>
         title: Row(
           children: [
             Container(
-              padding: EdgeInsets.all(12.w),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+              height: 70.h,
+              width: 70.w,
+              
+              child: ClipRRect(
+                child: Image.asset(
+                  'assets/icons/lamlayers_logo.png',
+    
+                 
                 ),
-                borderRadius: BorderRadius.circular(14.r),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF6366F1).withOpacity(0.25),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Icon(
-                Icons.layers_rounded,
-                color: Colors.white,
-                size: 24.r,
               ),
             ),
-            SizedBox(width: 16.w),
+          
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
