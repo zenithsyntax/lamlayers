@@ -4263,20 +4263,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
           Icons.swap_vert_rounded,
         ),
-
-        _miniSlider(
-          'Size',
-
-          (props['shadowSize'] as double?) ?? 0.0,
-
-          0.0,
-
-          100.0,
-
-          (v) => setState(() => props['shadowSize'] = v),
-
-          Icons.zoom_out_map_rounded,
-        ),
       ],
     ];
   }
