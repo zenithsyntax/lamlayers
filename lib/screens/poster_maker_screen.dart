@@ -3203,7 +3203,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         // Replace previous with merged action updating the latest item state
         actionHistory[currentActionIndex] = CanvasAction(
           type: previous.type,
-          item: action.item, // latest state
+          item: action.item!, // latest state
           previousState: previous.previousState ?? action.previousState,
           timestamp: previous.timestamp,
           mergeKey: defaultMergeKey,
@@ -4464,6 +4464,19 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         final bool isQuadrilateral = shape == 'rectangle' || shape == 'square';
 
         return [
+          _miniIconButton(
+            'Image Fill',
+            Icons.photo_library_rounded,
+            () => _pickShapeImage(),
+          ),
+
+          if (selectedItem!.properties['image'] != null)
+            _miniIconButton(
+              'Clear Image',
+              Icons.delete_sweep_rounded,
+              () => setState(() => selectedItem!.properties['image'] = null),
+            ),
+
           _miniColorSwatch(
             'Fill',
 
@@ -4585,23 +4598,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               Icons.keyboard_arrow_left_rounded,
             ),
           ],
-
-          _miniIconButton(
-            'Image Fill',
-
-            Icons.photo_library_rounded,
-
-            () => _pickShapeImage(),
-          ),
-
-          if (selectedItem!.properties['image'] != null)
-            _miniIconButton(
-              'Clear Image',
-
-              Icons.delete_sweep_rounded,
-
-              () => setState(() => selectedItem!.properties['image'] = null),
-            ),
         ];
 
       case CanvasItemType.sticker:
@@ -10830,6 +10826,35 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
     return Column(
       children: [
+        _buildOptionButton(
+          'Pick Image Inside Shape',
+          Icons.photo_library_rounded,
+          Colors.blue.shade400,
+          _pickShapeImage,
+        ),
+
+        if (props['image'] != null) ...[
+          SizedBox(height: 12.h),
+
+          _buildOptionButton(
+            'Clear Image',
+            Icons.delete_sweep_rounded,
+            Colors.red.shade400,
+            () => setState(() => props['image'] = null),
+          ),
+        ],
+
+        SizedBox(height: 16.h),
+
+        _buildToggleOption(
+          'Gradient Fill',
+          (props['hasGradient'] as bool?) ?? false,
+          Icons.gradient_rounded,
+          (value) => setState(() => props['hasGradient'] = value),
+        ),
+
+        SizedBox(height: 16.h),
+
         _buildColorOption('Fill Color', 'fillColor', props),
 
         SizedBox(height: 16.h),
@@ -11195,42 +11220,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           ),
 
           SizedBox(height: 20.h),
-        ],
-
-        _buildToggleOption(
-          'Gradient Fill',
-
-          (props['hasGradient'] as bool?) ?? false,
-
-          Icons.gradient_rounded,
-
-          (value) => setState(() => props['hasGradient'] = value),
-        ),
-
-        SizedBox(height: 16.h),
-
-        _buildOptionButton(
-          'Pick Image Inside Shape',
-
-          Icons.photo_library_rounded,
-
-          Colors.blue.shade400,
-
-          _pickShapeImage,
-        ),
-
-        if (props['image'] != null) ...[
-          SizedBox(height: 12.h),
-
-          _buildOptionButton(
-            'Clear Image',
-
-            Icons.delete_sweep_rounded,
-
-            Colors.red.shade400,
-
-            () => setState(() => props['image'] = null),
-          ),
         ],
 
         if (props['hasGradient'] == true) ...[
