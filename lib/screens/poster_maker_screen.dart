@@ -167,7 +167,7 @@ class DrawingPainter extends CustomPainter {
 
           layer.color,
 
-          (layer.fontSize ?? layer.strokeWidth).toDouble(),
+          (layer.fontSize ?? 10.0).toDouble(),
 
           fontFamily: layer.fontFamily,
 
@@ -269,10 +269,12 @@ class DrawingPainter extends CustomPainter {
   }) {
     if (points.length < 2 || text.isEmpty) return;
 
+    final double effectiveFontSize = (fontSize <= 0) ? 10.0 : fontSize;
+
     final ui.ParagraphBuilder builder =
         ui.ParagraphBuilder(
             ui.ParagraphStyle(
-              fontSize: fontSize,
+              fontSize: effectiveFontSize,
 
               fontFamily: fontFamily,
 
@@ -928,7 +930,7 @@ class _MultiStrokeDrawingPainter extends CustomPainter {
 
       final String text = (stroke['text'] as String?) ?? '';
 
-      final double fontSize = (stroke['fontSize'] as double?) ?? strokeWidth;
+      final double fontSize = (stroke['fontSize'] as double?) ?? 10.0;
 
       final String? fontFamily = stroke['fontFamily'] as String?;
 
@@ -2272,7 +2274,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   Color drawingColor = Colors.black;
 
-  double drawingStrokeWidth = 2.0;
+  double drawingStrokeWidth = 5.0;
 
   double drawingOpacity = 1.0;
 
@@ -3455,7 +3457,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
           'strokeColor': HiveColor.fromColor(Colors.black),
 
-          'strokeWidth': 2.0,
+          'strokeWidth': 5.0,
 
           'hasGradient': false,
 
@@ -3502,7 +3504,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
           'color': HiveColor.fromColor(Colors.black),
 
-          'strokeWidth': 2.0,
+          'strokeWidth': 5.0,
 
           'opacity': 1.0,
 
@@ -6675,7 +6677,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
             'strokeColor': Colors.black,
 
-            'strokeWidth': 2.0,
+            'strokeWidth': 5.0,
 
             'hasGradient': false,
 
@@ -7063,7 +7065,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
           // Size slider condensed
           _chipSlider(
-            icon: Icons.format_size,
+            icon: selectedDrawingTool == DrawingTool.textPath
+                ? Icons.text_fields_rounded
+                : Icons.brush,
             iconColor: Colors.deepPurple,
             label: selectedDrawingTool == DrawingTool.textPath
                 ? 'Font ${drawingStrokeWidth.toInt()}'
