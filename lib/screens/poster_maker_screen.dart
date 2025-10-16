@@ -60,7 +60,8 @@ import 'package:lamlayers/screens/google_font_screen.dart';
 
 import 'dart:async'; // Import for Timer
 
-import 'package:image_editor_plus/image_editor_plus.dart';
+// import 'package:image_editor_plus/image_editor_plus.dart';
+import 'package:pro_image_editor/pro_image_editor.dart';
 
 import 'package:lamlayers/utils/image_stroke_processor.dart';
 
@@ -13430,7 +13431,14 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               ),
             ),
 
-            child: ImageEditor(image: imageBytes!),
+            child: ProImageEditor.memory(
+              imageBytes!,
+              callbacks: ProImageEditorCallbacks(
+                onImageEditingComplete: (edited) async {
+                  Navigator.pop(context, edited);
+                },
+              ),
+            ),
           ),
         ),
       );
