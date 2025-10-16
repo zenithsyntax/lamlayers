@@ -6795,36 +6795,233 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       context: context,
 
       builder: (context) {
-        return AlertDialog(
-          title: Text('Type text for path'),
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: EdgeInsets.all(24.w),
+          child: Container(
+            width: double.infinity,
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.6,
+              minHeight: 180.h,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(28.r),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF0F172A).withOpacity(0.08),
+                  blurRadius: 32,
+                  offset: const Offset(0, 12),
+                  spreadRadius: -4,
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Container(
+                  padding: EdgeInsets.all(24.w),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                    ),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(28.r),
+                      topRight: Radius.circular(28.r),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF6366F1).withOpacity(0.3),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(10.w),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12.r),
+                        ),
+                        child: Icon(
+                          Icons.timeline_rounded,
+                          color: Colors.white,
+                          size: 24.r,
+                        ),
+                      ),
+                      SizedBox(width: 16.w),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Text for Path',
+                              style: GoogleFonts.inter(
+                                fontSize: 20.sp,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                                letterSpacing: -0.5,
+                              ),
+                            ),
+                            SizedBox(height: 4.h),
+                            Text(
+                              'Type the text to render along your stroke',
+                              style: GoogleFonts.inter(
+                                fontSize: 13.sp,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.white.withOpacity(0.9),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => Navigator.of(context).pop(),
+                        child: Container(
+                          padding: EdgeInsets.all(10.w),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12.r),
+                          ),
+                          child: Icon(
+                            Icons.close_rounded,
+                            color: Colors.white,
+                            size: 20.r,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
 
-          content: TextField(
-            autofocus: true,
+                // Input area
+                Flexible(
+                  child: Container(
+                    padding: EdgeInsets.all(24.w),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: EdgeInsets.all(8.w),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF6366F1).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(10.r),
+                              ),
+                              child: Icon(
+                                Icons.text_fields_rounded,
+                                color: const Color(0xFF6366F1),
+                                size: 18.r,
+                              ),
+                            ),
+                            SizedBox(width: 12.w),
+                            Text(
+                              'Your Text',
+                              style: GoogleFonts.inter(
+                                fontSize: 16.sp,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF0F172A),
+                                letterSpacing: -0.3,
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 16.h),
+                        Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(20.r),
+                            border: Border.all(
+                              color: const Color(0xFFE2E8F0),
+                              width: 1.5,
+                            ),
+                          ),
+                          child: TextField(
+                            autofocus: true,
+                            controller: TextEditingController(text: temp),
+                            onChanged: (v) => temp = v,
+                            textInputAction: TextInputAction.done,
+                            minLines: 1,
+                            maxLines: 4,
+                            decoration: InputDecoration(
+                              hintText: 'Enter text',
+                              hintStyle: GoogleFonts.inter(
+                                color: const Color(0xFF94A3B8),
+                              ),
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 16.w,
+                                vertical: 14.h,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
 
-            controller: TextEditingController(text: temp),
-
-            onChanged: (v) => temp = v,
-
-            decoration: const InputDecoration(hintText: 'Enter text'),
+                // Actions
+                Container(
+                  padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 20.h),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Color(0xFFE2E8F0)),
+                            padding: EdgeInsets.symmetric(vertical: 14.h),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14.r),
+                            ),
+                          ),
+                          child: Text(
+                            'Cancel',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFF0F172A),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 12.w),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            setState(() => _currentPathText = temp);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF6366F1),
+                            padding: EdgeInsets.symmetric(vertical: 14.h),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14.r),
+                            ),
+                          ),
+                          child: Text(
+                            'Use Text',
+                            style: GoogleFonts.inter(
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-
-              child: const Text('Cancel'),
-            ),
-
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-
-                setState(() => _currentPathText = temp);
-              },
-
-              child: const Text('Use Text'),
-            ),
-          ],
         );
       },
     );
