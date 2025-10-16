@@ -2492,6 +2492,86 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     return m.storage[0]; // same as m.getMaxScaleOnAxis() for uniform scales
   }
 
+  // Canvas navigation methods
+  void _zoomInCanvas() {
+    final double currentZoom = _currentCanvasZoom();
+    if (currentZoom < 3.0) {
+      final double newZoom = (currentZoom * 1.2).clamp(1.0, 3.0);
+      _animateCanvasZoom(newZoom);
+    }
+  }
+
+  void _zoomOutCanvas() {
+    final double currentZoom = _currentCanvasZoom();
+    if (currentZoom > 1.0) {
+      final double newZoom = (currentZoom / 1.2).clamp(1.0, 3.0);
+      _animateCanvasZoom(newZoom);
+    }
+  }
+
+  void _animateCanvasZoom(double targetZoom) {
+    final Matrix4 currentMatrix = _canvasController.value.clone();
+    final Matrix4 targetMatrix = Matrix4.identity()..scale(targetZoom);
+
+    _canvasPanZoomController?.dispose();
+    _canvasPanZoomController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    );
+
+    _canvasPanZoomAnimation =
+        Matrix4Tween(begin: currentMatrix, end: targetMatrix).animate(
+          CurvedAnimation(
+            parent: _canvasPanZoomController!,
+            curve: Curves.easeInOut,
+          ),
+        )..addListener(() {
+          _canvasController.value = _canvasPanZoomAnimation!.value;
+        });
+
+    _canvasPanZoomController!.forward();
+  }
+
+  void _panCanvasLeft() {
+    _panCanvas(-50.0, 0.0);
+  }
+
+  void _panCanvasRight() {
+    _panCanvas(50.0, 0.0);
+  }
+
+  void _panCanvasUp() {
+    _panCanvas(0.0, -50.0);
+  }
+
+  void _panCanvasDown() {
+    _panCanvas(0.0, 50.0);
+  }
+
+  void _panCanvas(double deltaX, double deltaY) {
+    final Matrix4 currentMatrix = _canvasController.value.clone();
+    final Matrix4 targetMatrix = currentMatrix.clone();
+    targetMatrix.translate(deltaX, deltaY);
+
+    _canvasPanZoomController?.dispose();
+    _canvasPanZoomController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 150),
+    );
+
+    _canvasPanZoomAnimation =
+        Matrix4Tween(begin: currentMatrix, end: targetMatrix).animate(
+          CurvedAnimation(
+            parent: _canvasPanZoomController!,
+            curve: Curves.easeInOut,
+          ),
+        )..addListener(() {
+          _canvasController.value = _canvasPanZoomAnimation!.value;
+        });
+
+    _canvasPanZoomController!.forward();
+  }
+
   @override
   void dispose() {
     _isDisposing = true;
@@ -14007,7 +14087,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                     // === Top Toolbar (overlayed, not pushing canvas) ===
                     Positioned(
                       bottom: selectedItem != null
-                          ? 20.h
+                          ? 5.h
                           : 100.h, // leaves space for the ad banner
                       left: 0,
                       right: 0,
@@ -14032,7 +14112,98 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                         ),
                       ),
 
-                    // Ad banner moved to bottomNavigationBar to keep it mounted
+                    // Navigation icons - only show when canvas is zoomed
+                    if (_currentCanvasZoom() > 1.0) ...[
+                      // Zoom controls
+                      Positioned(
+                        bottom: 190.h,
+                        right: 40.w,
+                        child: SizedBox(
+                          height: 30.h,
+                          width: 90.w,
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: _zoomInCanvas,
+                                  child: Icon(
+                                    Icons.zoom_in_outlined,
+                                    color: Colors.grey,
+                                    size: 25.sp,
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: _zoomOutCanvas,
+                                  child: Icon(
+                                    Icons.zoom_out,
+                                    color: Colors.grey,
+                                    size: 25.sp,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      // Left navigation
+                      Positioned(
+                        bottom: 200.h,
+                        left: 15.w,
+                        child: GestureDetector(
+                          onTap: _panCanvasLeft,
+                          child: Icon(
+                            Icons.keyboard_arrow_left_rounded,
+                            color: Colors.grey,
+                            size: 15.sp,
+                          ),
+                        ),
+                      ),
+
+                      // Right navigation
+                      Positioned(
+                        bottom: 200.h,
+                        right: 15.w,
+                        child: GestureDetector(
+                          onTap: _panCanvasRight,
+                          child: Icon(
+                            Icons.keyboard_arrow_right_rounded,
+                            color: Colors.grey,
+                            size: 15.sp,
+                          ),
+                        ),
+                      ),
+
+                      // Top navigation
+                      Positioned(
+                        top: 100.h,
+                        right: 15.w,
+                        child: GestureDetector(
+                          onTap: _panCanvasUp,
+                          child: Icon(
+                            Icons.keyboard_arrow_up_rounded,
+                            color: Colors.grey,
+                            size: 15.sp,
+                          ),
+                        ),
+                      ),
+
+                      // Bottom navigation
+                      Positioned(
+                        top: 100.h,
+                        left: 15.w,
+                        child: GestureDetector(
+                          onTap: _panCanvasDown,
+                          child: Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            color: Colors.grey,
+                            size: 15.sp,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
