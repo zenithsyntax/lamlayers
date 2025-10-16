@@ -44,6 +44,7 @@ import 'package:lamlayers/screens/add_images.dart';
 import 'package:lamlayers/widgets/export_dialog.dart' as export_dialog;
 import 'package:lamlayers/utils/export_manager.dart';
 import 'package:lamlayers/screens/hive_model.dart' as hive_model;
+import 'package:lamlayers/widgets/ad_interstitial.dart';
 
 import 'package:cached_network_image/cached_network_image.dart';
 
@@ -2363,6 +2364,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   Timer? _autoSaveTimer;
   bool _isAutoSaving = false;
   bool _isDisposing = false;
+  late final InterstitialAdManager _exportAd;
 
   @override
   void initState() {
@@ -2482,6 +2484,11 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         recentColors.add(recentColor.toColor());
       }
     }
+
+    // Initialize interstitial ad for export flow
+    const String testInterstitialId = 'ca-app-pub-3940256099942544/1033173712';
+    _exportAd = InterstitialAdManager(adUnitId: testInterstitialId);
+    _exportAd.load();
   }
 
   double _currentCanvasZoom() {
@@ -2590,6 +2597,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     _cancelNudgeTimers();
 
     BackgroundRemover.instance.dispose();
+    _exportAd.dispose();
 
     super.dispose();
   }
@@ -12750,24 +12758,30 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
     if (options == null) return;
 
-    // Show progress dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => _buildProgressDialog(options),
-    );
+    // Show full-screen ad first; proceed after it's closed
+    await _exportAd.show(
+      onClosed: () async {
+        if (!mounted) return;
+        // Show progress dialog only after ad is closed
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => _buildProgressDialog(options),
+        );
 
-    try {
-      if (options.type == export_dialog.ExportType.image) {
-        await _exportImage(options);
-      } else {
-        await _exportProject(options);
-      }
-    } catch (e) {
-      if (!mounted) return;
-      Navigator.of(context).pop(); // Close progress dialog
-      _showErrorSnackBar('Export failed: ${e.toString()}');
-    }
+        try {
+          if (options.type == export_dialog.ExportType.image) {
+            await _exportImage(options);
+          } else {
+            await _exportProject(options);
+          }
+        } catch (e) {
+          if (!mounted) return;
+          Navigator.of(context).pop(); // Close progress dialog
+          _showErrorSnackBar('Export failed: ${e.toString()}');
+        }
+      },
+    );
   }
 
   Widget _buildProgressDialog(export_dialog.ExportOptions options) {
