@@ -451,52 +451,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ],
           ),
 
-          SizedBox(height: 16.h),
-
-          // Editor Settings Card
-          _buildSettingsCard(
-            icon: Icons.grid_on_rounded,
-            iconColor: const Color(0xFF06B6D4),
-            iconBgColor: const Color(0xFFCFFAFE),
-            title: 'Editor',
-            children: [
-              _buildSwitchTile(
-                title: 'Show Grid',
-                subtitle: 'Display grid lines on canvas',
-                value: userPreferences.showGrid,
-                onChanged: (value) {
-                  setState(() {
-                    userPreferences.showGrid = value;
-                    _updatePreferences();
-                  });
-                },
-              ),
-              Divider(height: 1.h, color: const Color(0xFFE2E8F0)),
-              _buildSwitchTile(
-                title: 'Snap to Grid',
-                subtitle: 'Align objects to grid',
-                value: userPreferences.snapToGrid,
-                onChanged: (value) {
-                  setState(() {
-                    userPreferences.snapToGrid = value;
-                    _updatePreferences();
-                  });
-                },
-              ),
-              Divider(height: 1.h, color: const Color(0xFFE2E8F0)),
-              _buildSwitchTile(
-                title: 'Haptic Feedback',
-                subtitle: 'Vibration on interactions',
-                value: userPreferences.enableHapticFeedback,
-                onChanged: (value) {
-                  setState(() {
-                    userPreferences.enableHapticFeedback = value;
-                    _updatePreferences();
-                  });
-                },
-              ),
-            ],
-          ),
 
           SizedBox(height: 16.h),
 
@@ -517,42 +471,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 title: 'Default Quality',
                 value: _getQualityName(userPreferences.defaultExportQuality),
                 onTap: _showQualityDialog,
-              ),
-            ],
-          ),
-
-          SizedBox(height: 16.h),
-
-          // Appearance Settings Card
-          _buildSettingsCard(
-            icon: Icons.palette_rounded,
-            iconColor: const Color(0xFFF59E0B),
-            iconBgColor: const Color(0xFFFEF3C7),
-            title: 'Appearance',
-            children: [
-              _buildSwitchTile(
-                title: 'Dark Mode',
-                subtitle: 'Use dark theme (Coming soon)',
-                value: userPreferences.darkMode,
-                onChanged: (value) {
-                  setState(() {
-                    userPreferences.darkMode = value;
-                    _updatePreferences();
-                  });
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Dark mode coming in future update!',
-                        style: GoogleFonts.inter(fontWeight: FontWeight.w500),
-                      ),
-                      backgroundColor: const Color(0xFF8B5CF6),
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12.r),
-                      ),
-                    ),
-                  );
-                },
               ),
             ],
           ),

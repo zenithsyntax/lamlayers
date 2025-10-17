@@ -1876,11 +1876,12 @@ class _HomePageState extends State<HomePage>
         title: Row(
           children: [
             Container(
-              height: 70.h,
-              width: 70.w,
+              height: 65.h,
+              width: 65.w,
 
               child: ClipRRect(
-                child: Image.asset('assets/icons/lamlayers_logo.png'),
+                child: Image.asset('assets/icons/lamlayers_logo_home.png'),
+                
               ),
             ),
 
