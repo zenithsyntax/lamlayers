@@ -56,7 +56,8 @@ class _ConnectivityOverlayState extends State<ConnectivityOverlay> {
       if (!_isInitialized) return;
 
       if (status == InternetStatus.disconnected) {
-        _registerFailure();
+        // Re-verify with longer timeout to avoid flagging slow networks
+        _verifyInternet(timeout: const Duration(seconds: 6));
       } else {
         _resetFailures();
         _setOffline(false);
@@ -103,25 +104,32 @@ class _ConnectivityOverlayState extends State<ConnectivityOverlay> {
   }
 
   Future<void> _verifyInternet({
-    Duration timeout = const Duration(seconds: 3),
+    Duration timeout = const Duration(seconds: 6),
   }) async {
-    // Perform two checks to reduce flakiness
+    // Perform up to three checks to avoid marking slow networks as offline
     bool first = false;
     bool second = false;
+    bool third = false;
 
     try {
       first = await _hasInternetRobust(overallTimeout: timeout);
 
       if (!first) {
-        await Future<void>.delayed(const Duration(milliseconds: 250));
+        await Future<void>.delayed(const Duration(milliseconds: 300));
         second = await _hasInternetRobust(overallTimeout: timeout);
+      }
+
+      if (!first && !second) {
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+        third = await _hasInternetRobust(overallTimeout: timeout);
       }
     } catch (_) {
       first = false;
       second = false;
+      third = false;
     }
 
-    if (first || second) {
+    if (first || second || third) {
       _resetFailures();
       _setOffline(false);
     } else {
@@ -130,8 +138,8 @@ class _ConnectivityOverlayState extends State<ConnectivityOverlay> {
   }
 
   Future<bool> _hasInternetRobust({
-    Duration perRequestTimeout = const Duration(seconds: 2),
-    Duration overallTimeout = const Duration(seconds: 4),
+    Duration perRequestTimeout = const Duration(seconds: 3),
+    Duration overallTimeout = const Duration(seconds: 7),
   }) async {
     final List<Uri> endpoints = <Uri>[
       Uri.parse('https://www.google.com/generate_204'),
@@ -179,8 +187,8 @@ class _ConnectivityOverlayState extends State<ConnectivityOverlay> {
 
   void _registerFailure() {
     _consecutiveFailures++;
-    // Only mark offline after two consecutive failures
-    if (_consecutiveFailures >= 2) {
+    // Only mark offline after three consecutive failures to filter slow links
+    if (_consecutiveFailures >= 3) {
       _setOffline(true);
     }
   }
