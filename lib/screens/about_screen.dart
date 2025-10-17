@@ -60,7 +60,7 @@ class AboutScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(20.r),
                     ),
                     child: Image.asset(
-                      'assets/icons/lamlayers_logo.png',
+                      'assets/icons/lamlayers_logo_home.png',
                       width: 80.w,
                       height: 80.w,
                     ),

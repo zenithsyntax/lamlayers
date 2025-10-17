@@ -261,7 +261,7 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen> {
   Widget _buildPageCard(String projectId, int index) {
     final isCover = index == 0;
     final isBack = index == _scrapbook!.pageProjectIds.length - 1;
-    final pageNumber = isCover ? 'Cover' : (isBack ? 'Back' : '$index');
+    final pageNumber = 'Page ${index + 1}';
 
     return GestureDetector(
       onTap: () => _editPage(projectId),
@@ -448,7 +448,7 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen> {
   Widget _buildListPageItem(String projectId, int index) {
     final isCover = index == 0;
     final isBack = index == _scrapbook!.pageProjectIds.length - 1;
-    final pageNumber = isCover ? 'Cover' : (isBack ? 'Back' : 'Page $index');
+    final pageNumber = 'Page ${index + 1}';
     final isDraggable = !isCover && !isBack;
 
     return Container(
