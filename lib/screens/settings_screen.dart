@@ -861,8 +861,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     switch (format) {
       case ExportFormat.png:
         return 'PNG';
-      case ExportFormat.jpg:
-        return 'JPG';
       default:
         return 'JPG';
     }

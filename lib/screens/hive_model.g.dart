@@ -6,6 +6,58 @@ part of 'hive_model.dart';
 // TypeAdapterGenerator
 // **************************************************************************
 
+class ScrapbookAdapter extends TypeAdapter<Scrapbook> {
+  @override
+  final int typeId = 30;
+
+  @override
+  Scrapbook read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{
+      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+    };
+    return Scrapbook(
+      id: fields[0] as String,
+      name: fields[1] as String,
+      createdAt: fields[2] as DateTime,
+      lastModified: fields[3] as DateTime,
+      pageProjectIds: (fields[4] as List).cast<String>(),
+      pageWidth: fields[5] as double,
+      pageHeight: fields[6] as double,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, Scrapbook obj) {
+    writer
+      ..writeByte(7)
+      ..writeByte(0)
+      ..write(obj.id)
+      ..writeByte(1)
+      ..write(obj.name)
+      ..writeByte(2)
+      ..write(obj.createdAt)
+      ..writeByte(3)
+      ..write(obj.lastModified)
+      ..writeByte(4)
+      ..write(obj.pageProjectIds)
+      ..writeByte(5)
+      ..write(obj.pageWidth)
+      ..writeByte(6)
+      ..write(obj.pageHeight);
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ScrapbookAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
 class PosterProjectAdapter extends TypeAdapter<PosterProject> {
   @override
   final int typeId = 0;
@@ -248,7 +300,9 @@ class HiveColorAdapter extends TypeAdapter<HiveColor> {
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return HiveColor(fields[0] as int);
+    return HiveColor(
+      fields[0] as int,
+    );
   }
 
   @override
@@ -280,7 +334,10 @@ class HiveSizeAdapter extends TypeAdapter<HiveSize> {
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return HiveSize(fields[0] as double, fields[1] as double);
+    return HiveSize(
+      fields[0] as double,
+      fields[1] as double,
+    );
   }
 
   @override
@@ -817,10 +874,6 @@ class ExportFormatAdapter extends TypeAdapter<ExportFormat> {
         return ExportFormat.png;
       case 1:
         return ExportFormat.jpg;
-      case 2:
-        return ExportFormat.pdf;
-      case 3:
-        return ExportFormat.svg;
       default:
         return ExportFormat.png;
     }
@@ -834,12 +887,6 @@ class ExportFormatAdapter extends TypeAdapter<ExportFormat> {
         break;
       case ExportFormat.jpg:
         writer.writeByte(1);
-        break;
-      case ExportFormat.pdf:
-        writer.writeByte(2);
-        break;
-      case ExportFormat.svg:
-        writer.writeByte(3);
         break;
     }
   }
@@ -868,8 +915,6 @@ class ExportQualityAdapter extends TypeAdapter<ExportQuality> {
         return ExportQuality.medium;
       case 2:
         return ExportQuality.high;
-      case 3:
-        return ExportQuality.ultra;
       default:
         return ExportQuality.low;
     }
@@ -886,9 +931,6 @@ class ExportQualityAdapter extends TypeAdapter<ExportQuality> {
         break;
       case ExportQuality.high:
         writer.writeByte(2);
-        break;
-      case ExportQuality.ultra:
-        writer.writeByte(3);
         break;
     }
   }

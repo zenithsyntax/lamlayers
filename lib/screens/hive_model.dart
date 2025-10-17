@@ -53,49 +53,6 @@ class Scrapbook extends HiveObject {
   }
 }
 
-class ScrapbookAdapter extends TypeAdapter<Scrapbook> {
-  @override
-  final int typeId = 30;
-
-  @override
-  Scrapbook read(BinaryReader reader) {
-    final numOfFields = reader.readByte();
-    final fields = <int, dynamic>{};
-    for (int i = 0; i < numOfFields; i++) {
-      fields[reader.readByte()] = reader.read();
-    }
-    return Scrapbook(
-      id: fields[0] as String,
-      name: fields[1] as String,
-      createdAt: fields[2] as DateTime,
-      lastModified: fields[3] as DateTime,
-      pageProjectIds: (fields[4] as List).cast<String>(),
-      pageWidth: fields[5] as double,
-      pageHeight: fields[6] as double,
-    );
-  }
-
-  @override
-  void write(BinaryWriter writer, Scrapbook obj) {
-    writer
-      ..writeByte(7)
-      ..writeByte(0)
-      ..write(obj.id)
-      ..writeByte(1)
-      ..write(obj.name)
-      ..writeByte(2)
-      ..write(obj.createdAt)
-      ..writeByte(3)
-      ..write(obj.lastModified)
-      ..writeByte(4)
-      ..write(obj.pageProjectIds)
-      ..writeByte(5)
-      ..write(obj.pageWidth)
-      ..writeByte(6)
-      ..write(obj.pageHeight);
-  }
-}
-
 @HiveType(typeId: 0)
 class PosterProject extends HiveObject {
   @HiveField(0)
@@ -416,12 +373,6 @@ enum ExportFormat {
 
   @HiveField(1)
   jpg,
-
-  @HiveField(2)
-  pdf,
-
-  @HiveField(3)
-  svg,
 }
 
 @HiveType(typeId: 8)
@@ -434,9 +385,6 @@ enum ExportQuality {
 
   @HiveField(2)
   high,
-
-  @HiveField(3)
-  ultra,
 }
 
 // Action History for Undo/Redo
