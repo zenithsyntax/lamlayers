@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 import 'package:lamlayers/utils/export_manager.dart';
 import 'package:lamlayers/screens/poster_maker_screen.dart';
 import 'package:lamlayers/screens/lambook_reader_screen.dart';
+import 'package:lamlayers/widgets/connectivity_overlay.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -66,7 +67,11 @@ class MyApp extends StatelessWidget {
           useMaterial3: true,
           scaffoldBackgroundColor: Colors.grey[100],
         ),
-        home: DeepLinkHost(child: child ?? const HomePage()),
+        builder: (context, materialChild) {
+          final Widget appChild = materialChild ?? const HomePage();
+          return ConnectivityOverlay(child: DeepLinkHost(child: appChild));
+        },
+        home: const HomePage(),
       ),
       child: const HomePage(),
     );
