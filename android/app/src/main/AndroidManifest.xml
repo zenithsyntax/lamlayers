@@ -15,10 +15,10 @@
         android:name="${applicationName}"
         android:enableOnBackInvokedCallback="true"
         android:icon="@mipmap/ic_launcher">
-        <!-- Sample AdMob App ID for testing. Replace with your real App ID when ready. -->
+        <!-- AdMob App ID for production -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-3940256099942544~3347511713" />
+            android:value="ca-app-pub-9698718721404755~4230045775" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

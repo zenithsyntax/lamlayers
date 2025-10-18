@@ -2493,8 +2493,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     }
 
     // Initialize interstitial ad for export flow
-    const String testInterstitialId = 'ca-app-pub-3940256099942544/1033173712';
-    _exportAd = InterstitialAdManager(adUnitId: testInterstitialId);
+    const String productionInterstitialId =
+        'ca-app-pub-9698718721404755/8193728553';
+    _exportAd = InterstitialAdManager(adUnitId: productionInterstitialId);
     _exportAd.load();
   }
 

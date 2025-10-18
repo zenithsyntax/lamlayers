@@ -21,8 +21,8 @@ class _AdBanner320x50State extends State<AdBanner320x50> {
     _bannerAd = BannerAd(
       size: const AdSize(width: 320, height: 50),
       adUnitId: Platform.isAndroid
-          ? 'ca-app-pub-3940256099942544/6300978111' // Android test banner
-          : 'ca-app-pub-3940256099942544/2934735716', // iOS test banner
+          ? 'ca-app-pub-9698718721404755/4167494263' // Production banner ID
+          : 'ca-app-pub-9698718721404755/4167494263', // Production banner ID
       listener: BannerAdListener(
         onAdLoaded: (ad) {
           // Create a single AdWidget for this instance.

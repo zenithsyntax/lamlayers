@@ -45,9 +45,9 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
-	<!-- Sample AdMob App ID for testing. Replace with your real App ID when ready. -->
+	<!-- AdMob App ID for production -->
 	<key>GADApplicationIdentifier</key>
-	<string>ca-app-pub-3940256099942544~1458002511</string>
+	<string>ca-app-pub-9698718721404755~4230045775</string>
   
   <!-- Allow opening custom .lambook documents -->
   <key>CFBundleDocumentTypes</key>

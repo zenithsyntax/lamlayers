@@ -51,10 +51,10 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
 
   String get _interstitialAdUnitId {
     if (Platform.isAndroid) {
-      return 'ca-app-pub-3940256099942544/1033173712'; // Test ID
+      return 'ca-app-pub-9698718721404755/8193728553'; // Production ID
     }
     if (Platform.isIOS) {
-      return 'ca-app-pub-3940256099942544/4411468910'; // Test ID
+      return 'ca-app-pub-9698718721404755/8193728553'; // Production ID
     }
     return '';
   }

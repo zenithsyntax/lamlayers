@@ -34,10 +34,10 @@ class _CanvasPresetScreenState extends State<CanvasPresetScreen> {
   @override
   void initState() {
     super.initState();
-    // Test IDs: Android: ca-app-pub-3940256099942544/1033173712, iOS: ca-app-pub-3940256099942544/4411468910
-    // Replace with your real interstitial unit ID in production.
-    const String testInterstitialId = 'ca-app-pub-3940256099942544/1033173712';
-    _templatesAd = InterstitialAdManager(adUnitId: testInterstitialId);
+    // Production interstitial unit ID
+    const String productionInterstitialId =
+        'ca-app-pub-9698718721404755/8193728553';
+    _templatesAd = InterstitialAdManager(adUnitId: productionInterstitialId);
     _templatesAd.load();
   }
 
