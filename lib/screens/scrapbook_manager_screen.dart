@@ -60,38 +60,133 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen> {
       adLoadCallback: InterstitialAdLoadCallback(
         onAdLoaded: (InterstitialAd ad) {
           _interstitialAd = ad;
+          print('Interstitial ad loaded successfully');
         },
         onAdFailedToLoad: (LoadAdError error) {
           _interstitialAd = null;
+          print('Failed to load interstitial ad: $error');
         },
       ),
     );
   }
 
+  void _navigateToTemplateScreen() {
+    print('Starting navigation to template screen');
+    _showAdIfAvailable(
+      onAfter: () {
+        print('Ad callback triggered, navigating to template screen');
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (mounted) {
+            print('Pushing ScrapbookTemplateScreen');
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ScrapbookTemplateScreen(
+                  onTemplateSelected: _addPageFromTemplate,
+                  requiredCanvasWidth: _scrapbook!.pageWidth,
+                  requiredCanvasHeight: _scrapbook!.pageHeight,
+                ),
+              ),
+            );
+          } else {
+            print('Widget not mounted, skipping navigation');
+          }
+        });
+      },
+    );
+
+    // Fallback: If ad doesn't show within 5 seconds, navigate anyway
+    Future.delayed(const Duration(seconds: 5), () {
+      if (mounted && _isShowingAd) {
+        print('Ad timeout, navigating anyway');
+        _isShowingAd = false;
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ScrapbookTemplateScreen(
+              onTemplateSelected: _addPageFromTemplate,
+              requiredCanvasWidth: _scrapbook!.pageWidth,
+              requiredCanvasHeight: _scrapbook!.pageHeight,
+            ),
+          ),
+        );
+      }
+    });
+  }
+
   Future<void> _showAdIfAvailable({VoidCallback? onAfter}) async {
     final ad = _interstitialAd;
+    print('Ad available: ${ad != null}, Already showing: $_isShowingAd');
+
     if (ad == null || _isShowingAd) {
+      // If no ad available or already showing, proceed immediately
+      print('No ad available or already showing, proceeding without ad');
       if (onAfter != null) onAfter();
       return;
     }
+
+    print('Showing interstitial ad...');
     _isShowingAd = true;
     ad.fullScreenContentCallback = FullScreenContentCallback(
       onAdDismissedFullScreenContent: (ad) {
+        print('Ad dismissed by user');
         _isShowingAd = false;
         ad.dispose();
         _interstitialAd = null;
         _loadInterstitial();
-        if (onAfter != null) onAfter();
+        // Call the callback after ad is dismissed with a small delay
+        if (onAfter != null) {
+          print('Calling onAfter callback from ad dismissed');
+          Future.delayed(const Duration(milliseconds: 200), () {
+            if (mounted) {
+              print('Executing onAfter callback after ad dismissed');
+              onAfter();
+            } else {
+              print('Widget not mounted, skipping callback');
+            }
+          });
+        }
       },
       onAdFailedToShowFullScreenContent: (ad, error) {
+        print('Ad failed to show: $error');
         _isShowingAd = false;
         ad.dispose();
         _interstitialAd = null;
         _loadInterstitial();
-        if (onAfter != null) onAfter();
+        // Call the callback even if ad fails to show
+        if (onAfter != null) {
+          print('Calling onAfter callback from ad failed');
+          Future.delayed(const Duration(milliseconds: 200), () {
+            if (mounted) {
+              print('Executing onAfter callback after ad failed');
+              onAfter();
+            } else {
+              print('Widget not mounted, skipping callback');
+            }
+          });
+        }
       },
     );
-    await ad.show();
+
+    try {
+      await ad.show();
+      print('Ad show() called successfully');
+    } catch (e) {
+      print('Exception while showing ad: $e');
+      // If ad fails to show, still call the callback
+      _isShowingAd = false;
+      if (onAfter != null) {
+        print('Calling onAfter callback from exception');
+        Future.delayed(const Duration(milliseconds: 200), () {
+          if (mounted) {
+            print('Executing onAfter callback after exception');
+            onAfter();
+          } else {
+            print('Widget not mounted, skipping callback');
+          }
+        });
+      }
+    }
   }
 
   void _load() {
@@ -347,20 +442,7 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen> {
               subtitle: 'Choose from scrapbook templates',
               onTap: () {
                 Navigator.pop(context);
-                _showAdIfAvailable(
-                  onAfter: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ScrapbookTemplateScreen(
-                          onTemplateSelected: _addPageFromTemplate,
-                          requiredCanvasWidth: _scrapbook!.pageWidth,
-                          requiredCanvasHeight: _scrapbook!.pageHeight,
-                        ),
-                      ),
-                    );
-                  },
-                );
+                _navigateToTemplateScreen();
               },
             ),
             SizedBox(height: 12.h),
