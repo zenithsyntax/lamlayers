@@ -3,9 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:lamlayers/screens/hive_model.dart';
 import 'package:lamlayers/screens/poster_maker_screen.dart';
 import 'package:lamlayers/screens/scrapbook_flip_book_view.dart';
+import 'package:lamlayers/screens/scrapbook_template_screen.dart';
+import 'package:lamlayers/utils/export_manager.dart';
 
 class ScrapbookManagerScreen extends StatefulWidget {
   final String? scrapbookId;
@@ -20,6 +24,18 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen> {
   late Box<PosterProject> _projectBox;
   Scrapbook? _scrapbook;
   bool _isGridView = true;
+  InterstitialAd? _interstitialAd;
+  bool _isShowingAd = false;
+
+  String get _interstitialAdUnitId {
+    if (Platform.isAndroid) {
+      return 'ca-app-pub-9698718721404755/8193728553'; // Production ID
+    }
+    if (Platform.isIOS) {
+      return 'ca-app-pub-9698718721404755/8193728553'; // Production ID
+    }
+    return '';
+  }
 
   @override
   void initState() {
@@ -27,6 +43,55 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen> {
     _scrapbookBox = Hive.box<Scrapbook>('scrapbooks');
     _projectBox = Hive.box<PosterProject>('posterProjects');
     _load();
+    _loadInterstitial();
+  }
+
+  @override
+  void dispose() {
+    _interstitialAd?.dispose();
+    super.dispose();
+  }
+
+  void _loadInterstitial() {
+    if (_interstitialAdUnitId.isEmpty) return;
+    InterstitialAd.load(
+      adUnitId: _interstitialAdUnitId,
+      request: const AdRequest(),
+      adLoadCallback: InterstitialAdLoadCallback(
+        onAdLoaded: (InterstitialAd ad) {
+          _interstitialAd = ad;
+        },
+        onAdFailedToLoad: (LoadAdError error) {
+          _interstitialAd = null;
+        },
+      ),
+    );
+  }
+
+  Future<void> _showAdIfAvailable({VoidCallback? onAfter}) async {
+    final ad = _interstitialAd;
+    if (ad == null || _isShowingAd) {
+      if (onAfter != null) onAfter();
+      return;
+    }
+    _isShowingAd = true;
+    ad.fullScreenContentCallback = FullScreenContentCallback(
+      onAdDismissedFullScreenContent: (ad) {
+        _isShowingAd = false;
+        ad.dispose();
+        _interstitialAd = null;
+        _loadInterstitial();
+        if (onAfter != null) onAfter();
+      },
+      onAdFailedToShowFullScreenContent: (ad, error) {
+        _isShowingAd = false;
+        ad.dispose();
+        _interstitialAd = null;
+        _loadInterstitial();
+        if (onAfter != null) onAfter();
+      },
+    );
+    await ad.show();
   }
 
   void _load() {
@@ -230,6 +295,296 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => ScrapbookFlipBookView(scrapbook: _scrapbook!),
+      ),
+    );
+  }
+
+  void _showLoadPageOptions() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(24.r),
+            topRight: Radius.circular(24.r),
+          ),
+        ),
+        padding: EdgeInsets.all(24.w),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40.w,
+              height: 4.h,
+              decoration: BoxDecoration(
+                color: const Color(0xFFE2E8F0),
+                borderRadius: BorderRadius.circular(2.r),
+              ),
+            ),
+            SizedBox(height: 24.h),
+            Text(
+              'Load Page',
+              style: GoogleFonts.inter(
+                fontSize: 20.sp,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF0F172A),
+              ),
+            ),
+            SizedBox(height: 8.h),
+            Text(
+              'Choose how you want to add a new page',
+              style: GoogleFonts.inter(
+                fontSize: 14.sp,
+                color: const Color(0xFF64748B),
+              ),
+            ),
+            SizedBox(height: 24.h),
+            _buildLoadOption(
+              icon: Icons.dashboard_outlined,
+              title: 'From Template',
+              subtitle: 'Choose from scrapbook templates',
+              onTap: () {
+                Navigator.pop(context);
+                _showAdIfAvailable(
+                  onAfter: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ScrapbookTemplateScreen(
+                          onTemplateSelected: _addPageFromTemplate,
+                          requiredCanvasWidth: _scrapbook!.pageWidth,
+                          requiredCanvasHeight: _scrapbook!.pageHeight,
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+            SizedBox(height: 12.h),
+            _buildLoadOption(
+              icon: Icons.folder_outlined,
+              title: 'From Storage',
+              subtitle: 'Load a .lamlayers file from device',
+              onTap: () {
+                Navigator.pop(context);
+                _loadPageFromStorage();
+              },
+            ),
+            SizedBox(height: 24.h),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoadOption({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16.r),
+        child: Container(
+          padding: EdgeInsets.all(16.w),
+          decoration: BoxDecoration(
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+            borderRadius: BorderRadius.circular(16.r),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(12.w),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEC4899).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+                child: Icon(icon, color: const Color(0xFFEC4899), size: 24.r),
+              ),
+              SizedBox(width: 16.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.inter(
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF0F172A),
+                      ),
+                    ),
+                    SizedBox(height: 4.h),
+                    Text(
+                      subtitle,
+                      style: GoogleFonts.inter(
+                        fontSize: 14.sp,
+                        color: const Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios,
+                color: const Color(0xFF94A3B8),
+                size: 16.r,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _addPageFromTemplate(PosterProject templateProject) async {
+    if (_scrapbook == null) return;
+
+    // Validate canvas size matches scrapbook's canvas size
+    if (templateProject.canvasWidth != _scrapbook!.pageWidth ||
+        templateProject.canvasHeight != _scrapbook!.pageHeight) {
+      _showErrorMessage(
+        'Template does not match the scrapbook page size (${_scrapbook!.pageWidth.toInt()}x${_scrapbook!.pageHeight.toInt()}).',
+      );
+      return;
+    }
+
+    // Create a new page based on the template
+    final page = PosterProject(
+      id: 'p_${DateTime.now().millisecondsSinceEpoch}',
+      name: 'Page ${_scrapbook!.pageProjectIds.length - 1}',
+      createdAt: DateTime.now(),
+      lastModified: DateTime.now(),
+      canvasItems: templateProject.canvasItems,
+      settings: templateProject.settings,
+      canvasWidth: _scrapbook!.pageWidth, // Use scrapbook's canvas size
+      canvasHeight: _scrapbook!.pageHeight, // Use scrapbook's canvas size
+      canvasBackgroundColor: templateProject.canvasBackgroundColor,
+      backgroundImagePath: templateProject.backgroundImagePath,
+    );
+
+    await _projectBox.put(page.id, page);
+    final ids = List<String>.from(_scrapbook!.pageProjectIds);
+    ids.insert(ids.length - 1, page.id);
+    _scrapbook = _scrapbook!.copyWith(pageProjectIds: ids);
+    await _scrapbookBox.put(_scrapbook!.id, _scrapbook!);
+    setState(() {});
+
+    // Navigate to edit the new page
+    _editPage(page.id);
+  }
+
+  Future<void> _loadPageFromStorage() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+        allowMultiple: false,
+      );
+
+      if (result != null && result.files.single.path != null) {
+        final String filePath = result.files.single.path!;
+
+        if (!filePath.toLowerCase().endsWith('.lamlayers')) {
+          _showErrorMessage(
+            'Please select a .lamlayers file. Selected: ${filePath.split('/').last}',
+          );
+          return;
+        }
+
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => _buildLoadingDialog('Loading page...'),
+        );
+
+        try {
+          final PosterProject? project = await ExportManager.loadProject(
+            filePath,
+          );
+
+          if (!mounted) return;
+          Navigator.of(context).pop();
+
+          if (project != null) {
+            // Validate canvas size matches scrapbook's canvas size
+            if (project.canvasWidth != _scrapbook!.pageWidth ||
+                project.canvasHeight != _scrapbook!.pageHeight) {
+              _showErrorMessage(
+                'Template does not match the scrapbook page size (${_scrapbook!.pageWidth.toInt()}x${_scrapbook!.pageHeight.toInt()}).',
+              );
+              return;
+            }
+
+            await _addPageFromTemplate(project);
+            _showSuccessMessage('Page loaded successfully!');
+          } else {
+            _showErrorMessage(
+              'Failed to load page. The file may be corrupted or incomplete.',
+            );
+          }
+        } catch (e) {
+          if (!mounted) return;
+          Navigator.of(context).pop();
+          _showErrorMessage('Error loading page: ${e.toString()}');
+        }
+      }
+    } catch (e) {
+      _showErrorMessage('Error selecting file: ${e.toString()}');
+    }
+  }
+
+  Widget _buildLoadingDialog(String message) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
+      child: Container(
+        padding: EdgeInsets.all(24.w),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(
+                const Color(0xFFEC4899),
+              ),
+            ),
+            SizedBox(height: 16.h),
+            Text(
+              message,
+              style: GoogleFonts.inter(
+                fontSize: 16.sp,
+                fontWeight: FontWeight.w500,
+                color: const Color(0xFF0F172A),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSuccessMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: const Color(0xFF10B981),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r)),
+      ),
+    );
+  }
+
+  void _showErrorMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: const Color(0xFFEF4444),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r)),
       ),
     );
   }
@@ -779,9 +1134,14 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen> {
                 ),
                 borderRadius: BorderRadius.circular(10.r),
               ),
-              child: Icon(Icons.add, color: Colors.white, size: 20.r),
+              child: Icon(
+                Icons.download_rounded,
+                color: Colors.white,
+                size: 20.r,
+              ),
             ),
-            onPressed: _addPage,
+            onPressed: _showLoadPageOptions,
+            tooltip: 'Load Page',
           ),
           SizedBox(width: 8.w),
         ],

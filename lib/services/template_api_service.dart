@@ -50,22 +50,52 @@ class TemplateApiService {
     }
   }
 
+  static Future<TemplateResponse> getScrapbookTemplates({
+    int page = 1,
+    int limit = 10,
+  }) async {
+    try {
+      final Map<String, String> queryParams = {
+        'page': page.toString(),
+        'limit': limit.toString(),
+      };
+
+      final uri = Uri.parse(
+        '$baseUrl/templates/category/lambook',
+      ).replace(queryParameters: queryParams);
+
+      final response = await http.get(uri);
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> jsonData = json.decode(response.body);
+        return TemplateResponse.fromJson(jsonData);
+      } else {
+        throw Exception(
+          'Failed to load scrapbook templates: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      throw Exception('Error fetching scrapbook templates: $e');
+    }
+  }
+
   static Future<String> downloadTemplate(String templateFileUrl) async {
     try {
       final response = await http.get(Uri.parse(templateFileUrl));
-      
+
       if (response.statusCode == 200) {
         // Get temporary directory
         final Directory tempDir = await getTemporaryDirectory();
-        
+
         // Generate unique filename
-        final String fileName = 'template_${DateTime.now().millisecondsSinceEpoch}.lamlayers';
+        final String fileName =
+            'template_${DateTime.now().millisecondsSinceEpoch}.lamlayers';
         final String filePath = '${tempDir.path}/$fileName';
-        
+
         // Write file to temporary directory
         final File file = File(filePath);
         await file.writeAsBytes(response.bodyBytes);
-        
+
         return filePath;
       } else {
         throw Exception('Failed to download template: ${response.statusCode}');
