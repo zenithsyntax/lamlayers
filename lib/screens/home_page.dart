@@ -8,6 +8,7 @@ import 'package:lamlayers/screens/canvas_preset_screen.dart';
 import 'package:lamlayers/screens/hive_model.dart';
 import 'package:lamlayers/screens/scrapbook_manager_screen.dart';
 import 'package:lamlayers/screens/settings_screen.dart';
+import 'package:lamlayers/screens/lambook_reader_screen.dart';
 import 'package:lamlayers/utils/export_manager.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:file_picker/file_picker.dart';
@@ -249,11 +250,63 @@ class _HomePageState extends State<HomePage>
     );
   }
 
-  void _openScrapbookList() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const ScrapbookManagerScreen()),
-    );
+  Future<void> _loadLambookFromStorage() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+        allowMultiple: false,
+      );
+
+      if (result != null && result.files.single.path != null) {
+        final String filePath = result.files.single.path!;
+
+        if (!filePath.toLowerCase().endsWith('.lambook')) {
+          _showErrorMessage(
+            'Please select a .lambook file. Selected: ${filePath.split('/').last}',
+          );
+          return;
+        }
+
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => _buildLoadingDialog(),
+        );
+
+        try {
+          final LambookData? lambook = await ExportManager.loadLambook(
+            filePath,
+            onProgress: (progress) {
+              // Progress is handled internally by ExportManager
+            },
+          );
+
+          if (!mounted) return;
+          Navigator.of(context).pop();
+
+          if (lambook != null) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => LambookReaderScreen(lambook: lambook),
+              ),
+            );
+
+            _showSuccessMessage('Lambook loaded successfully!');
+          } else {
+            _showErrorMessage(
+              'Failed to load lambook. The file may be corrupted or incomplete.\n\nPossible causes:\n• File was not fully downloaded/transferred\n• File was created with an older version\n• File structure is invalid\n\nPlease try exporting the lambook again or contact support if the issue persists.',
+            );
+          }
+        } catch (e) {
+          if (!mounted) return;
+          Navigator.of(context).pop();
+          _showErrorMessage('Error loading lambook: ${e.toString()}');
+        }
+      }
+    } catch (e) {
+      _showErrorMessage('Error selecting file: ${e.toString()}');
+    }
   }
 
   Future<void> _createNewProject() async {
@@ -1738,15 +1791,15 @@ class _HomePageState extends State<HomePage>
                 SizedBox(width: 16.w),
                 Expanded(
                   child: _buildActionCard(
-                    title: 'Load Project',
-                    subtitle: 'Open from storage',
+                    title: 'Load Lambook',
+                    subtitle: 'Open .lambook file',
                     icon: Icons.folder_open_rounded,
                     gradient: const LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [Color(0xFFF59E0B), Color(0xFFF97316)],
                     ),
-                    onTap: _openScrapbookList,
+                    onTap: _loadLambookFromStorage,
                   ),
                 ),
               ],
@@ -1881,7 +1934,6 @@ class _HomePageState extends State<HomePage>
 
               child: ClipRRect(
                 child: Image.asset('assets/icons/lamlayers_logo_home.png'),
-                
               ),
             ),
 
