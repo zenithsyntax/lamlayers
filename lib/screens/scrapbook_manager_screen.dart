@@ -1217,7 +1217,7 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen> {
                 borderRadius: BorderRadius.circular(10.r),
               ),
               child: Icon(
-                Icons.download_rounded,
+                Icons.upload_rounded,
                 color: Colors.white,
                 size: 20.r,
               ),
