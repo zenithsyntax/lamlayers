@@ -375,13 +375,17 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen> {
     setState(() {});
   }
 
-  void _editPage(String projectId) {
-    Navigator.push(
+  Future<void> _editPage(String projectId) async {
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => PosterMakerScreen(projectId: projectId),
       ),
     );
+    // Refresh the state when returning from poster maker
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   void _openFlipBookView() {
@@ -672,27 +676,32 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen> {
   }
 
   Widget _previewFor(String projectId) {
-    final project = _projectBox.get(projectId);
-    final thumb = project?.thumbnailPath ?? project?.backgroundImagePath;
-    if (thumb == null || !File(thumb).existsSync()) {
-      return Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [const Color(0xFFF8FAFC), const Color(0xFFE2E8F0)],
-          ),
-        ),
-        child: Center(
-          child: Icon(
-            Icons.insert_drive_file_outlined,
-            color: const Color(0xFF94A3B8),
-            size: 48.r,
-          ),
-        ),
-      );
-    }
-    return Image.file(File(thumb), fit: BoxFit.cover);
+    return ValueListenableBuilder<Box<PosterProject>>(
+      valueListenable: _projectBox.listenable(),
+      builder: (context, box, child) {
+        final project = box.get(projectId);
+        final thumb = project?.thumbnailPath ?? project?.backgroundImagePath;
+        if (thumb == null || !File(thumb).existsSync()) {
+          return Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [const Color(0xFFF8FAFC), const Color(0xFFE2E8F0)],
+              ),
+            ),
+            child: Center(
+              child: Icon(
+                Icons.insert_drive_file_outlined,
+                color: const Color(0xFF94A3B8),
+                size: 48.r,
+              ),
+            ),
+          );
+        }
+        return Image.file(File(thumb), fit: BoxFit.cover);
+      },
+    );
   }
 
   Widget _buildPageCard(String projectId, int index) {

@@ -535,198 +535,205 @@ class _HomePageState extends State<HomePage>
   }
 
   Widget _scrapbookCard(Scrapbook scrapbook) {
-    PosterProject? cover;
-    if (scrapbook.pageProjectIds.isNotEmpty) {
-      cover = _projectBox.get(scrapbook.pageProjectIds.first);
-    }
+    return ValueListenableBuilder<Box<PosterProject>>(
+      valueListenable: _projectBox.listenable(),
+      builder: (context, box, child) {
+        PosterProject? cover;
+        if (scrapbook.pageProjectIds.isNotEmpty) {
+          cover = box.get(scrapbook.pageProjectIds.first);
+        }
 
-    return Container(
-      width: 220.w,
-      margin: EdgeInsets.only(right: 20.w),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24.r),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF0F172A).withOpacity(0.04),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
-            spreadRadius: -4,
-          ),
-          BoxShadow(
-            color: const Color(0xFF0F172A).withOpacity(0.02),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          InkWell(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) =>
-                      ScrapbookManagerScreen(scrapbookId: scrapbook.id),
-                ),
-              );
-            },
+        return Container(
+          width: 220.w,
+          margin: EdgeInsets.only(right: 20.w),
+          decoration: BoxDecoration(
+            color: Colors.white,
             borderRadius: BorderRadius.circular(24.r),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  height: 200.h,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(24.r),
-                      topRight: Radius.circular(24.r),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF0F172A).withOpacity(0.04),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+                spreadRadius: -4,
+              ),
+              BoxShadow(
+                color: const Color(0xFF0F172A).withOpacity(0.02),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Stack(
+            children: [
+              InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          ScrapbookManagerScreen(scrapbookId: scrapbook.id),
                     ),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(24.r),
-                      topRight: Radius.circular(24.r),
-                    ),
-                    child: _buildProjectPreviewImage(cover),
-                  ),
-                ),
-                Padding(
-                  padding: EdgeInsets.all(18.w),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        scrapbook.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.inter(
-                          fontSize: 16.sp,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF0F172A),
-                          letterSpacing: -0.4,
+                  );
+                },
+                borderRadius: BorderRadius.circular(24.r),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      height: 200.h,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(24.r),
+                          topRight: Radius.circular(24.r),
                         ),
                       ),
-                      SizedBox(height: 8.h),
-                      Row(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(24.r),
+                          topRight: Radius.circular(24.r),
+                        ),
+                        child: _buildProjectPreviewImage(cover),
+                      ),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.all(18.w),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            padding: EdgeInsets.all(4.w),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFEC4899).withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(6.r),
-                            ),
-                            child: Icon(
-                              Icons.auto_stories,
-                              size: 13.r,
-                              color: const Color(0xFFEC4899),
+                          Text(
+                            scrapbook.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF0F172A),
+                              letterSpacing: -0.4,
                             ),
                           ),
-                          SizedBox(width: 6.w),
-                          Text(
-                            '${scrapbook.pageProjectIds.length} pages',
-                            style: GoogleFonts.inter(
-                              fontSize: 12.sp,
-                              fontWeight: FontWeight.w500,
-                              color: const Color(0xFF64748B),
-                            ),
+                          SizedBox(height: 8.h),
+                          Row(
+                            children: [
+                              Container(
+                                padding: EdgeInsets.all(4.w),
+                                decoration: BoxDecoration(
+                                  color: const Color(
+                                    0xFFEC4899,
+                                  ).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(6.r),
+                                ),
+                                child: Icon(
+                                  Icons.auto_stories,
+                                  size: 13.r,
+                                  color: const Color(0xFFEC4899),
+                                ),
+                              ),
+                              SizedBox(width: 6.w),
+                              Text(
+                                '${scrapbook.pageProjectIds.length} pages',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12.sp,
+                                  fontWeight: FontWeight.w500,
+                                  color: const Color(0xFF64748B),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Positioned(
+                right: 8.w,
+                top: 8.h,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.95),
+                    borderRadius: BorderRadius.circular(10.r),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: PopupMenuButton<String>(
+                    onSelected: (value) {
+                      if (value == 'rename') {
+                        _renameScrapbook(scrapbook);
+                      } else if (value == 'delete') {
+                        _deleteScrapbook(scrapbook);
+                      }
+                    },
+                    icon: Icon(
+                      Icons.more_horiz,
+                      size: 20.r,
+                      color: const Color(0xFF64748B),
+                    ),
+                    tooltip: 'More options',
+                    elevation: 6,
+                    color: Colors.white,
+                    shadowColor: Colors.black.withOpacity(0.08),
+                    surfaceTintColor: Colors.transparent,
+                    offset: Offset(0, 6.h),
+                    constraints: BoxConstraints(minWidth: 160.w),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12.r),
+                      side: const BorderSide(color: Color(0xFFE2E8F0)),
+                    ),
+                    itemBuilder: (context) => [
+                      PopupMenuItem(
+                        value: 'rename',
+                        height: 40.h,
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.edit_outlined,
+                              size: 18.r,
+                              color: const Color(0xFF64748B),
+                            ),
+                            SizedBox(width: 12.w),
+                            Text(
+                              'Rename',
+                              style: GoogleFonts.inter(fontSize: 14.sp),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuDivider(height: 1),
+                      PopupMenuItem(
+                        value: 'delete',
+                        height: 40.h,
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.delete_outline,
+                              size: 18.r,
+                              color: const Color(0xFFEF4444),
+                            ),
+                            SizedBox(width: 12.w),
+                            Text(
+                              'Delete',
+                              style: GoogleFonts.inter(
+                                fontSize: 14.sp,
+                                color: const Color(0xFFEF4444),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
                 ),
-              ],
-            ),
-          ),
-          Positioned(
-            right: 8.w,
-            top: 8.h,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.95),
-                borderRadius: BorderRadius.circular(10.r),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
               ),
-              child: PopupMenuButton<String>(
-                onSelected: (value) {
-                  if (value == 'rename') {
-                    _renameScrapbook(scrapbook);
-                  } else if (value == 'delete') {
-                    _deleteScrapbook(scrapbook);
-                  }
-                },
-                icon: Icon(
-                  Icons.more_horiz,
-                  size: 20.r,
-                  color: const Color(0xFF64748B),
-                ),
-                tooltip: 'More options',
-                elevation: 6,
-                color: Colors.white,
-                shadowColor: Colors.black.withOpacity(0.08),
-                surfaceTintColor: Colors.transparent,
-                offset: Offset(0, 6.h),
-                constraints: BoxConstraints(minWidth: 160.w),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12.r),
-                  side: const BorderSide(color: Color(0xFFE2E8F0)),
-                ),
-                itemBuilder: (context) => [
-                  PopupMenuItem(
-                    value: 'rename',
-                    height: 40.h,
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.edit_outlined,
-                          size: 18.r,
-                          color: const Color(0xFF64748B),
-                        ),
-                        SizedBox(width: 12.w),
-                        Text(
-                          'Rename',
-                          style: GoogleFonts.inter(fontSize: 14.sp),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuDivider(height: 1),
-                  PopupMenuItem(
-                    value: 'delete',
-                    height: 40.h,
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.delete_outline,
-                          size: 18.r,
-                          color: const Color(0xFFEF4444),
-                        ),
-                        SizedBox(width: 12.w),
-                        Text(
-                          'Delete',
-                          style: GoogleFonts.inter(
-                            fontSize: 14.sp,
-                            color: const Color(0xFFEF4444),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -1147,267 +1154,292 @@ class _HomePageState extends State<HomePage>
   }
 
   Widget _buildProjectPreviewImage(PosterProject? project) {
-    final String? thumbnailPath = project?.thumbnailPath;
-    final String? bgPath = project?.backgroundImagePath;
+    return ValueListenableBuilder<Box<PosterProject>>(
+      valueListenable: _projectBox.listenable(),
+      builder: (context, box, child) {
+        // Get the latest project data from the box
+        PosterProject? latestProject = project;
+        if (project != null) {
+          latestProject = box.get(project.id);
+        }
 
-    final String? toShow = (thumbnailPath != null && thumbnailPath.isNotEmpty)
-        ? thumbnailPath
-        : (bgPath != null && bgPath.isNotEmpty ? bgPath : null);
+        final String? thumbnailPath = latestProject?.thumbnailPath;
+        final String? bgPath = latestProject?.backgroundImagePath;
 
-    if (toShow == null) {
-      return Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              const Color(0xFF6366F1).withOpacity(0.1),
-              const Color(0xFF8B5CF6).withOpacity(0.1),
-            ],
-          ),
-        ),
-        child: Center(
-          child: Icon(
-            Icons.image_outlined,
-            size: 48.r,
-            color: const Color(0xFF94A3B8),
-          ),
-        ),
-      );
-    }
+        final String? toShow =
+            (thumbnailPath != null && thumbnailPath.isNotEmpty)
+            ? thumbnailPath
+            : (bgPath != null && bgPath.isNotEmpty ? bgPath : null);
 
-    final file = File(toShow);
-    if (!file.existsSync()) {
-      return Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              const Color(0xFFEF4444).withOpacity(0.1),
-              const Color(0xFFF59E0B).withOpacity(0.1),
-            ],
-          ),
-        ),
-        child: Center(
-          child: Icon(
-            Icons.broken_image_outlined,
-            size: 40.r,
-            color: const Color(0xFF94A3B8),
-          ),
-        ),
-      );
-    }
-
-    return Image.file(
-      file,
-      width: double.infinity,
-      height: double.infinity,
-      fit: BoxFit.cover,
-      errorBuilder: (context, error, stackTrace) {
-        return Container(
-          color: const Color(0xFFF8FAFC),
-          child: Center(
-            child: Icon(
-              Icons.image_not_supported_outlined,
-              size: 40.r,
-              color: const Color(0xFF94A3B8),
+        if (toShow == null) {
+          return Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color(0xFF6366F1).withOpacity(0.1),
+                  const Color(0xFF8B5CF6).withOpacity(0.1),
+                ],
+              ),
             ),
-          ),
+            child: Center(
+              child: Icon(
+                Icons.image_outlined,
+                size: 48.r,
+                color: const Color(0xFF94A3B8),
+              ),
+            ),
+          );
+        }
+
+        final file = File(toShow);
+        if (!file.existsSync()) {
+          return Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color(0xFFEF4444).withOpacity(0.1),
+                  const Color(0xFFF59E0B).withOpacity(0.1),
+                ],
+              ),
+            ),
+            child: Center(
+              child: Icon(
+                Icons.broken_image_outlined,
+                size: 40.r,
+                color: const Color(0xFF94A3B8),
+              ),
+            ),
+          );
+        }
+
+        return Image.file(
+          file,
+          width: double.infinity,
+          height: double.infinity,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              color: const Color(0xFFF8FAFC),
+              child: Center(
+                child: Icon(
+                  Icons.image_not_supported_outlined,
+                  size: 40.r,
+                  color: const Color(0xFF94A3B8),
+                ),
+              ),
+            );
+          },
         );
       },
     );
   }
 
   Widget _projectCard(PosterProject? project) {
-    return Container(
-      width: 220.w,
-      margin: EdgeInsets.only(right: 20.w),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24.r),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF0F172A).withOpacity(0.04),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
-            spreadRadius: -4,
-          ),
-          BoxShadow(
-            color: const Color(0xFF0F172A).withOpacity(0.02),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          InkWell(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      PosterMakerScreen(projectId: project?.id),
-                ),
-              );
-            },
+    return ValueListenableBuilder<Box<PosterProject>>(
+      valueListenable: _projectBox.listenable(),
+      builder: (context, box, child) {
+        // Get the latest project data from the box
+        PosterProject? latestProject = project;
+        if (project != null) {
+          latestProject = box.get(project.id);
+        }
+
+        return Container(
+          width: 220.w,
+          margin: EdgeInsets.only(right: 20.w),
+          decoration: BoxDecoration(
+            color: Colors.white,
             borderRadius: BorderRadius.circular(24.r),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  height: 200.h,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(24.r),
-                      topRight: Radius.circular(24.r),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF0F172A).withOpacity(0.04),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+                spreadRadius: -4,
+              ),
+              BoxShadow(
+                color: const Color(0xFF0F172A).withOpacity(0.02),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Stack(
+            children: [
+              InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          PosterMakerScreen(projectId: latestProject?.id),
                     ),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(24.r),
-                      topRight: Radius.circular(24.r),
-                    ),
-                    child: _buildProjectPreviewImage(project),
-                  ),
-                ),
-                Padding(
-                  padding: EdgeInsets.all(18.w),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        project?.name ?? 'Unnamed Project',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.inter(
-                          fontSize: 16.sp,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF0F172A),
-                          letterSpacing: -0.4,
+                  );
+                },
+                borderRadius: BorderRadius.circular(24.r),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      height: 200.h,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(24.r),
+                          topRight: Radius.circular(24.r),
                         ),
                       ),
-                      SizedBox(height: 8.h),
-                      Row(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(24.r),
+                          topRight: Radius.circular(24.r),
+                        ),
+                        child: _buildProjectPreviewImage(latestProject),
+                      ),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.all(18.w),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            padding: EdgeInsets.all(4.w),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF6366F1).withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(6.r),
-                            ),
-                            child: Icon(
-                              Icons.access_time_rounded,
-                              size: 13.r,
-                              color: const Color(0xFF6366F1),
+                          Text(
+                            latestProject?.name ?? 'Unnamed Project',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF0F172A),
+                              letterSpacing: -0.4,
                             ),
                           ),
-                          SizedBox(width: 6.w),
-                          Text(
-                            _formatDate(project?.createdAt),
-                            style: GoogleFonts.inter(
-                              fontSize: 12.sp,
-                              fontWeight: FontWeight.w500,
-                              color: const Color(0xFF64748B),
-                            ),
+                          SizedBox(height: 8.h),
+                          Row(
+                            children: [
+                              Container(
+                                padding: EdgeInsets.all(4.w),
+                                decoration: BoxDecoration(
+                                  color: const Color(
+                                    0xFF6366F1,
+                                  ).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(6.r),
+                                ),
+                                child: Icon(
+                                  Icons.access_time_rounded,
+                                  size: 13.r,
+                                  color: const Color(0xFF6366F1),
+                                ),
+                              ),
+                              SizedBox(width: 6.w),
+                              Text(
+                                _formatDate(latestProject?.createdAt),
+                                style: GoogleFonts.inter(
+                                  fontSize: 12.sp,
+                                  fontWeight: FontWeight.w500,
+                                  color: const Color(0xFF64748B),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Positioned(
+                right: 8.w,
+                top: 8.h,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.95),
+                    borderRadius: BorderRadius.circular(10.r),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: PopupMenuButton<String>(
+                    onSelected: (value) {
+                      if (latestProject == null) return;
+                      if (value == 'rename') {
+                        _renameProject(latestProject);
+                      } else if (value == 'delete') {
+                        _deleteProject(latestProject);
+                      }
+                    },
+                    icon: Icon(
+                      Icons.more_horiz,
+                      size: 20.r,
+                      color: const Color(0xFF64748B),
+                    ),
+                    tooltip: 'More options',
+                    elevation: 6,
+                    color: Colors.white,
+                    shadowColor: Colors.black.withOpacity(0.08),
+                    surfaceTintColor: Colors.transparent,
+                    offset: Offset(0, 6.h),
+                    constraints: BoxConstraints(minWidth: 160.w),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12.r),
+                      side: const BorderSide(color: Color(0xFFE2E8F0)),
+                    ),
+                    itemBuilder: (context) => [
+                      PopupMenuItem(
+                        value: 'rename',
+                        height: 40.h,
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.edit_outlined,
+                              size: 18.r,
+                              color: const Color(0xFF64748B),
+                            ),
+                            SizedBox(width: 12.w),
+                            Text(
+                              'Rename',
+                              style: GoogleFonts.inter(fontSize: 14.sp),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuDivider(height: 1),
+                      PopupMenuItem(
+                        value: 'delete',
+                        height: 40.h,
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.delete_outline,
+                              size: 18.r,
+                              color: const Color(0xFFEF4444),
+                            ),
+                            SizedBox(width: 12.w),
+                            Text(
+                              'Delete',
+                              style: GoogleFonts.inter(
+                                fontSize: 14.sp,
+                                color: const Color(0xFFEF4444),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
                 ),
-              ],
-            ),
-          ),
-          Positioned(
-            right: 8.w,
-            top: 8.h,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.95),
-                borderRadius: BorderRadius.circular(10.r),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
               ),
-              child: PopupMenuButton<String>(
-                onSelected: (value) {
-                  if (project == null) return;
-                  if (value == 'rename') {
-                    _renameProject(project);
-                  } else if (value == 'delete') {
-                    _deleteProject(project);
-                  }
-                },
-                icon: Icon(
-                  Icons.more_horiz,
-                  size: 20.r,
-                  color: const Color(0xFF64748B),
-                ),
-                tooltip: 'More options',
-                elevation: 6,
-                color: Colors.white,
-                shadowColor: Colors.black.withOpacity(0.08),
-                surfaceTintColor: Colors.transparent,
-                offset: Offset(0, 6.h),
-                constraints: BoxConstraints(minWidth: 160.w),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12.r),
-                  side: const BorderSide(color: Color(0xFFE2E8F0)),
-                ),
-                itemBuilder: (context) => [
-                  PopupMenuItem(
-                    value: 'rename',
-                    height: 40.h,
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.edit_outlined,
-                          size: 18.r,
-                          color: const Color(0xFF64748B),
-                        ),
-                        SizedBox(width: 12.w),
-                        Text(
-                          'Rename',
-                          style: GoogleFonts.inter(fontSize: 14.sp),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuDivider(height: 1),
-                  PopupMenuItem(
-                    value: 'delete',
-                    height: 40.h,
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.delete_outline,
-                          size: 18.r,
-                          color: const Color(0xFFEF4444),
-                        ),
-                        SizedBox(width: 12.w),
-                        Text(
-                          'Delete',
-                          style: GoogleFonts.inter(
-                            fontSize: 14.sp,
-                            color: const Color(0xFFEF4444),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
