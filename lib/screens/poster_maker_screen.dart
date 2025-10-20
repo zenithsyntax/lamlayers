@@ -13532,36 +13532,40 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   }
 
   Future<void> _navigateToPixabayImages() async {
-    final PixabayImage? selectedImage = await Navigator.push(
+    final dynamic selectedItem = await Navigator.push(
       context,
-
       MaterialPageRoute(builder: (context) => PixabayImagesPage()),
     );
 
-    if (selectedImage != null) {
-      _addCanvasItem(
-        CanvasItemType.image,
-
-        properties: {
-          'imageUrl':
-              selectedImage.webformatURL, // Use imageUrl for network images
-
-          'tint': Colors.transparent,
-
-          'blur': 0.0,
-
-          'intrinsicWidth': selectedImage.views
-              .toDouble(), // Using views as a placeholder for intrinsic width
-
-          'intrinsicHeight': selectedImage.downloads
-              .toDouble(), // Using downloads as a placeholder for intrinsic height
-
-          'displayWidth': 240.0,
-
-          'displayHeight':
-              240.0 * (selectedImage.downloads / selectedImage.views),
-        },
-      );
+    if (selectedItem != null) {
+      if (selectedItem is PixabayImage) {
+        _addCanvasItem(
+          CanvasItemType.image,
+          properties: {
+            'imageUrl': selectedItem.webformatURL,
+            'tint': Colors.transparent,
+            'blur': 0.0,
+            'intrinsicWidth': selectedItem.views.toDouble(),
+            'intrinsicHeight': selectedItem.downloads.toDouble(),
+            'displayWidth': 240.0,
+            'displayHeight':
+                240.0 * (selectedItem.downloads / selectedItem.views),
+          },
+        );
+      } else if (selectedItem is CloudfairSticker) {
+        _addCanvasItem(
+          CanvasItemType.image,
+          properties: {
+            'imageUrl': selectedItem.stickerUrl,
+            'tint': Colors.transparent,
+            'blur': 0.0,
+            'intrinsicWidth': 300.0, // Default size for stickers
+            'intrinsicHeight': 300.0,
+            'displayWidth': 200.0,
+            'displayHeight': 200.0,
+          },
+        );
+      }
     }
   }
 
