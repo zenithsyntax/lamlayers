@@ -2671,6 +2671,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       _projectBox.put(_currentProject!.id, _currentProject!);
 
       if (saveThumbnail && mounted && !_isDisposing) {
+        // Generate thumbnail asynchronously but don't block the save
         _generateAndStoreThumbnail(_currentProject!);
       }
 
@@ -2705,17 +2706,24 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         _suppressSelectionUI = true;
       });
       await WidgetsBinding.instance.endOfFrame;
+
       final boundary =
           _canvasRepaintKey.currentContext?.findRenderObject()
               as RenderRepaintBoundary?;
-      if (boundary == null) return;
+      if (boundary == null) {
+        print('Thumbnail generation failed: No render boundary found');
+        return;
+      }
 
       // Low pixel ratio for light-weight thumbnail
       final ui.Image image = await boundary.toImage(pixelRatio: 1.0);
       final ByteData? byteData = await image.toByteData(
         format: ui.ImageByteFormat.png,
       );
-      if (byteData == null) return;
+      if (byteData == null) {
+        print('Thumbnail generation failed: Could not convert image to bytes');
+        return;
+      }
 
       final Uint8List pngBytes = byteData.buffer.asUint8List();
 
@@ -2727,15 +2735,39 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
       final String filePath = '${thumbsDir.path}/${project.id}.png';
       final File file = File(filePath);
-      await file.writeAsBytes(pngBytes, flush: true);
+
+      // Write with proper error handling
+      try {
+        await file.writeAsBytes(pngBytes, flush: true);
+        print('Thumbnail saved successfully: $filePath');
+      } catch (e) {
+        print('Failed to write thumbnail file: $e');
+        return;
+      }
+
+      // Verify file was written successfully
+      if (!file.existsSync()) {
+        print(
+          'Thumbnail file verification failed: File does not exist after write',
+        );
+        return;
+      }
 
       // Update project with thumbnail path if changed
       if (project.thumbnailPath != filePath) {
         project.thumbnailPath = filePath;
+        project.lastModified = DateTime.now(); // Update modification time
         _projectBox.put(project.id, project);
+        print('Project thumbnail path updated: $filePath');
+
+        // Trigger a UI refresh to show the new thumbnail
+        if (mounted) {
+          setState(() {});
+        }
       }
-    } catch (_) {
-      // Ignore thumbnail errors; not critical for saving
+    } catch (e) {
+      print('Thumbnail generation error: $e');
+      // Don't rethrow - thumbnail generation is not critical for saving
     } finally {
       if (mounted) {
         setState(() {
@@ -4079,7 +4111,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
             selectedItem!.scale,
 
-            0.3,
+            0.1,
 
             10.0,
 
@@ -5951,7 +5983,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           child: Container(
             width: double.infinity,
 
-            height: MediaQuery.of(context).size.height * 0.8,
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.8,
+            ),
 
             decoration: BoxDecoration(
               color: Colors.white,
@@ -5970,6 +6004,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             ),
 
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 // Header
                 Container(
@@ -6039,7 +6074,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                 ),
 
                 // Content
-                Expanded(
+                Flexible(
                   child: Column(
                     children: [
                       // Favorite Fonts Section
@@ -6079,7 +6114,10 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                             SizedBox(height: 16.h),
 
                             Container(
-                              height: 200.h,
+                              constraints: BoxConstraints(
+                                maxHeight: 200.h,
+                                minHeight: 100.h,
+                              ),
 
                               child:
                                   FontFavorites.instance.likedFamilies.isEmpty
@@ -6328,16 +6366,16 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                   Text(
                     fontFamily,
 
-                    style: TextStyle(
-                      fontSize: 16.sp,
-
-                      fontWeight: FontWeight.w600,
-
-                      color: isSelected
-                          ? Colors.blue.shade700
-                          : Colors.grey[800],
-
-                      fontFamily: fontFamily,
+                    style: GoogleFonts.getFont(
+                      fontFamily,
+                      textStyle: TextStyle(
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.w600,
+                        color: isSelected
+                            ? Colors.blue.shade700
+                            : Colors.grey[800],
+                        fontFamily: 'Roboto', // fallback
+                      ),
                     ),
                   ),
 
@@ -6346,12 +6384,13 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                   Text(
                     'The quick brown fox jumps',
 
-                    style: TextStyle(
-                      fontSize: 12.sp,
-
-                      color: Colors.grey[600],
-
-                      fontFamily: fontFamily,
+                    style: GoogleFonts.getFont(
+                      fontFamily,
+                      textStyle: TextStyle(
+                        fontSize: 12.sp,
+                        color: Colors.grey[600],
+                        fontFamily: 'Roboto', // fallback
+                      ),
                     ),
                   ),
                 ],
@@ -8786,7 +8825,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       final double scaleDelta = (dragMagnitude / 100.0) * scaleSign;
 
       final double newScale = (item.scale + scaleDelta).clamp(
-        0.2,
+        0.1,
 
         10.0,
       ); // Changed from 5.0 to 10.0
@@ -9938,7 +9977,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
           selectedItem!.scale,
 
-          0.3,
+          0.1,
 
           10.0,
 
@@ -13733,7 +13772,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         return;
       }
 
-      // Navigate to image editor with white background theme
+      // Navigate to image editor with transparent background theme to preserve PNG transparency
 
       final Uint8List? editedBytes = await Navigator.push(
         context,
@@ -13741,38 +13780,40 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         MaterialPageRoute(
           builder: (context) => Theme(
             data: ThemeData.light().copyWith(
-              // Set scaffold background to white
-              scaffoldBackgroundColor: Colors.white,
+              // Set scaffold background to transparent to preserve PNG transparency
+              scaffoldBackgroundColor: Colors.transparent,
 
-              // Set app bar background to white
+              // Set app bar background to transparent
               appBarTheme: const AppBarTheme(
-                backgroundColor: Colors.white,
+                backgroundColor: Colors.transparent,
 
                 foregroundColor: Colors.black,
 
                 elevation: 0,
               ),
 
-              // Set bottom sheet background to white
+              // Set bottom sheet background to transparent
               bottomSheetTheme: const BottomSheetThemeData(
-                backgroundColor: Colors.white,
+                backgroundColor: Colors.transparent,
               ),
 
-              // Set dialog background to white
-              dialogTheme: const DialogThemeData(backgroundColor: Colors.white),
+              // Set dialog background to transparent
+              dialogTheme: const DialogThemeData(
+                backgroundColor: Colors.transparent,
+              ),
 
-              // Set card background to white
-              cardTheme: const CardThemeData(color: Colors.white),
+              // Set card background to transparent
+              cardTheme: const CardThemeData(color: Colors.transparent),
 
-              // Set color scheme with white surfaces
+              // Set color scheme with transparent surfaces
               colorScheme: ColorScheme.fromSeed(
                 seedColor: Colors.blue,
 
                 brightness: Brightness.light,
 
-                surface: Colors.white,
+                surface: Colors.transparent,
 
-                background: Colors.white,
+                background: Colors.transparent,
               ),
             ),
 

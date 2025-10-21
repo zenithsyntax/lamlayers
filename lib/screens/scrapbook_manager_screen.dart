@@ -19,7 +19,8 @@ class ScrapbookManagerScreen extends StatefulWidget {
   State<ScrapbookManagerScreen> createState() => _ScrapbookManagerScreenState();
 }
 
-class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen> {
+class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
+    with WidgetsBindingObserver {
   late Box<Scrapbook> _scrapbookBox;
   late Box<PosterProject> _projectBox;
   Scrapbook? _scrapbook;
@@ -40,6 +41,7 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _scrapbookBox = Hive.box<Scrapbook>('scrapbooks');
     _projectBox = Hive.box<PosterProject>('posterProjects');
     _load();
@@ -48,8 +50,20 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _interstitialAd?.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Refresh data when app resumes to ensure latest state
+      if (mounted) {
+        _load();
+        setState(() {});
+      }
+    }
   }
 
   void _loadInterstitial() {
@@ -194,6 +208,34 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen> {
       _scrapbook = _scrapbookBox.get(widget.scrapbookId);
     } else if (_scrapbookBox.isNotEmpty) {
       _scrapbook = _scrapbookBox.getAt(0);
+    }
+  }
+
+  Future<void> _refreshThumbnails() async {
+    if (_scrapbook == null) return;
+
+    // Force refresh all project data from Hive
+    for (String projectId in _scrapbook!.pageProjectIds) {
+      final project = _projectBox.get(projectId);
+      if (project != null) {
+        // Re-get the project to ensure we have the latest data
+        _projectBox.put(projectId, project);
+
+        // Check if thumbnail exists and is valid
+        if (project.thumbnailPath != null &&
+            project.thumbnailPath!.isNotEmpty) {
+          final thumbnailFile = File(project.thumbnailPath!);
+          if (!thumbnailFile.existsSync()) {
+            // Thumbnail file doesn't exist, clear the path
+            project.thumbnailPath = null;
+            _projectBox.put(projectId, project);
+          }
+        }
+      }
+    }
+
+    if (mounted) {
+      setState(() {});
     }
   }
 
@@ -384,18 +426,27 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen> {
     );
     // Refresh the state when returning from poster maker
     if (mounted) {
+      // Force reload scrapbook data to ensure fresh state
+      _load();
+      // Also refresh thumbnails to ensure they're up to date
+      await _refreshThumbnails();
+      // Force a rebuild to show updated images
       setState(() {});
     }
   }
 
-  void _openFlipBookView() {
+  void _openFlipBookView() async {
     if (_scrapbook == null) return;
-    Navigator.push(
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => ScrapbookFlipBookView(scrapbook: _scrapbook!),
       ),
     );
+    // Refresh when returning from flip book view
+    if (mounted) {
+      await _refreshThumbnails();
+    }
   }
 
   void _showLoadPageOptions() {
@@ -680,8 +731,7 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen> {
       valueListenable: _projectBox.listenable(),
       builder: (context, box, child) {
         final project = box.get(projectId);
-        final thumb = project?.thumbnailPath ?? project?.backgroundImagePath;
-        if (thumb == null || !File(thumb).existsSync()) {
+        if (project == null) {
           return Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -699,7 +749,63 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen> {
             ),
           );
         }
-        return Image.file(File(thumb), fit: BoxFit.cover);
+
+        // Try thumbnail first, then background image
+        String? imagePath = project.thumbnailPath;
+        if (imagePath == null ||
+            imagePath.isEmpty ||
+            !File(imagePath).existsSync()) {
+          imagePath = project.backgroundImagePath;
+        }
+
+        if (imagePath == null ||
+            imagePath.isEmpty ||
+            !File(imagePath).existsSync()) {
+          return Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [const Color(0xFFF8FAFC), const Color(0xFFE2E8F0)],
+              ),
+            ),
+            child: Center(
+              child: Icon(
+                Icons.insert_drive_file_outlined,
+                color: const Color(0xFF94A3B8),
+                size: 48.r,
+              ),
+            ),
+          );
+        }
+
+        // Use a unique key to force image refresh when file changes
+        return Image.file(
+          File(imagePath),
+          key: ValueKey(
+            '${projectId}_${project.lastModified.millisecondsSinceEpoch}',
+          ),
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            // If image fails to load, show placeholder
+            return Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [const Color(0xFFF8FAFC), const Color(0xFFE2E8F0)],
+                ),
+              ),
+              child: Center(
+                child: Icon(
+                  Icons.broken_image_outlined,
+                  color: const Color(0xFF94A3B8),
+                  size: 48.r,
+                ),
+              ),
+            );
+          },
+        );
       },
     );
   }

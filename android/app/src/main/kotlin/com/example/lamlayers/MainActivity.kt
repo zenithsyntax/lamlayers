@@ -47,8 +47,14 @@ class MainActivity : FlutterActivity() {
         if (Intent.ACTION_VIEW == intent.action) {
             val uri: Uri? = intent.data
             if (uri == null) return
+            
+            android.util.Log.d("MainActivity", "Received intent with URI: $uri")
+            android.util.Log.d("MainActivity", "URI scheme: ${uri.scheme}")
+            android.util.Log.d("MainActivity", "URI path: ${uri.path}")
+            
             val resolvedPath = resolveToLocalPath(uri)
             if (resolvedPath != null) {
+                android.util.Log.d("MainActivity", "Resolved path: $resolvedPath")
                 // Queue until Dart signals readiness to avoid losing the event on cold start
                 if (isDartReady && notifyOpenedFile(mapOf("path" to resolvedPath))) {
                     pendingOpenedPath = null
@@ -58,6 +64,7 @@ class MainActivity : FlutterActivity() {
             } else {
                 // Fallback to passing the URI string if we couldn't resolve
                 val uriString = uri.toString()
+                android.util.Log.d("MainActivity", "Using URI string fallback: $uriString")
                 if (isDartReady && notifyOpenedFile(mapOf("uri" to uriString))) {
                     pendingOpenedPath = null
                 } else {
@@ -92,12 +99,21 @@ class MainActivity : FlutterActivity() {
         val fileName = (uri.lastPathSegment ?: "shared").substringAfterLast('/')
         val safeName = if (fileName.contains('.')) fileName else ensureExtension(fileName, uri)
         val outFile = File(cacheDir, safeName)
-        resolver.openInputStream(uri)?.use { input ->
-            FileOutputStream(outFile).use { output ->
-                input.copyTo(output)
-            }
-        } ?: return null
-        return outFile.absolutePath
+        
+        try {
+            resolver.openInputStream(uri)?.use { input ->
+                FileOutputStream(outFile).use { output ->
+                    input.copyTo(output)
+                }
+            } ?: return null
+            
+            // Log success
+            android.util.Log.d("MainActivity", "Successfully copied file: ${outFile.absolutePath}, size: ${outFile.length()} bytes")
+            return outFile.absolutePath
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "Failed to copy content URI: $e")
+            return null
+        }
     }
 
     private fun ensureExtension(base: String, uri: Uri): String {

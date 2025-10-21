@@ -26,7 +26,8 @@ class ScrapbookFlipBookView extends StatefulWidget {
   State<ScrapbookFlipBookView> createState() => _ScrapbookFlipBookViewState();
 }
 
-class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
+class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView>
+    with WidgetsBindingObserver {
   late Box<PosterProject> _projectBox;
   late PageTurnController _pageController;
   // Track current page indices for navigation button state
@@ -154,6 +155,7 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _projectBox = Hive.box<PosterProject>('posterProjects');
     _pageController = PageTurnController();
     // Initialize and load Google Mobile Ads interstitial
@@ -163,8 +165,19 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _interstitialAd?.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Refresh data when app resumes to ensure latest state
+      if (mounted) {
+        setState(() {});
+      }
+    }
   }
 
   Future<void> _openEditSheet() async {
@@ -966,19 +979,60 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
         );
       }
 
-      // Try to get thumbnail or background image
-      final thumb = project.thumbnailPath ?? project.backgroundImagePath;
+      // Try to get thumbnail or background image with better error handling
+      String? imagePath = project.thumbnailPath;
+      if (imagePath == null ||
+          imagePath.isEmpty ||
+          !File(imagePath).existsSync()) {
+        imagePath = project.backgroundImagePath;
+      }
 
-      if (thumb != null && File(thumb).existsSync()) {
+      if (imagePath != null &&
+          imagePath.isNotEmpty &&
+          File(imagePath).existsSync()) {
         return Container(
           decoration: BoxDecoration(
             color: project.canvasBackgroundColor.toColor(),
           ),
           child: Stack(
             children: [
-              // Background image
+              // Background image with error handling and unique key for refresh
               Positioned.fill(
-                child: Image.file(File(thumb), fit: BoxFit.cover),
+                child: Image.file(
+                  File(imagePath),
+                  key: ValueKey(
+                    '${projectId}_${project.lastModified.millisecondsSinceEpoch}',
+                  ),
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    // If image fails to load, show background color with placeholder
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: project.canvasBackgroundColor.toColor(),
+                      ),
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.broken_image_outlined,
+                              color: const Color(0xFF94A3B8),
+                              size: 48.r,
+                            ),
+                            SizedBox(height: 8.h),
+                            Text(
+                              'Page ${pageIndex + 1}',
+                              style: GoogleFonts.inter(
+                                fontSize: 14.sp,
+                                color: const Color(0xFF94A3B8),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ),
             ],
           ),
@@ -1466,6 +1520,50 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
                                                   if (path != null) {
                                                     await ExportManager.shareLambook(
                                                       path,
+                                                    );
+                                                    if (mounted) {
+                                                      ScaffoldMessenger.of(
+                                                        context,
+                                                      ).showSnackBar(
+                                                        const SnackBar(
+                                                          content: Text(
+                                                            'Scrapbook exported and shared successfully!',
+                                                          ),
+                                                          backgroundColor:
+                                                              Colors.green,
+                                                        ),
+                                                      );
+                                                    }
+                                                  } else {
+                                                    if (mounted) {
+                                                      ScaffoldMessenger.of(
+                                                        context,
+                                                      ).showSnackBar(
+                                                        const SnackBar(
+                                                          content: Text(
+                                                            'Failed to export scrapbook. Please try again.',
+                                                          ),
+                                                          backgroundColor:
+                                                              Colors.red,
+                                                        ),
+                                                      );
+                                                    }
+                                                  }
+                                                } catch (e) {
+                                                  print(
+                                                    'Error exporting scrapbook: $e',
+                                                  );
+                                                  if (mounted) {
+                                                    ScaffoldMessenger.of(
+                                                      context,
+                                                    ).showSnackBar(
+                                                      SnackBar(
+                                                        content: Text(
+                                                          'Export failed: ${e.toString()}',
+                                                        ),
+                                                        backgroundColor:
+                                                            Colors.red,
+                                                      ),
                                                     );
                                                   }
                                                 } finally {

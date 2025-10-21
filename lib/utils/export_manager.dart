@@ -193,6 +193,7 @@ class ExportManager {
       await Share.shareXFiles([XFile(filePath)], text: 'My poster');
     } catch (e) {
       print('Error sharing image: $e');
+      rethrow; // Propagate the error so calling code can handle it
     }
   }
 
@@ -404,6 +405,7 @@ class ExportManager {
       ], text: 'Check out my flip book');
     } catch (e) {
       print('ExportManager: Error sharing lambook: $e');
+      rethrow; // Propagate the error so calling code can handle it
     }
   }
 

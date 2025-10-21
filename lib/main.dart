@@ -6,6 +6,7 @@ import 'package:lamlayers/screens/home_page.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:lamlayers/utils/export_manager.dart';
 import 'package:lamlayers/screens/poster_maker_screen.dart';
@@ -126,6 +127,10 @@ class _DeepLinkHostState extends State<DeepLinkHost> {
       // Debug log
       // ignore: avoid_print
       print('DeepLinkHost: attempting to open as lambook -> ' + normalized);
+      print(
+        'DeepLinkHost: file exists check: ${File(normalized).existsSync()}',
+      );
+      print('DeepLinkHost: file size: ${File(normalized).lengthSync()} bytes');
 
       int _progress = 1;
       if (mounted) {
@@ -164,21 +169,25 @@ class _DeepLinkHostState extends State<DeepLinkHost> {
         );
       }
 
-      final data = await ExportManager.loadLambook(
-        normalized,
-        onProgress: (p) {
-          _progress = p;
-          // try updating dialog if still mounted
-          if (mounted) {
-            // Force rebuild of dialog via Navigator overlay by popping and re-showing would flicker.
-            // Instead, rely on StatefulBuilder above: call setState captured there via context.
-            // Since we don't hold setState reference here, use Navigator to find current route's widget tree rebuild via addPostFrameCallback.
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              // No-op to keep UI responsive; StatefulBuilder rebuilds when its setState is called only.
-            });
-          }
-        },
-      );
+      final data =
+          await ExportManager.loadLambook(
+            normalized,
+            onProgress: (p) {
+              _progress = p;
+              // try updating dialog if still mounted
+              if (mounted) {
+                // Force rebuild of dialog via Navigator overlay by popping and re-showing would flicker.
+                // Instead, rely on StatefulBuilder above: call setState captured there via context.
+                // Since we don't hold setState reference here, use Navigator to find current route's widget tree rebuild via addPostFrameCallback.
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  // No-op to keep UI responsive; StatefulBuilder rebuilds when its setState is called only.
+                });
+              }
+            },
+          ).catchError((error) {
+            print('DeepLinkHost: Error loading lambook: $error');
+            return null;
+          });
       if (mounted) {
         Navigator.of(context, rootNavigator: true).pop();
       }
@@ -203,6 +212,19 @@ class _DeepLinkHostState extends State<DeepLinkHost> {
             ),
           );
         });
+        return null;
+      } else {
+        // If loading failed, show error message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Failed to open file. Please make sure it\'s a valid .lambook file.',
+              ),
+              duration: Duration(seconds: 5),
+            ),
+          );
+        }
         return null;
       }
     }
