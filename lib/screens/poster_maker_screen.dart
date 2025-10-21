@@ -5494,352 +5494,446 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   // Add this method to show the text editing dialog:
 
   void _showTextEditDialog(String currentText, ValueChanged<String> onChanged) {
-    final TextEditingController controller = TextEditingController(
-      text: currentText,
-    );
+    // Check if context is still mounted before showing dialog
+    if (!mounted) return;
 
-    final FocusNode focusNode = FocusNode();
+    try {
+      final TextEditingController controller = TextEditingController(
+        text: currentText,
+      );
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: EdgeInsets.all(24.w),
-          child: Container(
-            width: double.infinity,
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.6,
-              minHeight: 180.h,
-            ),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(28.r),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF0F172A).withOpacity(0.08),
-                  blurRadius: 32,
-                  offset: const Offset(0, 12),
-                  spreadRadius: -4,
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Header
-                Container(
-                  padding: EdgeInsets.all(24.w),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                    ),
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(28.r),
-                      topRight: Radius.circular(28.r),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF6366F1).withOpacity(0.3),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: EdgeInsets.all(10.w),
+      final FocusNode focusNode = FocusNode();
+      final ScrollController scrollController = ScrollController();
+
+      showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (BuildContext dialogContext) {
+              return Dialog(
+                backgroundColor: Colors.transparent,
+                insetPadding: EdgeInsets.all(24.w),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return Container(
+                        width: double.infinity,
+                        constraints: BoxConstraints(
+                          maxHeight:
+                              MediaQuery.of(context).size.height * 0.8 -
+                              MediaQuery.of(context).viewInsets.bottom,
+                          minHeight: 180.h,
+                        ),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(12.r),
-                        ),
-                        child: Icon(
-                          Icons.edit_rounded,
                           color: Colors.white,
-                          size: 24.r,
-                        ),
-                      ),
-                      SizedBox(width: 16.w),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Edit Text',
-                              style: GoogleFonts.inter(
-                                fontSize: 20.sp,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                                letterSpacing: -0.5,
-                              ),
-                            ),
-                            SizedBox(height: 4.h),
-                            Text(
-                              'Type your message here',
-                              style: GoogleFonts.inter(
-                                fontSize: 13.sp,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.white.withOpacity(0.9),
-                              ),
+                          borderRadius: BorderRadius.circular(28.r),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF0F172A).withOpacity(0.08),
+                              blurRadius: 32,
+                              offset: const Offset(0, 12),
+                              spreadRadius: -4,
                             ),
                           ],
                         ),
-                      ),
-                      GestureDetector(
-                        onTap: () => Navigator.of(context).pop(),
-                        child: Container(
-                          padding: EdgeInsets.all(10.w),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(12.r),
+                        child: SingleChildScrollView(
+                          controller: scrollController,
+                          padding: EdgeInsets.only(
+                            bottom: MediaQuery.of(context).viewInsets.bottom,
                           ),
-                          child: Icon(
-                            Icons.close_rounded,
-                            color: Colors.white,
-                            size: 20.r,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Header
+                              Container(
+                                padding: EdgeInsets.all(24.w),
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      Color(0xFF6366F1),
+                                      Color(0xFF8B5CF6),
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.only(
+                                    topLeft: Radius.circular(28.r),
+                                    topRight: Radius.circular(28.r),
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(
+                                        0xFF6366F1,
+                                      ).withOpacity(0.3),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: EdgeInsets.all(10.w),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.2),
+                                        borderRadius: BorderRadius.circular(
+                                          12.r,
+                                        ),
+                                      ),
+                                      child: Icon(
+                                        Icons.edit_rounded,
+                                        color: Colors.white,
+                                        size: 24.r,
+                                      ),
+                                    ),
+                                    SizedBox(width: 16.w),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Edit Text',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 20.sp,
+                                              fontWeight: FontWeight.w700,
+                                              color: Colors.white,
+                                              letterSpacing: -0.5,
+                                            ),
+                                          ),
+                                          SizedBox(height: 4.h),
+                                          Text(
+                                            'Type your message here',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 13.sp,
+                                              fontWeight: FontWeight.w500,
+                                              color: Colors.white.withOpacity(
+                                                0.9,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    GestureDetector(
+                                      onTap: () =>
+                                          Navigator.of(dialogContext).pop(),
+                                      child: Container(
+                                        padding: EdgeInsets.all(10.w),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withOpacity(0.2),
+                                          borderRadius: BorderRadius.circular(
+                                            12.r,
+                                          ),
+                                        ),
+                                        child: Icon(
+                                          Icons.close_rounded,
+                                          color: Colors.white,
+                                          size: 20.r,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
 
-                // Text editing area
-                Flexible(
-                  child: Container(
-                    padding: EdgeInsets.all(24.w),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: EdgeInsets.all(8.w),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF6366F1).withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(10.r),
-                              ),
-                              child: Icon(
-                                Icons.text_fields_rounded,
-                                color: const Color(0xFF6366F1),
-                                size: 18.r,
-                              ),
-                            ),
-                            SizedBox(width: 12.w),
-                            Text(
-                              'Your Text',
-                              style: GoogleFonts.inter(
-                                fontSize: 16.sp,
-                                fontWeight: FontWeight.w600,
-                                color: const Color(0xFF0F172A),
-                                letterSpacing: -0.3,
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 16.h),
-                        // Multi-line text field
-                        Flexible(
-                          child: Container(
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF8FAFC),
-                              borderRadius: BorderRadius.circular(20.r),
-                              border: Border.all(
-                                color: const Color(0xFFE2E8F0),
-                                width: 1.5,
-                              ),
-                            ),
-                            child: TextField(
-                              controller: controller,
-                              focusNode: focusNode,
-                              maxLines: null,
-                              minLines: 4,
-                              keyboardType: TextInputType.multiline,
-                              textInputAction: TextInputAction.newline,
-                              style: GoogleFonts.inter(
-                                fontSize: 16.sp,
-                                color: const Color(0xFF0F172A),
-                                height: 1.6,
-                                fontWeight: FontWeight.w500,
-                              ),
-                              decoration: InputDecoration(
-                                hintText:
-                                    'Type your text here...\nPress Enter for new lines',
-                                hintStyle: GoogleFonts.inter(
-                                  color: const Color(0xFF94A3B8),
-                                  fontSize: 14.sp,
-                                  fontWeight: FontWeight.w400,
-                                ),
-                                contentPadding: EdgeInsets.all(20.w),
-                                border: InputBorder.none,
-                                enabledBorder: InputBorder.none,
-                                focusedBorder: InputBorder.none,
-                              ),
-                              onChanged: (text) {
-                                onChanged(text);
-                              },
-                            ),
-                          ),
-                        ),
-                        SizedBox(height: 16.h),
-                        // Character count and info
-                        Row(
-                          children: [
-                            Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 12.w,
-                                vertical: 6.h,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(
-                                  0xFF6366F1,
-                                ).withOpacity(0.08),
-                                borderRadius: BorderRadius.circular(8.r),
-                              ),
-                              child: Text(
-                                '${controller.text.length} characters',
-                                style: GoogleFonts.inter(
-                                  fontSize: 12.sp,
-                                  fontWeight: FontWeight.w600,
-                                  color: const Color(0xFF6366F1),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // Action buttons
-                Container(
-                  padding: EdgeInsets.all(24.w),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.only(
-                      bottomLeft: Radius.circular(28.r),
-                      bottomRight: Radius.circular(28.r),
-                    ),
-                    border: Border(
-                      top: BorderSide(color: const Color(0xFFE2E8F0), width: 1),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      // Clear button
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () {
-                            controller.clear();
-                            onChanged('');
-                          },
-                          child: Container(
-                            padding: EdgeInsets.symmetric(vertical: 16.h),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFEF2F2),
-                              borderRadius: BorderRadius.circular(16.r),
-                              border: Border.all(
-                                color: const Color(0xFFFECACA),
-                                width: 1.5,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.clear_rounded,
-                                  color: const Color(0xFFDC2626),
-                                  size: 20.r,
-                                ),
-                                SizedBox(width: 8.w),
-                                Text(
-                                  'Clear',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 14.sp,
-                                    fontWeight: FontWeight.w600,
-                                    color: const Color(0xFFDC2626),
-                                    letterSpacing: -0.2,
+                              // Text editing area
+                              Flexible(
+                                child: Container(
+                                  padding: EdgeInsets.all(24.w),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Container(
+                                            padding: EdgeInsets.all(8.w),
+                                            decoration: BoxDecoration(
+                                              color: const Color(
+                                                0xFF6366F1,
+                                              ).withOpacity(0.1),
+                                              borderRadius:
+                                                  BorderRadius.circular(10.r),
+                                            ),
+                                            child: Icon(
+                                              Icons.text_fields_rounded,
+                                              color: const Color(0xFF6366F1),
+                                              size: 18.r,
+                                            ),
+                                          ),
+                                          SizedBox(width: 12.w),
+                                          Text(
+                                            'Your Text',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 16.sp,
+                                              fontWeight: FontWeight.w600,
+                                              color: const Color(0xFF0F172A),
+                                              letterSpacing: -0.3,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      SizedBox(height: 16.h),
+                                      // Multi-line text field
+                                      Flexible(
+                                        child: Container(
+                                          width: double.infinity,
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFF8FAFC),
+                                            borderRadius: BorderRadius.circular(
+                                              20.r,
+                                            ),
+                                            border: Border.all(
+                                              color: const Color(0xFFE2E8F0),
+                                              width: 1.5,
+                                            ),
+                                          ),
+                                          child: TextField(
+                                            controller: controller,
+                                            focusNode: focusNode,
+                                            maxLines: null,
+                                            minLines: 4,
+                                            keyboardType:
+                                                TextInputType.multiline,
+                                            textInputAction:
+                                                TextInputAction.newline,
+                                            style: GoogleFonts.inter(
+                                              fontSize: 16.sp,
+                                              color: const Color(0xFF0F172A),
+                                              height: 1.6,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                            decoration: InputDecoration(
+                                              hintText:
+                                                  'Type your text here...\nPress Enter for new lines',
+                                              hintStyle: GoogleFonts.inter(
+                                                color: const Color(0xFF94A3B8),
+                                                fontSize: 14.sp,
+                                                fontWeight: FontWeight.w400,
+                                              ),
+                                              contentPadding: EdgeInsets.all(
+                                                20.w,
+                                              ),
+                                              border: InputBorder.none,
+                                              enabledBorder: InputBorder.none,
+                                              focusedBorder: InputBorder.none,
+                                            ),
+                                            onChanged: (text) {
+                                              onChanged(text);
+                                            },
+                                          ),
+                                        ),
+                                      ),
+                                      SizedBox(height: 16.h),
+                                      // Character count and info
+                                      Row(
+                                        children: [
+                                          Container(
+                                            padding: EdgeInsets.symmetric(
+                                              horizontal: 12.w,
+                                              vertical: 6.h,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: const Color(
+                                                0xFF6366F1,
+                                              ).withOpacity(0.08),
+                                              borderRadius:
+                                                  BorderRadius.circular(8.r),
+                                            ),
+                                            child: Text(
+                                              '${controller.text.length} characters',
+                                              style: GoogleFonts.inter(
+                                                fontSize: 12.sp,
+                                                fontWeight: FontWeight.w600,
+                                                color: const Color(0xFF6366F1),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
                                   ),
                                 ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      SizedBox(width: 16.w),
-                      // Done button
-                      Expanded(
-                        flex: 2,
-                        child: GestureDetector(
-                          onTap: () {
-                            onChanged(controller.text);
-                            Navigator.of(context).pop();
-                          },
-                          child: Container(
-                            padding: EdgeInsets.symmetric(vertical: 16.h),
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
                               ),
-                              borderRadius: BorderRadius.circular(16.r),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(
-                                    0xFF6366F1,
-                                  ).withOpacity(0.3),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.check_rounded,
-                                  color: Colors.white,
-                                  size: 20.r,
-                                ),
-                                SizedBox(width: 8.w),
-                                Text(
-                                  'Save Changes',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 14.sp,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white,
-                                    letterSpacing: -0.2,
+
+                              // Action buttons
+                              Container(
+                                padding: EdgeInsets.all(24.w),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF8FAFC),
+                                  borderRadius: BorderRadius.only(
+                                    bottomLeft: Radius.circular(28.r),
+                                    bottomRight: Radius.circular(28.r),
+                                  ),
+                                  border: Border(
+                                    top: BorderSide(
+                                      color: const Color(0xFFE2E8F0),
+                                      width: 1,
+                                    ),
                                   ),
                                 ),
-                              ],
-                            ),
+                                child: Row(
+                                  children: [
+                                    // Clear button
+                                    Expanded(
+                                      child: GestureDetector(
+                                        onTap: () {
+                                          controller.clear();
+                                          onChanged('');
+                                        },
+                                        child: Container(
+                                          padding: EdgeInsets.symmetric(
+                                            vertical: 16.h,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFFEF2F2),
+                                            borderRadius: BorderRadius.circular(
+                                              16.r,
+                                            ),
+                                            border: Border.all(
+                                              color: const Color(0xFFFECACA),
+                                              width: 1.5,
+                                            ),
+                                          ),
+                                          child: Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Icon(
+                                                Icons.clear_rounded,
+                                                color: const Color(0xFFDC2626),
+                                                size: 20.r,
+                                              ),
+                                              SizedBox(width: 8.w),
+                                              Text(
+                                                'Clear',
+                                                style: GoogleFonts.inter(
+                                                  fontSize: 14.sp,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: const Color(
+                                                    0xFFDC2626,
+                                                  ),
+                                                  letterSpacing: -0.2,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(width: 16.w),
+                                    // Done button
+                                    Expanded(
+                                      flex: 2,
+                                      child: GestureDetector(
+                                        onTap: () {
+                                          onChanged(controller.text);
+                                          Navigator.of(context).pop();
+                                        },
+                                        child: Container(
+                                          padding: EdgeInsets.symmetric(
+                                            vertical: 16.h,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            gradient: const LinearGradient(
+                                              begin: Alignment.topLeft,
+                                              end: Alignment.bottomRight,
+                                              colors: [
+                                                Color(0xFF6366F1),
+                                                Color(0xFF8B5CF6),
+                                              ],
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              16.r,
+                                            ),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: const Color(
+                                                  0xFF6366F1,
+                                                ).withOpacity(0.3),
+                                                blurRadius: 12,
+                                                offset: const Offset(0, 4),
+                                              ),
+                                            ],
+                                          ),
+                                          child: Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Icon(
+                                                Icons.check_rounded,
+                                                color: Colors.white,
+                                                size: 20.r,
+                                              ),
+                                              SizedBox(width: 8.w),
+                                              Text(
+                                                'Save Changes',
+                                                style: GoogleFonts.inter(
+                                                  fontSize: 14.sp,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: Colors.white,
+                                                  letterSpacing: -0.2,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ),
-                    ],
+                      );
+                    },
                   ),
                 ),
-              ],
-            ),
-          ),
+              );
+            },
+          )
+          .then((_) {
+            // Auto-focus the text field when dialog opens
+            // Use WidgetsBinding to ensure proper timing in release builds
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted && focusNode.canRequestFocus) {
+                focusNode.requestFocus();
+                // Scroll to text field when keyboard appears
+                Future.delayed(const Duration(milliseconds: 300), () {
+                  if (scrollController.hasClients) {
+                    scrollController.animateTo(
+                      scrollController.position.maxScrollExtent,
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                    );
+                  }
+                });
+              }
+            });
+          })
+          .catchError((error) {
+            // Handle any errors that might occur during dialog display
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Error opening text editor: ${error.toString()}',
+                  ),
+                ),
+              );
+            }
+          });
+    } catch (e) {
+      // Handle any errors that might occur before dialog display
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error opening text editor: ${e.toString()}')),
         );
-      },
-    ).then((_) {
-      // Auto-focus the text field when dialog opens
-
-      Future.delayed(const Duration(milliseconds: 100), () {
-        if (focusNode.canRequestFocus) {
-          focusNode.requestFocus();
-        }
-      });
-    });
+      }
+    }
   }
 
   void _showFontSelectionDialog() {
@@ -9171,13 +9265,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         return FittedBox(
           fit: BoxFit.contain,
 
-          child: Icon(
-            IconData(iconCodePoint, fontFamily: iconFontFamily),
-
-            color: color,
-
-            size: size,
-          ),
+          child: _buildDynamicIcon(iconCodePoint, iconFontFamily, color, size),
         );
 
       case CanvasItemType.shape:
@@ -9745,6 +9833,19 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           ),
         );
       },
+    );
+  }
+
+  Widget _buildDynamicIcon(
+    int codePoint,
+    String? fontFamily,
+    Color color,
+    double size,
+  ) {
+    // Use a custom widget that doesn't rely on IconData constructor
+    return CustomPaint(
+      size: Size(size, size),
+      painter: _IconPainter(codePoint, fontFamily, color),
     );
   }
 
@@ -15230,3 +15331,38 @@ class CheckerboardPainter extends CustomPainter {
 }
 
 // Replaced inline banner with shared AdBanner320x50 widget
+
+class _IconPainter extends CustomPainter {
+  final int codePoint;
+  final String? fontFamily;
+  final Color color;
+
+  _IconPainter(this.codePoint, this.fontFamily, this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: String.fromCharCode(codePoint),
+        style: TextStyle(
+          fontFamily: fontFamily ?? 'MaterialIcons',
+          fontSize: size.width,
+          color: color,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    );
+
+    textPainter.layout();
+    textPainter.paint(
+      canvas,
+      Offset(
+        (size.width - textPainter.width) / 2,
+        (size.height - textPainter.height) / 2,
+      ),
+    );
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => false;
+}

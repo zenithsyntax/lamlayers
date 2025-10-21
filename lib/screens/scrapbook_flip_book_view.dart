@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -931,8 +932,97 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
   }
 
   Widget _buildPageContent(String projectId, int pageIndex) {
-    final project = _projectBox.get(projectId);
-    if (project == null) {
+    try {
+      final project = _projectBox.get(projectId);
+      if (project == null) {
+        return Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [const Color(0xFFF8FAFC), const Color(0xFFE2E8F0)],
+            ),
+          ),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.insert_drive_file_outlined,
+                  color: const Color(0xFF94A3B8),
+                  size: 48.r,
+                ),
+                SizedBox(height: 8.h),
+                Text(
+                  'Page ${pageIndex + 1}',
+                  style: GoogleFonts.inter(
+                    fontSize: 14.sp,
+                    color: const Color(0xFF94A3B8),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+
+      // Try to get thumbnail or background image
+      final thumb = project.thumbnailPath ?? project.backgroundImagePath;
+
+      if (thumb != null && File(thumb).existsSync()) {
+        return Container(
+          decoration: BoxDecoration(
+            color: project.canvasBackgroundColor.toColor(),
+          ),
+          child: Stack(
+            children: [
+              // Background image
+              Positioned.fill(
+                child: Image.file(File(thumb), fit: BoxFit.cover),
+              ),
+            ],
+          ),
+        );
+      }
+
+      // Fallback for pages without images
+      return Container(
+        decoration: BoxDecoration(
+          color: project.canvasBackgroundColor.toColor(),
+          gradient: project.canvasBackgroundColor.value == 0xFFFFFFFF
+              ? const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFFF8FAFC), Color(0xFFE2E8F0)],
+                )
+              : null,
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.insert_drive_file_outlined,
+                color: const Color(0xFF94A3B8),
+                size: 48.r,
+              ),
+              SizedBox(height: 16.h),
+              Text(
+                project.name,
+                style: GoogleFonts.inter(
+                  fontSize: 16.sp,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF64748B),
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    } catch (e) {
+      // Error fallback
+      print('Error building page content: $e');
       return Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -946,68 +1036,24 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
-                Icons.insert_drive_file_outlined,
-                color: const Color(0xFF94A3B8),
+                Icons.error_outline,
+                color: const Color(0xFFEF4444),
                 size: 48.r,
+              ),
+              SizedBox(height: 8.h),
+              Text(
+                'Error loading page ${pageIndex + 1}',
+                style: GoogleFonts.inter(
+                  fontSize: 14.sp,
+                  color: const Color(0xFFEF4444),
+                ),
+                textAlign: TextAlign.center,
               ),
             ],
           ),
         ),
       );
     }
-
-    // Try to get thumbnail or background image
-    final thumb = project.thumbnailPath ?? project.backgroundImagePath;
-
-    if (thumb != null && File(thumb).existsSync()) {
-      return Container(
-        decoration: BoxDecoration(
-          color: project.canvasBackgroundColor.toColor(),
-        ),
-        child: Stack(
-          children: [
-            // Background image
-            Positioned.fill(child: Image.file(File(thumb), fit: BoxFit.cover)),
-          ],
-        ),
-      );
-    }
-
-    // Fallback for pages without images
-    return Container(
-      decoration: BoxDecoration(
-        color: project.canvasBackgroundColor.toColor(),
-        gradient: project.canvasBackgroundColor.value == 0xFFFFFFFF
-            ? const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFFF8FAFC), Color(0xFFE2E8F0)],
-              )
-            : null,
-      ),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.insert_drive_file_outlined,
-              color: const Color(0xFF94A3B8),
-              size: 48.r,
-            ),
-            SizedBox(height: 16.h),
-            Text(
-              project.name,
-              style: GoogleFonts.inter(
-                fontSize: 16.sp,
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFF64748B),
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   void _onPageChanged(int leftPageIndex, int rightPageIndex) {
@@ -1030,9 +1076,138 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
     }
   }
 
+  Widget _buildInteractiveBook() {
+    final pageIds = widget.scrapbook.pageProjectIds;
+
+    // Validate scrapbook dimensions to prevent division by zero
+    if (widget.scrapbook.pageWidth <= 0 || widget.scrapbook.pageHeight <= 0) {
+      return Container(
+        color: Colors.white,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.error_outline,
+                color: const Color(0xFFEF4444),
+                size: 48.r,
+              ),
+              SizedBox(height: 16.h),
+              Text(
+                'Invalid scrapbook dimensions',
+                style: GoogleFonts.inter(
+                  fontSize: 16.sp,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF64748B),
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Calculate aspect ratio safely with fallback
+    double aspectRatio;
+    try {
+      if (widget.scrapbook.pageWidth > 0 && widget.scrapbook.pageHeight > 0) {
+        aspectRatio =
+            (widget.scrapbook.pageWidth * 2) / widget.scrapbook.pageHeight;
+      } else {
+        // Fallback to a reasonable aspect ratio for dual page view
+        aspectRatio = 1.4; // Standard book aspect ratio
+      }
+
+      // Ensure aspect ratio is valid
+      if (aspectRatio <= 0 || !aspectRatio.isFinite || aspectRatio.isNaN) {
+        aspectRatio = 1.4;
+      }
+    } catch (e) {
+      aspectRatio = 1.4; // Fallback aspect ratio
+    }
+
+    try {
+      return InteractiveBook(
+        pagesBoundaryIsEnabled: false,
+        controller: _pageController,
+        pageCount: pageIds.length,
+        aspectRatio: aspectRatio,
+        pageViewMode: PageViewMode.double,
+        onPageChanged: _onPageChanged,
+        settings: FlipSettings(startPageIndex: 0, usePortrait: false),
+        builder: (context, pageIndex, constraints) {
+          if (pageIndex >= pageIds.length) {
+            return Container(
+              color: Colors.white,
+              child: Center(
+                child: Text(
+                  'End of Book',
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF64748B),
+                  ),
+                ),
+              ),
+            );
+          }
+          return _buildPageContent(pageIds[pageIndex], pageIndex);
+        },
+      );
+    } catch (e) {
+      // Log the error for debugging
+      print('InteractiveBook Error: $e');
+      // Fallback for any InteractiveBook errors
+      return Container(
+        color: Colors.white,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.book_outlined,
+                color: const Color(0xFF94A3B8),
+                size: 48.r,
+              ),
+              SizedBox(height: 16.h),
+              Text(
+                'Unable to load flip book',
+                style: GoogleFonts.inter(
+                  fontSize: 16.sp,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF64748B),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: 8.h),
+              Text(
+                'Please try again',
+                style: GoogleFonts.inter(
+                  fontSize: 14.sp,
+                  color: const Color(0xFF94A3B8),
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final pageIds = widget.scrapbook.pageProjectIds;
+
+    // Debug information for release builds
+    print('Scrapbook Debug Info:');
+    print('- Name: ${widget.scrapbook.name}');
+    print('- Page count: ${pageIds.length}');
+    print('- Page width: ${widget.scrapbook.pageWidth}');
+    print('- Page height: ${widget.scrapbook.pageHeight}');
+    print('- Page IDs: $pageIds');
+
     if (pageIds.isEmpty) {
       return Scaffold(
         backgroundColor: _scaffoldBgColor,
@@ -1438,9 +1613,56 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
                 child: Container(
                   width: double.infinity,
                   height: double.infinity,
-
                   child: Stack(
                     children: [
+                      // Debug overlay (only in debug mode)
+                      if (kDebugMode)
+                        Positioned(
+                          top: 10,
+                          left: 10,
+                          child: Container(
+                            padding: EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.7),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'Debug Info',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                Text(
+                                  'Pages: ${pageIds.length}',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                                Text(
+                                  'Current: L$_currentLeftPage R$_currentRightPage',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                                Text(
+                                  'Size: ${widget.scrapbook.pageWidth}x${widget.scrapbook.pageHeight}',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       // 🟤 Background book cover (below)
                       Center(
                         child: Container(
@@ -1521,49 +1743,12 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView> {
                       ),
 
                       Center(
-                        child: Container(
-                          width: MediaQuery.of(context).size.height * 0.8,
-                          height: MediaQuery.of(context).size.width * 0.9,
-                          child: Positioned.fill(
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(12.r),
-                              child: InteractiveBook(
-                                pagesBoundaryIsEnabled: false,
-
-                                controller: _pageController,
-                                pageCount: pageIds.length,
-                                aspectRatio:
-                                    (widget.scrapbook.pageWidth * 2) /
-                                    widget.scrapbook.pageHeight,
-                                pageViewMode: PageViewMode.double,
-                                onPageChanged: _onPageChanged,
-                                settings: FlipSettings(
-                                  startPageIndex: 0,
-                                  usePortrait: false,
-                                ),
-                                builder: (context, pageIndex, constraints) {
-                                  if (pageIndex >= pageIds.length) {
-                                    return Container(
-                                      color: Colors.white,
-                                      child: Center(
-                                        child: Text(
-                                          'End of Book',
-                                          style: GoogleFonts.inter(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w600,
-                                            color: const Color(0xFF64748B),
-                                          ),
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                  return _buildPageContent(
-                                    pageIds[pageIndex],
-                                    pageIndex,
-                                  );
-                                },
-                              ),
-                            ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12.r),
+                          child: SizedBox(
+                            width: MediaQuery.of(context).size.height * 0.8,
+                            height: MediaQuery.of(context).size.width * 0.9,
+                            child: _buildInteractiveBook(),
                           ),
                         ),
                       ),

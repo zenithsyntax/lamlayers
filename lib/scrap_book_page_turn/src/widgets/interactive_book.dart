@@ -31,15 +31,26 @@ class InteractiveBook extends StatelessWidget {
     FlipSettings? settings,
     this.pagesBoundaryIsEnabled = true,
   }) : settings = settings ?? FlipSettings() {
+    // Validate settings in both debug and release builds
     if (settings != null) {
-      assert(
-        this.settings.startPageIndex >= 0,
-        'Page count must be greater than 0',
-      );
-      assert(
-        this.settings.startPageIndex < pageCount,
-        'Start page index must be less than page count',
-      );
+      if (this.settings.startPageIndex < 0) {
+        throw ArgumentError(
+          'Start page index must be greater than or equal to 0',
+        );
+      }
+      if (this.settings.startPageIndex >= pageCount) {
+        throw ArgumentError('Start page index must be less than page count');
+      }
+    }
+
+    // Validate page count
+    if (pageCount <= 0) {
+      throw ArgumentError('Page count must be greater than 0');
+    }
+
+    // Validate aspect ratio if provided
+    if (aspectRatio != null && (aspectRatio! <= 0 || !aspectRatio!.isFinite)) {
+      throw ArgumentError('Aspect ratio must be a positive finite number');
     }
   }
 
@@ -48,11 +59,28 @@ class InteractiveBook extends StatelessWidget {
     required double maxHeight,
     required double aspectRatio,
   }) {
+    // Validate inputs
+    if (maxWidth <= 0 ||
+        maxHeight <= 0 ||
+        aspectRatio <= 0 ||
+        !aspectRatio.isFinite) {
+      return const Size(300, 400); // Default fallback size
+    }
+
     double height = maxWidth / aspectRatio;
     if (height > maxHeight) {
       height = maxHeight;
       maxWidth = height * aspectRatio;
     }
+
+    // Ensure the calculated size is valid
+    if (maxWidth <= 0 ||
+        height <= 0 ||
+        !maxWidth.isFinite ||
+        !height.isFinite) {
+      return const Size(300, 400); // Default fallback size
+    }
+
     return Size(maxWidth, height);
   }
 
