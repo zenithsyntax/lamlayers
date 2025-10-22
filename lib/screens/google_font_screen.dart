@@ -68,6 +68,7 @@ class _GoogleFontsPageState extends State<GoogleFontsPage> {
         final data = json.decode(response.body);
         final fonts = (data['items'] as List)
             .map((font) => GoogleFont.fromJson(font))
+            .where((font) => !font.family.toLowerCase().startsWith('material'))
             .toList();
 
         setState(() {
