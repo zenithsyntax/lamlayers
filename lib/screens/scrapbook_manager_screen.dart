@@ -280,7 +280,7 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
 
   Future<void> _duplicatePage(int index) async {
     if (_scrapbook == null) return;
-    if (index == 0 || index == _scrapbook!.pageProjectIds.length - 1) return;
+
     final original = _projectBox.get(_scrapbook!.pageProjectIds[index]);
     if (original == null) return;
     final copy = original.copyWith(name: '${original.name} Copy');
@@ -311,7 +311,14 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
 
   Future<void> _deletePage(int index) async {
     if (_scrapbook == null) return;
-    if (index == 0 || index == _scrapbook!.pageProjectIds.length - 1) return;
+
+    // Ensure at least one page remains
+    if (_scrapbook!.pageProjectIds.length <= 1) {
+      _showErrorMessage(
+        'Cannot delete the last page. At least one page must remain in the scrapbook.',
+      );
+      return;
+    }
 
     final confirm = await showDialog<bool>(
       context: context,
@@ -420,12 +427,6 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
 
   Future<void> _reorderPages(int oldIndex, int newIndex) async {
     if (_scrapbook == null) return;
-
-    // Don't allow reordering cover (index 0) and back (last index) pages
-    if (oldIndex == 0 || oldIndex == _scrapbook!.pageProjectIds.length - 1)
-      return;
-    if (newIndex == 0 || newIndex == _scrapbook!.pageProjectIds.length - 1)
-      return;
 
     final ids = List<String>.from(_scrapbook!.pageProjectIds);
     final item = ids.removeAt(oldIndex);
@@ -842,8 +843,6 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
   }
 
   Widget _buildPageCard(String projectId, int index) {
-    final isCover = index == 0;
-    final isBack = index == _scrapbook!.pageProjectIds.length - 1;
     final pageNumber = 'Page ${index + 1}';
 
     return GestureDetector(
@@ -874,89 +873,88 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
                     ),
                     child: _previewFor(projectId),
                   ),
-                  // Menu button
-                  if (!isCover && !isBack)
-                    Positioned(
-                      right: 8.w,
-                      top: 8.h,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.95),
-                          borderRadius: BorderRadius.circular(8.r),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
+                  // Menu button - show for all pages now
+                  Positioned(
+                    right: 8.w,
+                    top: 8.h,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.95),
+                        borderRadius: BorderRadius.circular(8.r),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: PopupMenuButton<String>(
+                        onSelected: (v) {
+                          if (v == 'duplicate') _duplicatePage(index);
+                          if (v == 'delete') _deletePage(index);
+                        },
+                        icon: Icon(
+                          Icons.more_horiz,
+                          size: 18.r,
+                          color: const Color(0xFF64748B),
                         ),
-                        child: PopupMenuButton<String>(
-                          onSelected: (v) {
-                            if (v == 'duplicate') _duplicatePage(index);
-                            if (v == 'delete') _deletePage(index);
-                          },
-                          icon: Icon(
-                            Icons.more_horiz,
-                            size: 18.r,
-                            color: const Color(0xFF64748B),
-                          ),
-                          tooltip: 'More options',
-                          elevation: 6,
-                          color: Colors.white,
-                          shadowColor: Colors.black.withOpacity(0.08),
-                          surfaceTintColor: Colors.transparent,
-                          offset: Offset(0, 6.h),
-                          constraints: BoxConstraints(minWidth: 170.w),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12.r),
-                            side: const BorderSide(color: Color(0xFFE2E8F0)),
-                          ),
-                          itemBuilder: (context) => [
-                            PopupMenuItem(
-                              value: 'duplicate',
-                              height: 40.h,
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.content_copy,
-                                    size: 18.r,
-                                    color: const Color(0xFF64748B),
-                                  ),
-                                  SizedBox(width: 12.w),
-                                  Text(
-                                    'Duplicate',
-                                    style: GoogleFonts.inter(fontSize: 14.sp),
-                                  ),
-                                ],
-                              ),
+                        tooltip: 'More options',
+                        elevation: 6,
+                        color: Colors.white,
+                        shadowColor: Colors.black.withOpacity(0.08),
+                        surfaceTintColor: Colors.transparent,
+                        offset: Offset(0, 6.h),
+                        constraints: BoxConstraints(minWidth: 170.w),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12.r),
+                          side: const BorderSide(color: Color(0xFFE2E8F0)),
+                        ),
+                        itemBuilder: (context) => [
+                          PopupMenuItem(
+                            value: 'duplicate',
+                            height: 40.h,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.content_copy,
+                                  size: 18.r,
+                                  color: const Color(0xFF64748B),
+                                ),
+                                SizedBox(width: 12.w),
+                                Text(
+                                  'Duplicate',
+                                  style: GoogleFonts.inter(fontSize: 14.sp),
+                                ),
+                              ],
                             ),
-                            const PopupMenuDivider(height: 1),
-                            PopupMenuItem(
-                              value: 'delete',
-                              height: 40.h,
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.delete_outline,
-                                    size: 18.r,
+                          ),
+                          const PopupMenuDivider(height: 1),
+                          PopupMenuItem(
+                            value: 'delete',
+                            height: 40.h,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.delete_outline,
+                                  size: 18.r,
+                                  color: const Color(0xFFEF4444),
+                                ),
+                                SizedBox(width: 12.w),
+                                Text(
+                                  'Delete',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 14.sp,
                                     color: const Color(0xFFEF4444),
                                   ),
-                                  SizedBox(width: 12.w),
-                                  Text(
-                                    'Delete',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 14.sp,
-                                      color: const Color(0xFFEF4444),
-                                    ),
-                                  ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
+                  ),
                 ],
               ),
             ),
@@ -1032,7 +1030,6 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
     final isCover = index == 0;
     final isBack = index == _scrapbook!.pageProjectIds.length - 1;
     final pageNumber = 'Page ${index + 1}';
-    final isDraggable = !isCover && !isBack;
 
     return Container(
       key: ValueKey(projectId),
@@ -1058,16 +1055,15 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
             padding: EdgeInsets.all(16.w),
             child: Row(
               children: [
-                // Drag handle
-                if (isDraggable)
-                  Container(
-                    margin: EdgeInsets.only(right: 12.w),
-                    child: Icon(
-                      Icons.drag_handle,
-                      color: const Color(0xFF94A3B8),
-                      size: 20.r,
-                    ),
+                // Drag handle - show for all pages now
+                Container(
+                  margin: EdgeInsets.only(right: 12.w),
+                  child: Icon(
+                    Icons.drag_handle,
+                    color: const Color(0xFF94A3B8),
+                    size: 20.r,
                   ),
+                ),
                 // Page preview
                 Container(
                   width: 60.w,
@@ -1110,74 +1106,73 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
                     ],
                   ),
                 ),
-                // Menu button
-                if (isDraggable)
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.95),
-                      borderRadius: BorderRadius.circular(8.r),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
+                // Menu button - show for all pages now
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.95),
+                    borderRadius: BorderRadius.circular(8.r),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: PopupMenuButton<String>(
+                    onSelected: (v) {
+                      if (v == 'duplicate') _duplicatePage(index);
+                      if (v == 'delete') _deletePage(index);
+                    },
+                    icon: Icon(
+                      Icons.more_horiz,
+                      size: 18.r,
+                      color: const Color(0xFF64748B),
                     ),
-                    child: PopupMenuButton<String>(
-                      onSelected: (v) {
-                        if (v == 'duplicate') _duplicatePage(index);
-                        if (v == 'delete') _deletePage(index);
-                      },
-                      icon: Icon(
-                        Icons.more_horiz,
-                        size: 18.r,
-                        color: const Color(0xFF64748B),
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12.r),
-                      ),
-                      itemBuilder: (context) => [
-                        PopupMenuItem(
-                          value: 'duplicate',
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.content_copy,
-                                size: 18.r,
-                                color: const Color(0xFF64748B),
-                              ),
-                              SizedBox(width: 12.w),
-                              Text(
-                                'Duplicate',
-                                style: GoogleFonts.inter(fontSize: 14.sp),
-                              ),
-                            ],
-                          ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
+                    itemBuilder: (context) => [
+                      PopupMenuItem(
+                        value: 'duplicate',
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.content_copy,
+                              size: 18.r,
+                              color: const Color(0xFF64748B),
+                            ),
+                            SizedBox(width: 12.w),
+                            Text(
+                              'Duplicate',
+                              style: GoogleFonts.inter(fontSize: 14.sp),
+                            ),
+                          ],
                         ),
-                        PopupMenuItem(
-                          value: 'delete',
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.delete_outline,
-                                size: 18.r,
+                      ),
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.delete_outline,
+                              size: 18.r,
+                              color: const Color(0xFFEF4444),
+                            ),
+                            SizedBox(width: 12.w),
+                            Text(
+                              'Delete',
+                              style: GoogleFonts.inter(
+                                fontSize: 14.sp,
                                 color: const Color(0xFFEF4444),
                               ),
-                              SizedBox(width: 12.w),
-                              Text(
-                                'Delete',
-                                style: GoogleFonts.inter(
-                                  fontSize: 14.sp,
-                                  color: const Color(0xFFEF4444),
-                                ),
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
+                ),
               ],
             ),
           ),
