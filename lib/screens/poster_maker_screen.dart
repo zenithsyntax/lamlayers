@@ -13111,24 +13111,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                 children: [
                   IconButton(
                     onPressed: () {
-                      _mutateItemWithHistory(item, (it) {
-                        it.isVisible = !it.isVisible;
-                      });
-                    },
-
-                    icon: Icon(
-                      item.isVisible
-                          ? Icons.visibility_rounded
-                          : Icons.visibility_off_rounded,
-
-                      color: Colors.grey[600],
-
-                      size: 20.sp,
-                    ),
-                  ),
-
-                  IconButton(
-                    onPressed: () {
                       _showRenameDialog(item);
                     },
 
