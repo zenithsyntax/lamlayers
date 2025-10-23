@@ -244,13 +244,14 @@ class HiveCanvasItemAdapter extends TypeAdapter<HiveCanvasItem> {
       createdAt: fields[10] as DateTime,
       lastModified: fields[11] as DateTime,
       groupId: fields[12] as String?,
+      name: fields[13] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, HiveCanvasItem obj) {
     writer
-      ..writeByte(13)
+      ..writeByte(14)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -276,7 +277,9 @@ class HiveCanvasItemAdapter extends TypeAdapter<HiveCanvasItem> {
       ..writeByte(11)
       ..write(obj.lastModified)
       ..writeByte(12)
-      ..write(obj.groupId);
+      ..write(obj.groupId)
+      ..writeByte(13)
+      ..write(obj.name);
   }
 
   @override

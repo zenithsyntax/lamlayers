@@ -2916,6 +2916,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       lastModified: item.lastModified,
 
       groupId: item.groupId,
+
+      name: item.name,
     );
   }
 
@@ -3172,6 +3174,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         lastModified: hiveItem.lastModified,
 
         groupId: hiveItem.groupId,
+
+        name: hiveItem.name,
       );
 
       items.add(item);
@@ -7678,21 +7682,21 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             },
           ),
 
-          // Quick status chips
-          _chipStatus(
-            label: 'Color',
-            child: Container(
-              width: 18.w,
-              height: 18.w,
-              decoration: BoxDecoration(
-                color: drawingColor,
-                borderRadius: BorderRadius.circular(4.r),
-                border: Border.all(color: Colors.grey.shade300),
-              ),
-            ),
-          ),
-          _chipStatus(label: 'Size ${drawingStrokeWidth.toInt()}'),
-          _chipStatus(label: 'Opacity ${(drawingOpacity * 100).toInt()}%'),
+          // // Quick status chips
+          // _chipStatus(
+          //   label: 'Color',
+          //   child: Container(
+          //     width: 18.w,
+          //     height: 18.w,
+          //     decoration: BoxDecoration(
+          //       color: drawingColor,
+          //       borderRadius: BorderRadius.circular(4.r),
+          //       border: Border.all(color: Colors.grey.shade300),
+          //     ),
+          //   ),
+          // ),
+          // _chipStatus(label: 'Size ${drawingStrokeWidth.toInt()}'),
+          // _chipStatus(label: 'Opacity ${(drawingOpacity * 100).toInt()}%'),
         ],
       ),
     );
@@ -13075,7 +13079,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
                   children: [
                     Text(
-                      '${item.type.name.toUpperCase()} Layer',
+                      item.name ?? '${item.type.name.toUpperCase()} Layer',
 
                       style: TextStyle(
                         fontSize: 14.sp,
@@ -13125,6 +13129,20 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
                   IconButton(
                     onPressed: () {
+                      _showRenameDialog(item);
+                    },
+
+                    icon: Icon(
+                      Icons.drive_file_rename_outline_rounded,
+
+                      color: Colors.orange.shade400,
+
+                      size: 20.sp,
+                    ),
+                  ),
+
+                  IconButton(
+                    onPressed: () {
                       _selectItem(item);
 
                       Navigator.pop(context);
@@ -13145,6 +13163,76 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         );
       },
     );
+  }
+
+  Future<void> _showRenameDialog(CanvasItem item) async {
+    final TextEditingController controller = TextEditingController(
+      text: item.name ?? '',
+    );
+
+    final String? newName = await showDialog<String>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(
+            'Rename Layer',
+            style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.w600),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Enter a new name for this layer:',
+                style: TextStyle(fontSize: 14.sp, color: Colors.grey[600]),
+              ),
+              SizedBox(height: 16.h),
+              TextField(
+                controller: controller,
+                decoration: InputDecoration(
+                  hintText: 'Layer name',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8.r),
+                  ),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 12.w,
+                    vertical: 8.h,
+                  ),
+                ),
+                autofocus: true,
+                maxLength: 50,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('Cancel', style: TextStyle(color: Colors.grey[600])),
+            ),
+            TextButton(
+              onPressed: () {
+                final String trimmedName = controller.text.trim();
+                Navigator.of(
+                  context,
+                ).pop(trimmedName.isEmpty ? null : trimmedName);
+              },
+              child: Text(
+                'Rename',
+                style: TextStyle(
+                  color: Colors.blue.shade600,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (newName != null) {
+      _mutateItemWithHistory(item, (it) {
+        it.name = newName.isEmpty ? null : newName;
+      });
+    }
   }
 
   Future<void> _exportPoster() async {
@@ -13346,6 +13434,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         createdAt: item.createdAt,
         lastModified: item.lastModified,
         groupId: item.groupId,
+        name: item.name,
       );
     }).toList();
 

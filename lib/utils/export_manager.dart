@@ -583,6 +583,7 @@ class ExportManager {
         "isVisible": item.isVisible,
         "isLocked": item.isLocked,
         "groupId": item.groupId,
+        "name": item.name,
         "createdAt": item.createdAt.toIso8601String(),
         "lastModified": item.lastModified.toIso8601String(),
         "properties": await _serializeItemProperties(item),
@@ -1719,6 +1720,7 @@ class ExportManager {
             createdAt: DateTime.parse(itemData['createdAt'] as String),
             lastModified: DateTime.now(),
             groupId: itemData['groupId'] as String?,
+            name: itemData['name'] as String?,
           );
 
           canvasItems.add(canvasItem);
@@ -2322,6 +2324,7 @@ class ExportManager {
               DateTime.now(),
           lastModified: DateTime.now(),
           groupId: itemData['groupId'] as String?,
+          name: itemData['name'] as String?,
         );
         canvasItems.add(canvasItem);
       } catch (_) {}

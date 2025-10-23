@@ -256,6 +256,9 @@ class HiveCanvasItem {
   @HiveField(12)
   String? groupId; // For grouping items
 
+  @HiveField(13)
+  String? name; // Custom name for the layer
+
   HiveCanvasItem({
     required this.id,
     required this.type,
@@ -270,6 +273,7 @@ class HiveCanvasItem {
     required this.createdAt,
     required this.lastModified,
     this.groupId,
+    this.name,
   });
 
   HiveCanvasItem copyWith({
@@ -284,6 +288,7 @@ class HiveCanvasItem {
     bool? isLocked,
     Map<String, dynamic>? properties,
     String? groupId,
+    String? name,
   }) {
     return HiveCanvasItem(
       id: id ?? this.id,
@@ -299,6 +304,7 @@ class HiveCanvasItem {
       createdAt: this.createdAt,
       lastModified: DateTime.now(),
       groupId: groupId ?? this.groupId,
+      name: name ?? this.name,
     );
   }
 }

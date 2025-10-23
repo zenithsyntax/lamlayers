@@ -1189,7 +1189,10 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView>
         aspectRatio: aspectRatio,
         pageViewMode: PageViewMode.double,
         onPageChanged: _onPageChanged,
-        settings: FlipSettings(startPageIndex: 0, usePortrait: false),
+        settings: FlipSettings(
+          flippingTime: 1200,
+          startPageIndex: 0, usePortrait: false),
+
         builder: (context, pageIndex, constraints) {
           if (pageIndex >= pageIds.length) {
             return Container(
@@ -1713,54 +1716,7 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView>
                   height: double.infinity,
                   child: Stack(
                     children: [
-                      // Debug overlay (only in debug mode)
-                      if (kDebugMode)
-                        Positioned(
-                          top: 10,
-                          left: 10,
-                          child: Container(
-                            padding: EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.7),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  'Debug Info',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                Text(
-                                  'Pages: ${pageIds.length}',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                  ),
-                                ),
-                                Text(
-                                  'Current: L$_currentLeftPage R$_currentRightPage',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                  ),
-                                ),
-                                Text(
-                                  'Size: ${widget.scrapbook.pageWidth}x${widget.scrapbook.pageHeight}',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
+                    
                       // 🟤 Background book cover (below)
                       Center(
                         child: Container(

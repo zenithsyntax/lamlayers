@@ -38,6 +38,7 @@ class CanvasItem {
   bool isVisible;
   bool isLocked;
   String? groupId;
+  String? name; // Custom name for the layer
   DateTime createdAt;
   DateTime lastModified;
 
@@ -54,6 +55,7 @@ class CanvasItem {
     this.isVisible = true,
     this.isLocked = false,
     this.groupId,
+    this.name,
     required this.createdAt,
     required this.lastModified,
   });
@@ -71,6 +73,7 @@ class CanvasItem {
     bool? isVisible,
     bool? isLocked,
     String? groupId,
+    String? name,
     DateTime? createdAt,
     DateTime? lastModified,
   }) {
@@ -87,6 +90,7 @@ class CanvasItem {
       isVisible: isVisible ?? this.isVisible,
       isLocked: isLocked ?? this.isLocked,
       groupId: groupId ?? this.groupId,
+      name: name ?? this.name,
       createdAt: createdAt ?? this.createdAt,
       lastModified: lastModified ?? DateTime.now(),
     );
