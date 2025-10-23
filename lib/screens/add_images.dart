@@ -418,64 +418,12 @@ class _PixabayImagesPageState extends State<PixabayImagesPage>
   Widget _buildStickersTab() {
     return Column(
       children: [
-        // Search Bar for Stickers
+        // Favorites Button for Stickers
         Container(
-          margin: EdgeInsets.all(16.w),
-          padding: EdgeInsets.all(20.w),
-          decoration: BoxDecoration(
-            color: _cardBackground,
-            borderRadius: BorderRadius.circular(20.r),
-            border: Border.all(color: _dividerColor, width: 1.5),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF0F172A).withOpacity(0.04),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
+          margin: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 0),
           child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              Container(
-                padding: EdgeInsets.all(10.w),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFFEC4899), Color(0xFFF97316)],
-                  ),
-                  borderRadius: BorderRadius.circular(12.r),
-                ),
-                child: Icon(
-                  Icons.search_rounded,
-                  color: Colors.white,
-                  size: 18.r,
-                ),
-              ),
-              SizedBox(width: 16.w),
-              Expanded(
-                child: TextField(
-                  decoration: InputDecoration(
-                    hintText: 'Search stickers...',
-                    hintStyle: GoogleFonts.inter(
-                      fontSize: 14.sp,
-                      color: _textSecondary,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 0,
-                      vertical: 8.h,
-                    ),
-                  ),
-                  style: GoogleFonts.inter(
-                    fontSize: 14.sp,
-                    color: _textPrimary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-              SizedBox(width: 16.w),
               GestureDetector(
                 onTap: () {
                   setState(() {
@@ -489,7 +437,10 @@ class _PixabayImagesPageState extends State<PixabayImagesPage>
                   });
                 },
                 child: Container(
-                  padding: EdgeInsets.all(10.w),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 16.w,
+                    vertical: 12.h,
+                  ),
                   decoration: BoxDecoration(
                     gradient: _showLikedStickers
                         ? const LinearGradient(
@@ -498,7 +449,7 @@ class _PixabayImagesPageState extends State<PixabayImagesPage>
                             colors: [Color(0xFFEC4899), Color(0xFFF97316)],
                           )
                         : null,
-                    color: _showLikedStickers ? null : _surfaceGray,
+                    color: _showLikedStickers ? null : _cardBackground,
                     borderRadius: BorderRadius.circular(12.r),
                     border: Border.all(
                       color: _showLikedStickers
@@ -506,6 +457,13 @@ class _PixabayImagesPageState extends State<PixabayImagesPage>
                           : _dividerColor,
                       width: 1.5,
                     ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF0F172A).withOpacity(0.04),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -517,8 +475,19 @@ class _PixabayImagesPageState extends State<PixabayImagesPage>
                             : _textSecondary,
                         size: 18.r,
                       ),
+                      SizedBox(width: 8.w),
+                      Text(
+                        _showLikedStickers ? 'All Stickers' : 'Favorites',
+                        style: GoogleFonts.inter(
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w600,
+                          color: _showLikedStickers
+                              ? Colors.white
+                              : _textPrimary,
+                        ),
+                      ),
                       if (_showLikedStickers && _likedStickers.isNotEmpty) ...[
-                        SizedBox(width: 6.w),
+                        SizedBox(width: 8.w),
                         Container(
                           padding: EdgeInsets.symmetric(
                             horizontal: 6.w,
@@ -1055,6 +1024,12 @@ class _PixabayImagesPageState extends State<PixabayImagesPage>
                                 imageUrl: image.webformatURL,
                                 width: double.infinity,
                                 fit: BoxFit.cover,
+                                fadeInDuration: const Duration(
+                                  milliseconds: 300,
+                                ),
+                                fadeOutDuration: const Duration(
+                                  milliseconds: 100,
+                                ),
                                 placeholder: (context, url) =>
                                     _buildImageShimmer(),
                                 errorWidget: (context, url, error) => Container(
@@ -1327,7 +1302,8 @@ class _PixabayImagesPageState extends State<PixabayImagesPage>
       baseColor: _surfaceGray,
       highlightColor: Colors.white,
       child: Container(
-        height: 200.h,
+        width: double.infinity,
+        // Remove the height property
         decoration: BoxDecoration(
           color: _surfaceGray,
           borderRadius: BorderRadius.circular(15.r),
