@@ -13,11 +13,14 @@ class InterstitialAdManager {
   Future<void> load() async {
     if (_isLoading || _interstitialAd != null) return;
     _isLoading = true;
+    debugPrint('Loading interstitial ad with unit ID: $adUnitId');
+
     await InterstitialAd.load(
       adUnitId: adUnitId,
       request: const AdRequest(),
       adLoadCallback: InterstitialAdLoadCallback(
         onAdLoaded: (InterstitialAd ad) {
+          debugPrint('Interstitial ad loaded successfully');
           _interstitialAd = ad;
           _isLoading = false;
         },
@@ -31,17 +34,23 @@ class InterstitialAdManager {
   }
 
   Future<void> show({InterstitialOnClosed? onClosed}) async {
+    debugPrint('Attempting to show interstitial ad');
+
     if (_interstitialAd == null) {
+      debugPrint('Ad not loaded, attempting to load...');
       await load();
     }
 
     if (_interstitialAd == null) {
+      debugPrint('Ad still not available after loading attempt');
       onClosed?.call();
       return;
     }
 
+    debugPrint('Showing interstitial ad');
     _interstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
       onAdDismissedFullScreenContent: (ad) {
+        debugPrint('Interstitial ad dismissed');
         ad.dispose();
         _interstitialAd = null;
         onClosed?.call();

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -6,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:lamlayers/widgets/ad_interstitial.dart';
 
 // Cloudfair Sticker Model
 class CloudfairSticker {
@@ -97,6 +99,26 @@ class _PixabayImagesPageState extends State<PixabayImagesPage>
   final String _cloudfairApiUrl =
       'https://autumn-heart-6d34.zenithsyntax.workers.dev/stickers';
 
+  // Ad managers
+  late final InterstitialAdManager _enterPageAd;
+  late final InterstitialAdManager _addImageAd;
+
+  // Ad Unit ID
+  String get _interstitialAdUnitId {
+    // Use test ad unit ID for debugging, production ID for release
+    if (kDebugMode) {
+      return 'ca-app-pub-9698718721404755/8193728553'; // Test interstitial ad unit ID
+    } else {
+      return 'ca-app-pub-9698718721404755/8193728553'; // Production ID
+    }
+  }
+
+  // Manual test method for debugging
+  void _testAdManually() {
+    debugPrint('=== Manual ad test triggered ===');
+    _showEnterPageAd();
+  }
+
   // Professional Color Scheme - matching Settings and Fonts page
   static const Color _primaryPink = Color(0xFFEC4899);
   static const Color _surfaceGray = Color(0xFFF1F5F9);
@@ -128,10 +150,36 @@ class _PixabayImagesPageState extends State<PixabayImagesPage>
   @override
   void initState() {
     super.initState();
+    debugPrint('=== Add Images Page initState started ===');
     _tabController = TabController(length: 2, vsync: this);
+
+    // Initialize ad managers
+    debugPrint('Initializing ad managers with unit ID: $_interstitialAdUnitId');
+    _enterPageAd = InterstitialAdManager(adUnitId: _interstitialAdUnitId);
+    _addImageAd = InterstitialAdManager(adUnitId: _interstitialAdUnitId);
+
+    // Load ads
+    debugPrint('Loading ads...');
+    _enterPageAd.load();
+    _addImageAd.load();
+
     _fetchImages();
     _fetchStickers();
     _searchController.addListener(_onSearchChanged);
+
+    // Show enter page ad after everything is loaded
+    debugPrint('Setting up delayed ad show...');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(seconds: 1), () {
+        if (mounted) {
+          debugPrint('Timer fired, attempting to show ad...');
+          _showEnterPageAd();
+        } else {
+          debugPrint('Widget not mounted, skipping ad show');
+        }
+      });
+    });
+    debugPrint('=== Add Images Page initState completed ===');
   }
 
   @override
@@ -139,6 +187,8 @@ class _PixabayImagesPageState extends State<PixabayImagesPage>
     _tabController.dispose();
     _searchController.dispose();
     _scrollController.dispose();
+    _enterPageAd.dispose();
+    _addImageAd.dispose();
     super.dispose();
   }
 
@@ -330,12 +380,60 @@ class _PixabayImagesPageState extends State<PixabayImagesPage>
     _fetchImages();
   }
 
-  void _addImageToCanvas(PixabayImage image) {
-    Navigator.pop(context, image);
+  Future<void> _showEnterPageAd() async {
+    debugPrint('=== Attempting to show enter page ad ===');
+    try {
+      // Try to load the ad first if it's not loaded
+      await _enterPageAd.load();
+
+      // Wait a bit for the ad to load
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      await _enterPageAd.show(
+        onClosed: () {
+          debugPrint('Enter page ad closed');
+        },
+      );
+      debugPrint('Enter page ad shown successfully');
+    } catch (e) {
+      debugPrint('Error showing enter page ad: $e');
+    }
   }
 
-  void _addStickerToCanvas(CloudfairSticker sticker) {
-    Navigator.pop(context, sticker);
+  Future<void> _addImageToCanvas(PixabayImage image) async {
+    try {
+      await _addImageAd.show(
+        onClosed: () {
+          if (mounted) {
+            Navigator.pop(context, image);
+          }
+        },
+      );
+    } catch (e) {
+      debugPrint('Error showing add image ad: $e');
+      // If ad fails, still proceed with navigation
+      if (mounted) {
+        Navigator.pop(context, image);
+      }
+    }
+  }
+
+  Future<void> _addStickerToCanvas(CloudfairSticker sticker) async {
+    try {
+      await _addImageAd.show(
+        onClosed: () {
+          if (mounted) {
+            Navigator.pop(context, sticker);
+          }
+        },
+      );
+    } catch (e) {
+      debugPrint('Error showing add sticker ad: $e');
+      // If ad fails, still proceed with navigation
+      if (mounted) {
+        Navigator.pop(context, sticker);
+      }
+    }
   }
 
   @override
@@ -386,6 +484,19 @@ class _PixabayImagesPageState extends State<PixabayImagesPage>
           ],
         ),
         centerTitle: false,
+        actions: kDebugMode
+            ? [
+                IconButton(
+                  icon: Icon(
+                    Icons.bug_report_rounded,
+                    color: _textPrimary,
+                    size: 20.r,
+                  ),
+                  onPressed: _testAdManually,
+                  tooltip: 'Test Ad',
+                ),
+              ]
+            : null,
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: _primaryPink,
