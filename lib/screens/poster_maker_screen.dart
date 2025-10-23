@@ -13810,6 +13810,80 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     return [Colors.lightBlue, Colors.purple];
   }
 
+  // Helper method to check if an image has transparency
+  Future<bool> _hasTransparency(ui.Image image) async {
+    try {
+      // Convert image to bytes and check for alpha channel
+      final ByteData? byteData = await image.toByteData(
+        format: ui.ImageByteFormat.rawRgba,
+      );
+      if (byteData == null) return false;
+
+      final Uint8List pixels = byteData.buffer.asUint8List();
+
+      // Check every 4th byte (alpha channel) for transparency
+      for (int i = 3; i < pixels.length; i += 4) {
+        if (pixels[i] < 255) {
+          // Alpha < 255 means transparent or semi-transparent
+          return true;
+        }
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Helper method to remove white background from edited images
+  Future<Uint8List> _removeWhiteBackground(Uint8List imageBytes) async {
+    try {
+      final ui.Image image = await decodeImageFromList(imageBytes);
+      final ByteData? byteData = await image.toByteData(
+        format: ui.ImageByteFormat.rawRgba,
+      );
+      if (byteData == null) return imageBytes;
+
+      final Uint8List pixels = byteData.buffer.asUint8List();
+
+      // Process pixels to make white areas transparent
+      for (int i = 0; i < pixels.length; i += 4) {
+        final int r = pixels[i];
+        final int g = pixels[i + 1];
+        final int b = pixels[i + 2];
+        final int a = pixels[i + 3];
+
+        // If pixel is white or very close to white, make it transparent
+        if (r > 240 && g > 240 && b > 240 && a > 0) {
+          pixels[i + 3] = 0; // Set alpha to 0 (transparent)
+        }
+      }
+
+      // Create new image with modified pixels
+      final ui.ImmutableBuffer buffer = await ui.ImmutableBuffer.fromUint8List(
+        pixels,
+      );
+      final ui.ImageDescriptor descriptor = ui.ImageDescriptor.raw(
+        buffer,
+        width: image.width,
+        height: image.height,
+        pixelFormat: ui.PixelFormat.rgba8888,
+      );
+
+      final ui.Codec codec = await descriptor.instantiateCodec();
+      final ui.FrameInfo frameInfo = await codec.getNextFrame();
+      final ui.Image processedImage = frameInfo.image;
+
+      // Convert back to PNG bytes
+      final ByteData? processedByteData = await processedImage.toByteData(
+        format: ui.ImageByteFormat.png,
+      );
+
+      return processedByteData?.buffer.asUint8List() ?? imageBytes;
+    } catch (e) {
+      return imageBytes;
+    }
+  }
+
   Future<void> _editSelectedImage() async {
     if (selectedItem == null || selectedItem!.type != CanvasItemType.image)
       return;
@@ -13844,6 +13918,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       }
 
       // Navigate to image editor with transparent background theme to preserve PNG transparency
+      // The ProImageEditor will be configured to maintain transparency
 
       final Uint8List? editedBytes = await Navigator.push(
         context,
@@ -13903,20 +13978,52 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       // If user edited and saved the image
 
       if (editedBytes != null) {
+        // Process edited image to ensure PNG format with transparency
+        // This step is crucial to maintain transparency after editing
+        Uint8List processedEditedBytes = editedBytes;
+
+        try {
+          // Decode the edited image to access its pixel data
+          final ui.Image editedImage = await decodeImageFromList(editedBytes);
+
+          // Check if the original image had transparency by examining the original image
+          final ui.Image originalImage = await decodeImageFromList(imageBytes!);
+
+          // If the original image had transparency, we need to preserve it
+          // Convert the edited image to PNG format and ensure transparency is maintained
+          final ByteData? byteData = await editedImage.toByteData(
+            format: ui.ImageByteFormat.png,
+          );
+
+          if (byteData != null) {
+            processedEditedBytes = byteData.buffer.asUint8List();
+
+            // Additional step: If the original image was transparent,
+            // we need to ensure the edited image maintains that transparency
+            // This is a workaround for ProImageEditor potentially adding white backgrounds
+            if (await _hasTransparency(originalImage)) {
+              // Process the image to remove any white background that might have been added
+              processedEditedBytes = await _removeWhiteBackground(
+                processedEditedBytes,
+              );
+            }
+          }
+        } catch (e) {
+          // If conversion fails, use original bytes as fallback
+          processedEditedBytes = editedBytes;
+        }
+
         // Save edited image to temporary file
-
         final Directory tempDir = await getTemporaryDirectory();
-
         final String editedFilePath =
             '${tempDir.path}/edited_image_${DateTime.now().millisecondsSinceEpoch}.png';
-
         final File editedFile = File(editedFilePath);
-
-        await editedFile.writeAsBytes(editedBytes);
+        await editedFile.writeAsBytes(processedEditedBytes);
 
         // Get new image dimensions
-
-        final ui.Image decoded = await decodeImageFromList(editedBytes);
+        final ui.Image decoded = await decodeImageFromList(
+          processedEditedBytes,
+        );
 
         final double intrinsicW = decoded.width.toDouble();
 
