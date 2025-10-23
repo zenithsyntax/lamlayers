@@ -421,7 +421,10 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => PosterMakerScreen(projectId: projectId),
+        builder: (_) => PosterMakerScreen(
+          projectId: projectId,
+          scrapbookId: widget.scrapbookId,
+        ),
       ),
     );
     // Refresh the state when returning from poster maker

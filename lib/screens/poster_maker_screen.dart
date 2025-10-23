@@ -74,6 +74,8 @@ class PosterMakerScreen extends StatefulWidget {
   final double? initialCanvasWidth;
   final double? initialCanvasHeight;
   final String? initialBackgroundImagePath;
+  final String?
+  scrapbookId; // Add scrapbook ID to detect if accessed from scrapbook
 
   const PosterMakerScreen({
     super.key,
@@ -81,6 +83,7 @@ class PosterMakerScreen extends StatefulWidget {
     this.initialCanvasWidth,
     this.initialCanvasHeight,
     this.initialBackgroundImagePath,
+    this.scrapbookId,
   });
 
   @override
@@ -4110,18 +4113,18 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             },
           ),
 
-          _miniSlider(
-            'Scale',
-
-            selectedItem!.scale,
-
-            0.1,
-
-            10.0,
-
-            (v) => setState(() => selectedItem!.scale = v),
-
-            Icons.zoom_out_map_rounded,
+          EnhancedSlider(
+            label: 'Scale',
+            value: selectedItem!.scale,
+            min: 0.1,
+            max: 10.0,
+            onChanged: (v) => setState(() => selectedItem!.scale = v),
+            icon: Icons.zoom_out_map_rounded,
+            isMini: true,
+            step: 0.05,
+            accentColor: _currentAccent(),
+            borderOnly: true,
+            fixedStepSize: 0.1,
             onChangeEnd: (v) {
               if (selectedItem != null) {
                 _mutateItemWithHistory(selectedItem!, (it) {
@@ -12784,6 +12787,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       onExport: _exportPoster,
       onBack: _onBackPressed,
       isAutoSaving: _isAutoSaving,
+      isScrapbookMode: widget.scrapbookId != null,
+      onSave: widget.scrapbookId != null ? _saveToScrapbook : null,
     );
   }
 
@@ -13396,6 +13401,84 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       if (!mounted) return;
       Navigator.of(context).pop(); // Close progress dialog
       _showErrorSnackBar('Failed to export project: ${e.toString()}');
+    }
+  }
+
+  Future<void> _saveToScrapbook() async {
+    if (widget.scrapbookId == null) return;
+
+    try {
+      // Show progress dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20.r),
+          ),
+          child: Container(
+            padding: EdgeInsets.all(24.w),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20.r),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.green[600]!),
+                ),
+                SizedBox(height: 16.h),
+                Text(
+                  'Saving to Scrapbook...',
+                  style: GoogleFonts.poppins(
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF333333),
+                  ),
+                ),
+                SizedBox(height: 8.h),
+                Text(
+                  'Creating thumbnail and updating scrapbook',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(
+                    fontSize: 14.sp,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      // Save the project first
+      _saveProject(showIndicator: false, saveThumbnail: true);
+
+      // Create thumbnail
+      await _generateAndStoreThumbnail(_currentProject!);
+
+      // Update scrapbook last modified time
+      final Box<Scrapbook> scrapbookBox = Hive.box<Scrapbook>('scrapbooks');
+      final Scrapbook? scrapbook = scrapbookBox.get(widget.scrapbookId);
+
+      if (scrapbook != null) {
+        final updatedScrapbook = scrapbook.copyWith();
+        updatedScrapbook.lastModified = DateTime.now();
+        await scrapbookBox.put(widget.scrapbookId!, updatedScrapbook);
+      }
+
+      if (!mounted) return;
+      Navigator.of(context).pop(); // Close progress dialog
+
+      _showSuccessSnackBar('Page saved to scrapbook successfully!');
+
+      // Navigate back to scrapbook manager
+      Navigator.of(context).pop();
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context).pop(); // Close progress dialog
+      _showErrorSnackBar('Failed to save to scrapbook: ${e.toString()}');
     }
   }
 

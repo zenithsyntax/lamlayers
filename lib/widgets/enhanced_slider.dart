@@ -13,6 +13,7 @@ class EnhancedSlider extends StatelessWidget {
   final double step;
   final Color? accentColor; // optional accent color per slider
   final bool borderOnly; // when true, no filled backgrounds
+  final double? fixedStepSize; // optional fixed step size for + and - buttons
 
   const EnhancedSlider({
     super.key,
@@ -27,12 +28,13 @@ class EnhancedSlider extends StatelessWidget {
     this.step = 0.1,
     this.accentColor,
     this.borderOnly = true,
+    this.fixedStepSize,
   });
 
   @override
   Widget build(BuildContext context) {
     final clamped = value.clamp(min, max);
-    final stepSize = (max - min) * step;
+    final stepSize = fixedStepSize ?? (max - min) * step;
 
     if (isMini) {
       return _buildMiniSlider(context, clamped, stepSize);

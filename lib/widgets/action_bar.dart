@@ -12,6 +12,8 @@ class ActionBar extends StatelessWidget {
   final VoidCallback onExport;
   final VoidCallback? onBack;
   final bool isAutoSaving;
+  final VoidCallback? onSave; // Add save callback for scrapbook mode
+  final bool isScrapbookMode; // Add flag to detect scrapbook mode
 
   const ActionBar({
     super.key,
@@ -24,6 +26,8 @@ class ActionBar extends StatelessWidget {
     required this.onExport,
     this.onBack,
     this.isAutoSaving = false,
+    this.onSave,
+    this.isScrapbookMode = false,
   });
 
   @override
@@ -80,9 +84,11 @@ class ActionBar extends StatelessWidget {
             iconColor: const Color(0xFF8B5CF6),
           ),
           SizedBox(width: 12.w),
-          // Export button or Auto-save progress indicator
+          // Export button or Auto-save progress indicator or Save button
           isAutoSaving
               ? _buildAutoSaveIndicator(context)
+              : isScrapbookMode && onSave != null
+              ? _buildExportButton(context, 'Save', Icons.save_rounded, onSave!)
               : _buildExportButton(
                   context,
                   'Export',
