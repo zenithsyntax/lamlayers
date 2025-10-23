@@ -60,7 +60,7 @@ import 'package:lamlayers/screens/google_font_screen.dart';
 
 import 'dart:async'; // Import for Timer
 
-// import 'package:image_editor_plus/image_editor_plus.dart';
+import 'package:image_editor_plus/image_editor_plus.dart';
 import 'package:pro_image_editor/pro_image_editor.dart';
 
 import 'package:lamlayers/utils/image_stroke_processor.dart';
@@ -14062,110 +14062,107 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         return;
       }
 
-      // Navigate to image editor with transparent background theme to preserve PNG transparency
-      // The ProImageEditor will be configured to maintain transparency
+      // Try image_editor_plus first for better quality preservation
+      Uint8List? editedBytes;
 
-      final Uint8List? editedBytes = await Navigator.push(
-        context,
-
-        MaterialPageRoute(
-          builder: (context) => Theme(
-            data: ThemeData.light().copyWith(
-              // Set scaffold background to transparent to preserve PNG transparency
-              scaffoldBackgroundColor: Colors.transparent,
-
-              // Set app bar background to transparent
-              appBarTheme: const AppBarTheme(
-                backgroundColor: Colors.transparent,
-
-                foregroundColor: Colors.black,
-
-                elevation: 0,
+      try {
+        // Use image_editor_plus which has better quality preservation
+        editedBytes = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ImageEditor(image: imageBytes!),
+          ),
+        );
+      } catch (e) {
+        // Fallback to ProImageEditor if image_editor_plus fails
+        editedBytes = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => Theme(
+              data: ThemeData.light().copyWith(
+                scaffoldBackgroundColor: Colors.transparent,
+                appBarTheme: const AppBarTheme(
+                  backgroundColor: Colors.transparent,
+                  foregroundColor: Colors.black,
+                  elevation: 0,
+                ),
+                bottomSheetTheme: const BottomSheetThemeData(
+                  backgroundColor: Colors.transparent,
+                ),
+                dialogTheme: const DialogThemeData(
+                  backgroundColor: Colors.transparent,
+                ),
+                cardTheme: const CardThemeData(color: Colors.transparent),
+                colorScheme: ColorScheme.fromSeed(
+                  seedColor: Colors.blue,
+                  brightness: Brightness.light,
+                  surface: Colors.transparent,
+                  background: Colors.transparent,
+                ),
               ),
-
-              // Set bottom sheet background to transparent
-              bottomSheetTheme: const BottomSheetThemeData(
-                backgroundColor: Colors.transparent,
-              ),
-
-              // Set dialog background to transparent
-              dialogTheme: const DialogThemeData(
-                backgroundColor: Colors.transparent,
-              ),
-
-              // Set card background to transparent
-              cardTheme: const CardThemeData(color: Colors.transparent),
-
-              // Set color scheme with transparent surfaces
-              colorScheme: ColorScheme.fromSeed(
-                seedColor: Colors.blue,
-
-                brightness: Brightness.light,
-
-                surface: Colors.transparent,
-
-                background: Colors.transparent,
-              ),
-            ),
-
-            child: ProImageEditor.memory(
-              imageBytes!,
-              callbacks: ProImageEditorCallbacks(
-                onImageEditingComplete: (edited) async {
-                  Navigator.pop(context, edited);
-                },
+              child: ProImageEditor.memory(
+                imageBytes!,
+                configs: ProImageEditorConfigs(
+                  i18n: const I18n(),
+                  designMode: ImageEditorDesignMode.material,
+                  cropRotateEditor: const CropRotateEditorConfigs(),
+                  paintEditor: const PaintEditorConfigs(),
+                  textEditor: const TextEditorConfigs(),
+                  blurEditor: const BlurEditorConfigs(),
+                  emojiEditor: const EmojiEditorConfigs(),
+                ),
+                callbacks: ProImageEditorCallbacks(
+                  onImageEditingComplete: (edited) async {
+                    Navigator.pop(context, edited);
+                  },
+                ),
               ),
             ),
           ),
-        ),
-      );
+        );
+      }
 
       // If user edited and saved the image
 
       if (editedBytes != null) {
-        // Process edited image to ensure PNG format with transparency
-        // This step is crucial to maintain transparency after editing
+        // Use the edited bytes directly from ProImageEditor to preserve quality
+        // Avoid unnecessary re-encoding that causes quality loss
         Uint8List processedEditedBytes = editedBytes;
 
+        // Only process for transparency if the original image had transparency
+        // and we need to remove white backgrounds that ProImageEditor might have added
         try {
-          // Decode the edited image to access its pixel data
-          final ui.Image editedImage = await decodeImageFromList(editedBytes);
-
-          // Check if the original image had transparency by examining the original image
           final ui.Image originalImage = await decodeImageFromList(imageBytes!);
 
-          // If the original image had transparency, we need to preserve it
-          // Convert the edited image to PNG format and ensure transparency is maintained
-          final ByteData? byteData = await editedImage.toByteData(
-            format: ui.ImageByteFormat.png,
-          );
-
-          if (byteData != null) {
-            processedEditedBytes = byteData.buffer.asUint8List();
-
-            // Additional step: If the original image was transparent,
-            // we need to ensure the edited image maintains that transparency
-            // This is a workaround for ProImageEditor potentially adding white backgrounds
-            if (await _hasTransparency(originalImage)) {
-              // Process the image to remove any white background that might have been added
-              processedEditedBytes = await _removeWhiteBackground(
-                processedEditedBytes,
-              );
-            }
+          if (await _hasTransparency(originalImage)) {
+            // Only apply white background removal if original had transparency
+            processedEditedBytes = await _removeWhiteBackground(editedBytes);
           }
         } catch (e) {
-          // If conversion fails, use original bytes as fallback
+          // If transparency check fails, use original edited bytes
           processedEditedBytes = editedBytes;
         }
 
-        // Save edited image to temporary file
+        // Save edited image to temporary file with preserved quality
         final Directory tempDir = await getTemporaryDirectory();
         final String editedFilePath =
             '${tempDir.path}/edited_image_${DateTime.now().millisecondsSinceEpoch}.png';
         final File editedFile = File(editedFilePath);
+
+        // Write the processed bytes directly to preserve quality
         await editedFile.writeAsBytes(processedEditedBytes);
 
-        // Get new image dimensions
+        // Debug: Log file sizes to verify quality preservation
+        final originalSize = imageBytes!.length;
+        final editedSize = processedEditedBytes.length;
+        print('Image Quality Debug:');
+        print('Original size: ${originalSize} bytes');
+        print('Edited size: ${editedSize} bytes');
+        print(
+          'Size ratio: ${(editedSize / originalSize * 100).toStringAsFixed(1)}%',
+        );
+
+        // Get image dimensions for display calculations
         final ui.Image decoded = await decodeImageFromList(
           processedEditedBytes,
         );
