@@ -2705,6 +2705,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   Future<void> _generateAndStoreThumbnail(PosterProject project) async {
     try {
+      print('Starting thumbnail generation for project: ${project.id}');
+
       setState(() {
         _suppressSelectionUI = true;
       });
@@ -2718,8 +2720,12 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         return;
       }
 
+      print('Render boundary found, capturing image...');
+
       // Low pixel ratio for light-weight thumbnail
       final ui.Image image = await boundary.toImage(pixelRatio: 1.0);
+      print('Image captured, size: ${image.width}x${image.height}');
+
       final ByteData? byteData = await image.toByteData(
         format: ui.ImageByteFormat.png,
       );
@@ -2729,15 +2735,18 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       }
 
       final Uint8List pngBytes = byteData.buffer.asUint8List();
+      print('Image converted to bytes, size: ${pngBytes.length} bytes');
 
       final Directory appDir = await getApplicationDocumentsDirectory();
       final Directory thumbsDir = Directory('${appDir.path}/thumbnails');
       if (!thumbsDir.existsSync()) {
         thumbsDir.createSync(recursive: true);
+        print('Created thumbnails directory: ${thumbsDir.path}');
       }
 
       final String filePath = '${thumbsDir.path}/${project.id}.png';
       final File file = File(filePath);
+      print('Saving thumbnail to: $filePath');
 
       // Write with proper error handling
       try {
@@ -2756,6 +2765,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         return;
       }
 
+      print('Thumbnail file verified, updating project...');
+
       // Update project with thumbnail path if changed
       if (project.thumbnailPath != filePath) {
         project.thumbnailPath = filePath;
@@ -2767,9 +2778,12 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         if (mounted) {
           setState(() {});
         }
+      } else {
+        print('Thumbnail path already up to date: $filePath');
       }
     } catch (e) {
       print('Thumbnail generation error: $e');
+      print('Stack trace: ${StackTrace.current}');
       // Don't rethrow - thumbnail generation is not critical for saving
     } finally {
       if (mounted) {
@@ -13452,13 +13466,56 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         ),
       );
 
-      // Save the project first
-      _saveProject(showIndicator: false, saveThumbnail: true);
+      print('Starting scrapbook save process...');
 
-      // Create thumbnail
+      // Step 1: Save the project data to Hive (without thumbnail first)
+      print('Step 1: Saving project data...');
+      _saveProject(showIndicator: false, saveThumbnail: false);
+
+      // Step 2: Ensure UI is updated and canvas is rendered
+      print('Step 2: Updating UI and rendering canvas...');
+
+      // Deselect any selected item to ensure clean thumbnail
+      if (selectedItem != null) {
+        print('Deselecting current item for clean thumbnail');
+        selectedItem = null;
+      }
+
+      setState(() {
+        // Force UI update
+      });
+      await WidgetsBinding.instance.endOfFrame;
+      await Future.delayed(
+        const Duration(milliseconds: 200),
+      ); // Small delay to ensure rendering
+
+      // Step 3: Generate and store thumbnail image
+      print('Step 3: Generating thumbnail...');
       await _generateAndStoreThumbnail(_currentProject!);
+      print('Thumbnail generation completed');
 
-      // Update scrapbook last modified time
+      // Step 4: Force update the project in Hive to ensure thumbnail path is saved
+      print('Step 4: Force updating project in Hive...');
+      if (_currentProject != null) {
+        _currentProject!.lastModified = DateTime.now();
+        await _projectBox.put(_currentProject!.id, _currentProject!);
+        print(
+          'Project force updated in Hive with thumbnail path: ${_currentProject!.thumbnailPath}',
+        );
+
+        // Clear image cache for the thumbnail to force refresh
+        if (_currentProject!.thumbnailPath != null) {
+          print(
+            'Clearing image cache for thumbnail: ${_currentProject!.thumbnailPath}',
+          );
+          await PaintingBinding.instance.imageCache.evict(
+            FileImage(File(_currentProject!.thumbnailPath!)),
+          );
+        }
+      }
+
+      // Step 5: Update scrapbook last modified time
+      print('Step 5: Updating scrapbook...');
       final Box<Scrapbook> scrapbookBox = Hive.box<Scrapbook>('scrapbooks');
       final Scrapbook? scrapbook = scrapbookBox.get(widget.scrapbookId);
 
@@ -13466,6 +13523,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         final updatedScrapbook = scrapbook.copyWith();
         updatedScrapbook.lastModified = DateTime.now();
         await scrapbookBox.put(widget.scrapbookId!, updatedScrapbook);
+        print('Scrapbook updated successfully');
       }
 
       if (!mounted) return;
@@ -13473,9 +13531,13 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
       _showSuccessSnackBar('Page saved to scrapbook successfully!');
 
+      // Add a small delay to ensure Hive database is fully updated
+      await Future.delayed(const Duration(milliseconds: 100));
+
       // Navigate back to scrapbook manager
       Navigator.of(context).pop();
     } catch (e) {
+      print('Error in _saveToScrapbook: $e');
       if (!mounted) return;
       Navigator.of(context).pop(); // Close progress dialog
       _showErrorSnackBar('Failed to save to scrapbook: ${e.toString()}');

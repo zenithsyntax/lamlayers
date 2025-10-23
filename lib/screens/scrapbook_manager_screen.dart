@@ -214,10 +214,18 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
   Future<void> _refreshThumbnails() async {
     if (_scrapbook == null) return;
 
+    print(
+      'Refreshing thumbnails for ${_scrapbook!.pageProjectIds.length} pages...',
+    );
+
     // Force refresh all project data from Hive
     for (String projectId in _scrapbook!.pageProjectIds) {
       final project = _projectBox.get(projectId);
       if (project != null) {
+        print(
+          'Checking project $projectId, thumbnail path: ${project.thumbnailPath}',
+        );
+
         // Re-get the project to ensure we have the latest data
         _projectBox.put(projectId, project);
 
@@ -225,11 +233,20 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
         if (project.thumbnailPath != null &&
             project.thumbnailPath!.isNotEmpty) {
           final thumbnailFile = File(project.thumbnailPath!);
-          if (!thumbnailFile.existsSync()) {
+          if (thumbnailFile.existsSync()) {
+            print('Thumbnail file exists: ${project.thumbnailPath}');
+            // Clear image cache to force refresh
+            PaintingBinding.instance.imageCache.evict(FileImage(thumbnailFile));
+          } else {
+            print(
+              'Thumbnail file does not exist, clearing path: ${project.thumbnailPath}',
+            );
             // Thumbnail file doesn't exist, clear the path
             project.thumbnailPath = null;
             _projectBox.put(projectId, project);
           }
+        } else {
+          print('No thumbnail path for project $projectId');
         }
       }
     }
@@ -237,6 +254,8 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
     if (mounted) {
       setState(() {});
     }
+
+    print('Thumbnail refresh completed');
   }
 
   Future<void> _addPage() async {
@@ -429,12 +448,21 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
     );
     // Refresh the state when returning from poster maker
     if (mounted) {
+      print('Returning from poster maker, refreshing scrapbook manager...');
+
       // Force reload scrapbook data to ensure fresh state
       _load();
+
       // Also refresh thumbnails to ensure they're up to date
       await _refreshThumbnails();
+
+      // Add a small delay to ensure all updates are processed
+      await Future.delayed(const Duration(milliseconds: 100));
+
       // Force a rebuild to show updated images
       setState(() {});
+
+      print('Scrapbook manager refreshed successfully');
     }
   }
 
