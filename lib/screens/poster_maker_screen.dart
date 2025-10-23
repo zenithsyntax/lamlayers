@@ -4094,7 +4094,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
             selectedItem!.opacity,
 
-            0.1,
+            0.0,
 
             1.0,
 
@@ -7475,17 +7475,17 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               onChanged: (v) => setState(() => _currentPathLetterSpacing = v),
             ),
 
-          // Opacity slider
-          _chipSlider(
-            icon: Icons.opacity,
-            iconColor: Colors.indigo,
-            label: 'Opacity ${(drawingOpacity * 100).toInt()}%',
-            value: drawingOpacity,
-            min: 0.1,
-            max: 1.0,
-            divisions: 9,
-            onChanged: (v) => setState(() => drawingOpacity = v),
-          ),
+          // // Opacity slider
+          // _chipSlider(
+          //   icon: Icons.opacity,
+          //   iconColor: Colors.indigo,
+          //   label: 'Opacity ${(drawingOpacity * 100).toInt()}%',
+          //   value: drawingOpacity,
+          //   min: 0.0,
+          //   max: 1.0,
+          //   divisions: 10,
+          //   onChanged: (v) => setState(() => drawingOpacity = v),
+          // ),
         ],
       ),
     );
@@ -9965,7 +9965,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
           selectedItem!.opacity,
 
-          0.1,
+          0.0,
 
           1.0,
 
