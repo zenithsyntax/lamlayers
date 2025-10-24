@@ -117,7 +117,7 @@ class AboutScreen extends StatelessWidget {
               iconBgColor: const Color(0xFFF5F3FF),
               title: 'About Lamlayers',
               content:
-                  'Lamlayers is a powerful and intuitive design tool that helps you create stunning posters, lambooks, and visual content. With our easy-to-use interface and professional features, you can bring your creative ideas to life.',
+                  'Lamlayers is a powerful and intuitive design tool that helps you create stunning posters, lambook and visual content. With our easy-to-use interface and professional features, you can bring your creative ideas to life.',
             ),
 
             SizedBox(height: 16.h),
@@ -132,7 +132,7 @@ class AboutScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildFeatureItem('✨ Professional poster maker'),
-                  _buildFeatureItem('📚 Digital lampbook creator'),
+                  _buildFeatureItem('📚 Digital lambook creator'),
                   _buildFeatureItem('🎨 Advanced editing tools'),
                   _buildFeatureItem('💾 Auto-save functionality'),
                   _buildFeatureItem('📤 Export in multiple formats'),
@@ -174,7 +174,7 @@ class AboutScreen extends StatelessWidget {
               iconBgColor: const Color(0xFFFEE2E2),
               title: 'Credits',
               content:
-                  'Built with Flutter\nIcons by Material Design\nFonts by Google Fonts\n\nSpecial thanks to all our contributors and the open-source community.',
+                  'Built with Flutter\nIcons by Material Design\nFonts by Google Fonts\nImages by Pixabay\nCloud services by CloudFlare\n\nSpecial thanks to all our contributors and the open-source community.',
             ),
 
             SizedBox(height: 24.h),

@@ -43,6 +43,8 @@ class _LambookReaderScreenState extends State<LambookReaderScreen> {
                 height: double.infinity,
                 child: Stack(
                   children: [
+
+                    //background book cover
                     Center(
                       child: Container(
                         width: MediaQuery.of(context).size.height * 0.825,
@@ -139,6 +141,7 @@ class _LambookReaderScreenState extends State<LambookReaderScreen> {
                               settings: FlipSettings(
                                 startPageIndex: 0,
                                 usePortrait: false,
+                                flippingTime: 1200,swipeDistance: 1200
                               ),
                               builder: (context, index, constraints) {
                                 if (index >= pages.length) {

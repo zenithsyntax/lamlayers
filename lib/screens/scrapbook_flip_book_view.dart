@@ -1189,9 +1189,11 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView>
         aspectRatio: aspectRatio,
         pageViewMode: PageViewMode.double,
         onPageChanged: _onPageChanged,
-        settings: FlipSettings(
-          flippingTime: 1200,
-          startPageIndex: 0, usePortrait: false),
+       settings: FlipSettings(
+                                startPageIndex: 0,
+                                usePortrait: false,
+                                flippingTime: 1200,swipeDistance: 1200
+                              ),
 
         builder: (context, pageIndex, constraints) {
           if (pageIndex >= pageIds.length) {
