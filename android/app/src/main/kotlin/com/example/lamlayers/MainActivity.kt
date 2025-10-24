@@ -121,7 +121,10 @@ class MainActivity : FlutterActivity() {
         return when {
             lower.endsWith(".lambook") -> base + ".lambook"
             lower.endsWith(".lamlayers") -> base + ".lamlayers"
-            else -> base
+            else -> {
+                // Check if the base name already has an extension
+                if (base.contains(".")) base else base + ".lambook"
+            }
         }
     }
 }

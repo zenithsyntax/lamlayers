@@ -37,11 +37,11 @@ class ExportManager {
   static double getPixelRatio(export_dialog.ExportClarity clarity) {
     switch (clarity) {
       case export_dialog.ExportClarity.high:
-        return 3.0;
+        return 4.0; // Increased from 3.0 for better quality
       case export_dialog.ExportClarity.medium:
-        return 2.0;
+        return 2.5; // Increased from 2.0 for better quality
       case export_dialog.ExportClarity.low:
-        return 1.0;
+        return 1.5; // Increased from 1.0 for better quality
     }
   }
 
@@ -166,7 +166,9 @@ class ExportManager {
       order: img.ChannelOrder.rgb,
     );
 
-    return Uint8List.fromList(img.encodeJpg(rgbImage, quality: 90));
+    return Uint8List.fromList(
+      img.encodeJpg(rgbImage, quality: 95),
+    ); // Increased from 90 to 95
   }
 
   static Future<bool> saveToGallery(String filePath) async {

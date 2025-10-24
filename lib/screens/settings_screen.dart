@@ -374,7 +374,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-     
+
       body: ListView(
         padding: EdgeInsets.all(16.w),
         children: [
@@ -450,7 +450,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ],
           ),
-
 
           SizedBox(height: 16.h),
 
@@ -791,8 +790,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       case ExportQuality.medium:
         return 'Medium';
       case ExportQuality.high:
-        return 'High';
-      default:
         return 'High';
     }
   }

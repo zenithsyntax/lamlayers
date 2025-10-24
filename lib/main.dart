@@ -126,11 +126,36 @@ class _DeepLinkHostState extends State<DeepLinkHost> {
       // Try to handle as a .lambook regardless of extension (some providers strip it)
       // Debug log
       // ignore: avoid_print
-      print('DeepLinkHost: attempting to open as lambook -> ' + normalized);
-      print(
-        'DeepLinkHost: file exists check: ${File(normalized).existsSync()}',
-      );
-      print('DeepLinkHost: file size: ${File(normalized).lengthSync()} bytes');
+      print('DeepLinkHost: attempting to open as lambook -> $normalized');
+
+      // Check if file exists and has content
+      final file = File(normalized);
+      if (!file.existsSync()) {
+        print('DeepLinkHost: File does not exist: $normalized');
+        if (mounted) {
+          Navigator.of(context, rootNavigator: true).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('File not found or could not be accessed'),
+            ),
+          );
+        }
+        return null;
+      }
+
+      final fileSize = file.lengthSync();
+      print('DeepLinkHost: file size: $fileSize bytes');
+
+      if (fileSize == 0) {
+        print('DeepLinkHost: File is empty');
+        if (mounted) {
+          Navigator.of(context, rootNavigator: true).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('File is empty or corrupted')),
+          );
+        }
+        return null;
+      }
 
       int _progress = 1;
       if (mounted) {

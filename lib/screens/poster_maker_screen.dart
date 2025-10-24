@@ -1,8 +1,6 @@
 import 'dart:io';
 import 'dart:convert';
 
-import 'dart:typed_data';
-
 import 'dart:ui' as ui;
 
 import 'dart:math' as math;
@@ -12,8 +10,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import 'package:flutter/rendering.dart';
-
-import 'package:flutter/painting.dart';
 
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
@@ -51,8 +47,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:hive/hive.dart';
 
 import 'package:hive_flutter/hive_flutter.dart';
-
-import 'package:flutter/widgets.dart';
 
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 
@@ -277,12 +271,24 @@ class DrawingPainter extends CustomPainter {
 
     final double effectiveFontSize = (fontSize <= 0) ? 10.0 : fontSize;
 
+    // Ensure Google Fonts are properly loaded for the font family
+    String effectiveFontFamily = fontFamily ?? 'Roboto';
+    if (GoogleFonts.asMap().containsKey(effectiveFontFamily)) {
+      try {
+        final textStyle = GoogleFonts.getFont(effectiveFontFamily);
+        effectiveFontFamily = textStyle.fontFamily ?? effectiveFontFamily;
+      } catch (e) {
+        // Fallback to default if Google Font loading fails
+        effectiveFontFamily = 'Roboto';
+      }
+    }
+
     final ui.ParagraphBuilder builder =
         ui.ParagraphBuilder(
             ui.ParagraphStyle(
               fontSize: effectiveFontSize,
 
-              fontFamily: fontFamily,
+              fontFamily: effectiveFontFamily,
 
               fontWeight: fontWeight,
 
@@ -293,7 +299,7 @@ class DrawingPainter extends CustomPainter {
             ui.TextStyle(
               color: color,
 
-              fontFamily: fontFamily,
+              fontFamily: effectiveFontFamily,
 
               fontWeight: fontWeight,
 
@@ -998,12 +1004,26 @@ class _MultiStrokeDrawingPainter extends CustomPainter {
   }) {
     if (points.length < 2 || text.isEmpty) return;
 
+    final double effectiveFontSize = (fontSize <= 0) ? 10.0 : fontSize;
+
+    // Ensure Google Fonts are properly loaded for the font family
+    String effectiveFontFamily = fontFamily ?? 'Roboto';
+    if (GoogleFonts.asMap().containsKey(effectiveFontFamily)) {
+      try {
+        final textStyle = GoogleFonts.getFont(effectiveFontFamily);
+        effectiveFontFamily = textStyle.fontFamily ?? effectiveFontFamily;
+      } catch (e) {
+        // Fallback to default if Google Font loading fails
+        effectiveFontFamily = 'Roboto';
+      }
+    }
+
     final ui.ParagraphBuilder builder =
         ui.ParagraphBuilder(
             ui.ParagraphStyle(
-              fontSize: fontSize,
+              fontSize: effectiveFontSize,
 
-              fontFamily: fontFamily,
+              fontFamily: effectiveFontFamily,
 
               fontWeight: fontWeight,
 
@@ -1014,7 +1034,7 @@ class _MultiStrokeDrawingPainter extends CustomPainter {
             ui.TextStyle(
               color: color,
 
-              fontFamily: fontFamily,
+              fontFamily: effectiveFontFamily,
 
               fontWeight: fontWeight,
 
@@ -1063,9 +1083,9 @@ class _MultiStrokeDrawingPainter extends CustomPainter {
       final ui.ParagraphBuilder cb =
           ui.ParagraphBuilder(
               ui.ParagraphStyle(
-                fontSize: fontSize,
+                fontSize: effectiveFontSize,
 
-                fontFamily: fontFamily,
+                fontFamily: effectiveFontFamily,
 
                 fontWeight: fontWeight,
 
@@ -1076,7 +1096,7 @@ class _MultiStrokeDrawingPainter extends CustomPainter {
               ui.TextStyle(
                 color: color,
 
-                fontFamily: fontFamily,
+                fontFamily: effectiveFontFamily,
 
                 fontWeight: fontWeight,
 
@@ -1468,7 +1488,7 @@ class _ShapePainter extends CustomPainter {
     }
 
     if (fillImage != null) {
-      // Draw image clipped to the shape path using BoxFit.cover
+      // Draw image clipped to the shape path using BoxFit.fill to properly fill the reshaped area
 
       canvas.save();
 
@@ -1480,7 +1500,8 @@ class _ShapePainter extends CustomPainter {
         fillImage.height.toDouble(),
       );
 
-      final FittedSizes fitted = applyBoxFit(BoxFit.cover, imageSize, size);
+      // Use BoxFit.fill to ensure the image fills the entire shape area
+      final FittedSizes fitted = applyBoxFit(BoxFit.fill, imageSize, size);
 
       final Rect inputSubrect = Alignment.center.inscribe(
         fitted.source,
@@ -2374,8 +2395,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   bool _isAutoSaving = false;
   bool _isDisposing = false;
   late final InterstitialAdManager _exportAd;
-  double _lastCanvasScale = 1.0;
   bool _isProjectLoading = false;
+  double _lastCanvasScale = 1.0;
 
   @override
   void initState() {
@@ -2406,6 +2427,11 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         // Convert HiveCanvasItems back to CanvasItems and load images
 
         _loadProjectData();
+
+        // Clean up any invalid layers after loading project data
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _cleanupInvalidLayers();
+        });
       }
     } else {
       _currentProject = PosterProject(
@@ -2794,14 +2820,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         await WidgetsBinding.instance.endOfFrame;
       }
     }
-  }
-
-  void _updateUserPreferences(UserPreferences newPreferences) {
-    userPreferences = newPreferences;
-
-    _userPreferencesBox.put('user_prefs_id', userPreferences);
-
-    _initializeAutoSave(); // Reinitialize auto-save with new preferences
   }
 
   HiveCanvasItem _convertCanvasItemToHive(CanvasItem item) {
@@ -3429,9 +3447,20 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   }
 
   void _addCanvasItem(CanvasItemType type, {Map<String, dynamic>? properties}) {
+    // Validate that we have a valid type (type is non-nullable, so this check is redundant but kept for safety)
+
     // Place new items at a fixed small offset within the canvas so they're visible
     // regardless of current scale or pending layout calculations.
     final Offset centerPosition = const Offset(50, 50);
+
+    final Map<String, dynamic> finalProperties =
+        properties ?? _getDefaultProperties(type);
+
+    // Validate properties are not null or empty for critical fields
+    if (finalProperties.isEmpty) {
+      print('Error: Attempted to add canvas item with empty properties');
+      return;
+    }
 
     final newItem = CanvasItem(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -3440,7 +3469,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
       position: centerPosition,
 
-      properties: properties ?? _getDefaultProperties(type),
+      properties: finalProperties,
 
       layerIndex: canvasItems.length,
 
@@ -3483,6 +3512,77 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           _canvasController.value = _canvasPanZoomAnimation!.value;
         });
     _canvasPanZoomController!.forward();
+  }
+
+  void _cleanupInvalidLayers() {
+    // Remove any layers that have invalid or empty properties
+    final List<CanvasItem> validItems = [];
+    bool hasInvalidItems = false;
+
+    for (final item in canvasItems) {
+      if (item.properties.isEmpty) {
+        print('Removing invalid layer: ${item.id}');
+        hasInvalidItems = true;
+        continue;
+      }
+
+      // Check for specific invalid states
+      bool isValid = true;
+      switch (item.type) {
+        case CanvasItemType.text:
+          if (item.properties['text'] == null ||
+              item.properties['text'].toString().isEmpty) {
+            isValid = false;
+          }
+          break;
+        case CanvasItemType.image:
+          if (item.properties['filePath'] == null &&
+              item.properties['imageUrl'] == null) {
+            isValid = false;
+          }
+          break;
+        case CanvasItemType.drawing:
+          if (item.properties['strokes'] == null ||
+              (item.properties['strokes'] as List).isEmpty) {
+            isValid = false;
+          }
+          break;
+        default:
+          // For other types, just check if properties exist
+          break;
+      }
+
+      if (isValid) {
+        validItems.add(item);
+      } else {
+        print('Removing invalid layer: ${item.id} (${item.type})');
+        hasInvalidItems = true;
+      }
+    }
+
+    if (hasInvalidItems) {
+      setState(() {
+        canvasItems.clear();
+        canvasItems.addAll(validItems);
+
+        // Update layer indices
+        for (int i = 0; i < canvasItems.length; i++) {
+          canvasItems[i].layerIndex = i;
+        }
+
+        // Deselect if selected item was removed
+        if (selectedItem != null && !canvasItems.contains(selectedItem)) {
+          selectedItem = null;
+        }
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cleaned up invalid layers'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   Map<String, dynamic> _getDefaultProperties(CanvasItemType type) {
@@ -4068,7 +4168,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     final bool isActive = editTopbarTabIndex == index;
 
     final Color accent = _currentAccent();
-    final Color segmentBorder = _segmentColor(label);
     final Color textColor = isActive ? accent : Colors.grey.shade700;
     return GestureDetector(
       onTap: () => setState(() => editTopbarTabIndex = index),
