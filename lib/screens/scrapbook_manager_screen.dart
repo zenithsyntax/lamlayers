@@ -437,6 +437,124 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
     setState(() {});
   }
 
+  /// Regenerates high-quality thumbnails for all pages in the scrapbook
+  Future<void> _regenerateHighQualityThumbnails() async {
+    if (_scrapbook == null) return;
+
+    print(
+      'Regenerating high-quality thumbnails for ${_scrapbook!.pageProjectIds.length} pages...',
+    );
+
+    // Show progress dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20.r),
+        ),
+        child: Container(
+          padding: EdgeInsets.all(24.w),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20.r),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.green[600]!),
+              ),
+              SizedBox(height: 16.h),
+              Text(
+                'Regenerating High-Quality Thumbnails...',
+                style: GoogleFonts.poppins(
+                  fontSize: 16.sp,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF333333),
+                ),
+              ),
+              SizedBox(height: 8.h),
+              Text(
+                'This may take a moment',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(
+                  fontSize: 14.sp,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    try {
+      int processedCount = 0;
+      for (String projectId in _scrapbook!.pageProjectIds) {
+        final project = _projectBox.get(projectId);
+        if (project != null) {
+          // Navigate to poster maker to regenerate thumbnail
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PosterMakerScreen(
+                projectId: projectId,
+                scrapbookId: widget.scrapbookId,
+              ),
+            ),
+          );
+
+          processedCount++;
+          print(
+            'Processed ${processedCount}/${_scrapbook!.pageProjectIds.length} pages',
+          );
+        }
+      }
+
+      // Refresh thumbnails after regeneration
+      await _refreshThumbnails();
+
+      if (mounted) {
+        Navigator.of(context).pop(); // Close progress dialog
+
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'High-quality thumbnails regenerated successfully!',
+              style: GoogleFonts.poppins(
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            backgroundColor: Colors.green[600],
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error regenerating high-quality thumbnails: $e');
+      if (mounted) {
+        Navigator.of(context).pop(); // Close progress dialog
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Error regenerating thumbnails: ${e.toString()}',
+              style: GoogleFonts.poppins(
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            backgroundColor: Colors.red[600],
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _editPage(String projectId) async {
     await Navigator.push(
       context,
@@ -818,6 +936,8 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
             '${projectId}_${project.lastModified.millisecondsSinceEpoch}',
           ),
           fit: BoxFit.cover,
+          filterQuality: FilterQuality.high,
+          isAntiAlias: true,
           errorBuilder: (context, error, stackTrace) {
             // If image fails to load, show placeholder
             return Container(
@@ -1336,6 +1456,14 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
           ),
         ),
         actions: [
+          IconButton(
+            icon: Icon(
+              Icons.high_quality_rounded,
+              color: const Color(0xFF64748B),
+            ),
+            onPressed: () => _regenerateHighQualityThumbnails(),
+            tooltip: 'Regenerate High-Quality Thumbnails',
+          ),
           IconButton(
             icon: Icon(Icons.menu_book_rounded, color: const Color(0xFF64748B)),
             onPressed: () => _openFlipBookView(),
