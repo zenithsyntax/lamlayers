@@ -343,7 +343,7 @@ class _HomePageState extends State<HomePage>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Rename Scrapbook',
+                'Rename Lambook',
                 style: GoogleFonts.inter(
                   fontSize: 20.sp,
                   fontWeight: FontWeight.w600,
@@ -461,7 +461,7 @@ class _HomePageState extends State<HomePage>
               ),
               SizedBox(height: 16.h),
               Text(
-                'Delete Scrapbook?',
+                'Delete Lambook?',
                 style: GoogleFonts.inter(
                   fontSize: 20.sp,
                   fontWeight: FontWeight.w600,
@@ -1810,7 +1810,7 @@ class _HomePageState extends State<HomePage>
                 Expanded(
                   child: _buildActionCard(
                     title: 'Create New',
-                    subtitle: 'Start scrapbook',
+                    subtitle: 'Start lambook',
                     icon: Icons.add_rounded,
                     gradient: const LinearGradient(
                       begin: Alignment.topLeft,
@@ -1865,7 +1865,7 @@ class _HomePageState extends State<HomePage>
                     ),
                     SizedBox(height: 20.h),
                     Text(
-                      'Loading scrapbooks...',
+                      'Loading lambooks...',
                       style: GoogleFonts.inter(
                         fontSize: 14.sp,
                         fontWeight: FontWeight.w500,
@@ -1906,7 +1906,7 @@ class _HomePageState extends State<HomePage>
                           ),
                           SizedBox(height: 20.h),
                           Text(
-                            'No scrapbooks yet',
+                            'No lambooks yet',
                             style: GoogleFonts.inter(
                               fontSize: 17.sp,
                               fontWeight: FontWeight.w600,
@@ -1916,7 +1916,7 @@ class _HomePageState extends State<HomePage>
                           ),
                           SizedBox(height: 8.h),
                           Text(
-                            'Create your first scrapbook to get started',
+                            'Create your first lambook to get started',
                             style: GoogleFonts.inter(
                               fontSize: 14.sp,
                               color: const Color(0xFF64748B),

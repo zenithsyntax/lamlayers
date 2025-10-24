@@ -71,11 +71,11 @@ class TemplateApiService {
         return TemplateResponse.fromJson(jsonData);
       } else {
         throw Exception(
-          'Failed to load scrapbook templates: ${response.statusCode}',
+          'Failed to load lambook templates: ${response.statusCode}',
         );
       }
     } catch (e) {
-      throw Exception('Error fetching scrapbook templates: $e');
+      throw Exception('Error fetching lambook templates: $e');
     }
   }
 

@@ -218,7 +218,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               SizedBox(height: 12.h),
               Text(
-                'This will permanently delete ALL your projects, scrapbooks, and settings from the app. This action CANNOT be undone!',
+                'This will permanently delete ALL your projects, lambooks, and settings from the app. This action CANNOT be undone!',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(
                   fontSize: 14.sp,

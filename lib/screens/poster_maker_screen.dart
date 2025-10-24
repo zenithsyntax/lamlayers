@@ -13621,7 +13621,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                 ),
                 SizedBox(height: 16.h),
                 Text(
-                  'Saving to Scrapbook...',
+                  'Saving to Lambook...',
                   style: GoogleFonts.poppins(
                     fontSize: 16.sp,
                     fontWeight: FontWeight.w600,
@@ -13630,7 +13630,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                 ),
                 SizedBox(height: 8.h),
                 Text(
-                  'Creating thumbnail and updating scrapbook',
+                  'Creating thumbnail and updating Lambook',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.poppins(
                     fontSize: 14.sp,
@@ -13643,7 +13643,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         ),
       );
 
-      print('Starting scrapbook save process...');
+      print('Starting Lambook save process...');
 
       // Step 1: Save the project data to Hive (without thumbnail first)
       print('Step 1: Saving project data...');
@@ -13692,7 +13692,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       }
 
       // Step 5: Update scrapbook last modified time
-      print('Step 5: Updating scrapbook...');
+      print('Step 5: Updating Lambook...');
       final Box<Scrapbook> scrapbookBox = Hive.box<Scrapbook>('scrapbooks');
       final Scrapbook? scrapbook = scrapbookBox.get(widget.scrapbookId);
 
@@ -13700,13 +13700,13 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         final updatedScrapbook = scrapbook.copyWith();
         updatedScrapbook.lastModified = DateTime.now();
         await scrapbookBox.put(widget.scrapbookId!, updatedScrapbook);
-        print('Scrapbook updated successfully');
+        print('Lambook updated successfully');
       }
 
       if (!mounted) return;
       Navigator.of(context).pop(); // Close progress dialog
 
-      _showSuccessSnackBar('Page saved to scrapbook successfully!');
+      _showSuccessSnackBar('Page saved to Lambook successfully!');
 
       // Add a small delay to ensure Hive database is fully updated
       await Future.delayed(const Duration(milliseconds: 100));
@@ -13717,7 +13717,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       print('Error in _saveToScrapbook: $e');
       if (!mounted) return;
       Navigator.of(context).pop(); // Close progress dialog
-      _showErrorSnackBar('Failed to save to scrapbook: ${e.toString()}');
+      _showErrorSnackBar('Failed to save to lambook: ${e.toString()}');
     }
   }
 

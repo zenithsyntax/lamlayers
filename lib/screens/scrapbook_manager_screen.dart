@@ -91,7 +91,7 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
         print('Ad callback triggered, navigating to template screen');
         Future.delayed(const Duration(milliseconds: 100), () {
           if (mounted) {
-            print('Pushing ScrapbookTemplateScreen');
+            print('Pushing Lambook TemplateScreen');
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -260,6 +260,15 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
 
   Future<void> _addPage() async {
     if (_scrapbook == null) return;
+
+    // Check page limit (30 pages maximum)
+    if (_scrapbook!.pageProjectIds.length >= 30) {
+      _showErrorMessage(
+        'Maximum page limit reached. You can have up to 30 pages in a lambook.',
+      );
+      return;
+    }
+
     final page = PosterProject(
       id: 'p_${DateTime.now().millisecondsSinceEpoch}',
       name: 'Page ${_scrapbook!.pageProjectIds.length - 1}',
@@ -280,6 +289,14 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
 
   Future<void> _duplicatePage(int index) async {
     if (_scrapbook == null) return;
+
+    // Check page limit (30 pages maximum)
+    if (_scrapbook!.pageProjectIds.length >= 30) {
+      _showErrorMessage(
+        'Maximum page limit reached. You can have up to 30 pages in a lambook.',
+      );
+      return;
+    }
 
     final original = _projectBox.get(_scrapbook!.pageProjectIds[index]);
     if (original == null) return;
@@ -315,7 +332,7 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
     // Ensure at least one page remains
     if (_scrapbook!.pageProjectIds.length <= 1) {
       _showErrorMessage(
-        'Cannot delete the last page. At least one page must remain in the scrapbook.',
+        'Cannot delete the last page. At least one page must remain in the lambook.',
       );
       return;
     }
@@ -567,7 +584,7 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
     );
     // Refresh the state when returning from poster maker
     if (mounted) {
-      print('Returning from poster maker, refreshing scrapbook manager...');
+      print('Returning from poster maker, refreshing lambook manager...');
 
       // Force reload scrapbook data to ensure fresh state
       _load();
@@ -581,7 +598,7 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
       // Force a rebuild to show updated images
       setState(() {});
 
-      print('Scrapbook manager refreshed successfully');
+      print('Lambook manager refreshed successfully');
     }
   }
 
@@ -644,7 +661,7 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
             _buildLoadOption(
               icon: Icons.dashboard_outlined,
               title: 'From Template',
-              subtitle: 'Choose from scrapbook templates',
+              subtitle: 'Choose from lambook templates',
               onTap: () {
                 Navigator.pop(context);
                 _navigateToTemplateScreen();
@@ -733,11 +750,19 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
   Future<void> _addPageFromTemplate(PosterProject templateProject) async {
     if (_scrapbook == null) return;
 
+    // Check page limit (30 pages maximum)
+    if (_scrapbook!.pageProjectIds.length >= 30) {
+      _showErrorMessage(
+        'Maximum page limit reached. You can have up to 30 pages in a lambook.',
+      );
+      return;
+    }
+
     // Validate canvas size matches scrapbook's canvas size
     if (templateProject.canvasWidth != _scrapbook!.pageWidth ||
         templateProject.canvasHeight != _scrapbook!.pageHeight) {
       _showErrorMessage(
-        'Template does not match the scrapbook page size (${_scrapbook!.pageWidth.toInt()}x${_scrapbook!.pageHeight.toInt()}).',
+        'Template does not match the lambook page size (${_scrapbook!.pageWidth.toInt()}x${_scrapbook!.pageHeight.toInt()}).',
       );
       return;
     }
@@ -803,7 +828,15 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
             if (project.canvasWidth != _scrapbook!.pageWidth ||
                 project.canvasHeight != _scrapbook!.pageHeight) {
               _showErrorMessage(
-                'Template does not match the scrapbook page size (${_scrapbook!.pageWidth.toInt()}x${_scrapbook!.pageHeight.toInt()}).',
+                'Template does not match the lambook page size (${_scrapbook!.pageWidth.toInt()}x${_scrapbook!.pageHeight.toInt()}).',
+              );
+              return;
+            }
+
+            // Check page limit before adding from template
+            if (_scrapbook!.pageProjectIds.length >= 30) {
+              _showErrorMessage(
+                'Maximum page limit reached. You can have up to 30 pages in a lambook.',
               );
               return;
             }
@@ -1034,17 +1067,28 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
                           PopupMenuItem(
                             value: 'duplicate',
                             height: 40.h,
+                            enabled: _scrapbook!.pageProjectIds.length < 30,
                             child: Row(
                               children: [
                                 Icon(
                                   Icons.content_copy,
                                   size: 18.r,
-                                  color: const Color(0xFF64748B),
+                                  color: _scrapbook!.pageProjectIds.length >= 30
+                                      ? const Color(0xFF94A3B8)
+                                      : const Color(0xFF64748B),
                                 ),
                                 SizedBox(width: 12.w),
                                 Text(
-                                  'Duplicate',
-                                  style: GoogleFonts.inter(fontSize: 14.sp),
+                                  _scrapbook!.pageProjectIds.length >= 30
+                                      ? 'Duplicate (Limit reached)'
+                                      : 'Duplicate',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 14.sp,
+                                    color:
+                                        _scrapbook!.pageProjectIds.length >= 30
+                                        ? const Color(0xFF94A3B8)
+                                        : const Color(0xFF0F172A),
+                                  ),
                                 ),
                               ],
                             ),
@@ -1097,20 +1141,26 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
   }
 
   Widget _buildNewPageCard() {
+    final isLimitReached = _scrapbook!.pageProjectIds.length >= 30;
+
     return GestureDetector(
-      onTap: _addPage,
+      onTap: isLimitReached ? null : _addPage,
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16.r),
           border: Border.all(
-            color: const Color(0xFFEC4899),
+            color: isLimitReached
+                ? const Color(0xFFE2E8F0)
+                : const Color(0xFFEC4899),
             width: 2,
             strokeAlign: BorderSide.strokeAlignInside,
           ),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFFEC4899).withOpacity(0.1),
+              color: isLimitReached
+                  ? const Color(0xFFE2E8F0).withOpacity(0.1)
+                  : const Color(0xFFEC4899).withOpacity(0.1),
               blurRadius: 16,
               offset: const Offset(0, 4),
             ),
@@ -1122,24 +1172,41 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
             Container(
               padding: EdgeInsets.all(16.w),
               decoration: BoxDecoration(
-                color: const Color(0xFFEC4899).withOpacity(0.1),
+                color: isLimitReached
+                    ? const Color(0xFFE2E8F0).withOpacity(0.1)
+                    : const Color(0xFFEC4899).withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                Icons.add,
-                color: const Color(0xFFEC4899),
+                isLimitReached ? Icons.block : Icons.add,
+                color: isLimitReached
+                    ? const Color(0xFF94A3B8)
+                    : const Color(0xFFEC4899),
                 size: 32.r,
               ),
             ),
             SizedBox(height: 12.h),
             Text(
-              'New Page',
+              isLimitReached ? 'Limit Reached' : 'New Page',
               style: GoogleFonts.inter(
                 fontSize: 14.sp,
                 fontWeight: FontWeight.w600,
-                color: const Color(0xFF0F172A),
+                color: isLimitReached
+                    ? const Color(0xFF94A3B8)
+                    : const Color(0xFF0F172A),
               ),
             ),
+            if (isLimitReached) ...[
+              SizedBox(height: 4.h),
+              Text(
+                '30/30 pages',
+                style: GoogleFonts.inter(
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.w500,
+                  color: const Color(0xFF94A3B8),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -1214,9 +1281,9 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
                       SizedBox(height: 4.h),
                       Text(
                         isCover
-                            ? 'Front cover of your scrapbook'
+                            ? 'Front cover of your lambook'
                             : isBack
-                            ? 'Back cover of your scrapbook'
+                            ? 'Back cover of your lambook'
                             : 'Page content',
                         style: GoogleFonts.inter(
                           fontSize: 12.sp,
@@ -1255,17 +1322,27 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
                     itemBuilder: (context) => [
                       PopupMenuItem(
                         value: 'duplicate',
+                        enabled: _scrapbook!.pageProjectIds.length < 30,
                         child: Row(
                           children: [
                             Icon(
                               Icons.content_copy,
                               size: 18.r,
-                              color: const Color(0xFF64748B),
+                              color: _scrapbook!.pageProjectIds.length >= 30
+                                  ? const Color(0xFF94A3B8)
+                                  : const Color(0xFF64748B),
                             ),
                             SizedBox(width: 12.w),
                             Text(
-                              'Duplicate',
-                              style: GoogleFonts.inter(fontSize: 14.sp),
+                              _scrapbook!.pageProjectIds.length >= 30
+                                  ? 'Duplicate (Limit reached)'
+                                  : 'Duplicate',
+                              style: GoogleFonts.inter(
+                                fontSize: 14.sp,
+                                color: _scrapbook!.pageProjectIds.length >= 30
+                                    ? const Color(0xFF94A3B8)
+                                    : const Color(0xFF0F172A),
+                              ),
                             ),
                           ],
                         ),
@@ -1302,6 +1379,8 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
   }
 
   Widget _buildNewPageListItem() {
+    final isLimitReached = _scrapbook!.pageProjectIds.length >= 30;
+
     return Container(
       key: const ValueKey('new_page_item'),
       margin: EdgeInsets.only(bottom: 12.h),
@@ -1309,13 +1388,17 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
         color: Colors.white,
         borderRadius: BorderRadius.circular(16.r),
         border: Border.all(
-          color: const Color(0xFFEC4899),
+          color: isLimitReached
+              ? const Color(0xFFE2E8F0)
+              : const Color(0xFFEC4899),
           width: 2,
           strokeAlign: BorderSide.strokeAlignInside,
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFEC4899).withOpacity(0.1),
+            color: isLimitReached
+                ? const Color(0xFFE2E8F0).withOpacity(0.1)
+                : const Color(0xFFEC4899).withOpacity(0.1),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -1324,7 +1407,7 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: _addPage,
+          onTap: isLimitReached ? null : _addPage,
           borderRadius: BorderRadius.circular(16.r),
           child: Padding(
             padding: EdgeInsets.all(16.w),
@@ -1334,12 +1417,16 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
                   width: 60.w,
                   height: 60.h,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEC4899).withOpacity(0.1),
+                    color: isLimitReached
+                        ? const Color(0xFFE2E8F0).withOpacity(0.1)
+                        : const Color(0xFFEC4899).withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12.r),
                   ),
                   child: Icon(
-                    Icons.add,
-                    color: const Color(0xFFEC4899),
+                    isLimitReached ? Icons.block : Icons.add,
+                    color: isLimitReached
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFFEC4899),
                     size: 24.r,
                   ),
                 ),
@@ -1349,19 +1436,25 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Add New Page',
+                        isLimitReached ? 'Page Limit Reached' : 'Add New Page',
                         style: GoogleFonts.inter(
                           fontSize: 16.sp,
                           fontWeight: FontWeight.w600,
-                          color: const Color(0xFF0F172A),
+                          color: isLimitReached
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF0F172A),
                         ),
                       ),
                       SizedBox(height: 4.h),
                       Text(
-                        'Create a new page for your scrapbook',
+                        isLimitReached
+                            ? 'Maximum 30 pages allowed'
+                            : 'Create a new page for your lambook',
                         style: GoogleFonts.inter(
                           fontSize: 12.sp,
-                          color: const Color(0xFF64748B),
+                          color: isLimitReached
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF64748B),
                         ),
                       ),
                     ],
@@ -1388,7 +1481,7 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
             onPressed: () => Navigator.pop(context),
           ),
           title: Text(
-            'Scrapbooks',
+            'Lambooks',
             style: GoogleFonts.inter(
               fontSize: 20.sp,
               fontWeight: FontWeight.w700,
@@ -1414,7 +1507,7 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
               ),
               SizedBox(height: 24.h),
               Text(
-                'No scrapbook yet',
+                'No lambook yet',
                 style: GoogleFonts.inter(
                   fontSize: 20.sp,
                   fontWeight: FontWeight.w700,
@@ -1423,7 +1516,7 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
               ),
               SizedBox(height: 8.h),
               Text(
-                'Create your first scrapbook to get started',
+                'Create your first lambook to get started',
                 style: GoogleFonts.inter(
                   fontSize: 14.sp,
                   color: const Color(0xFF64748B),
@@ -1446,14 +1539,27 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
           icon: const Icon(Icons.arrow_back, color: Color(0xFF0F172A)),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text(
-          _scrapbook!.name,
-          style: GoogleFonts.inter(
-            fontSize: 20.sp,
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFF0F172A),
-            letterSpacing: -0.5,
-          ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _scrapbook!.name,
+              style: GoogleFonts.inter(
+                fontSize: 20.sp,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF0F172A),
+                letterSpacing: -0.5,
+              ),
+            ),
+            Text(
+              '${_scrapbook!.pageProjectIds.length}/30 pages',
+              style: GoogleFonts.inter(
+                fontSize: 12.sp,
+                fontWeight: FontWeight.w500,
+                color: const Color(0xFF64748B),
+              ),
+            ),
+          ],
         ),
         actions: [
           IconButton(
@@ -1480,9 +1586,16 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
             icon: Container(
               padding: EdgeInsets.all(8.w),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFEC4899), Color(0xFFF43F5E)],
-                ),
+                gradient: _scrapbook!.pageProjectIds.length >= 30
+                    ? LinearGradient(
+                        colors: [
+                          const Color(0xFF94A3B8),
+                          const Color(0xFF94A3B8),
+                        ],
+                      )
+                    : const LinearGradient(
+                        colors: [Color(0xFFEC4899), Color(0xFFF43F5E)],
+                      ),
                 borderRadius: BorderRadius.circular(10.r),
               ),
               child: Icon(
@@ -1491,8 +1604,14 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
                 size: 20.r,
               ),
             ),
-            onPressed: _showLoadPageOptions,
-            tooltip: 'Load Page',
+            onPressed: _scrapbook!.pageProjectIds.length >= 30
+                ? () => _showErrorMessage(
+                    'Maximum page limit reached. You can have up to 30 pages in a lambook.',
+                  )
+                : _showLoadPageOptions,
+            tooltip: _scrapbook!.pageProjectIds.length >= 30
+                ? 'Page limit reached (30/30)'
+                : 'Load Page',
           ),
           SizedBox(width: 8.w),
         ],

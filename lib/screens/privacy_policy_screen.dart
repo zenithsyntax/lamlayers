@@ -120,7 +120,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                     ),
                   ),
                   SizedBox(height: 12.h),
-                  _buildBulletPoint('Your design projects and scrapbooks'),
+                  _buildBulletPoint('Your design projects and lambooks'),
                   _buildBulletPoint('App settings and preferences'),
                   _buildBulletPoint('Images and media you add to projects'),
                   _buildBulletPoint('Font favorites and recent colors'),

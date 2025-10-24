@@ -250,7 +250,7 @@ class _ScrapbookTemplateScreenState extends State<ScrapbookTemplateScreen> {
             ),
             SizedBox(height: 16.h),
             Text(
-              'No scrapbook templates found',
+              'No lambook templates found',
               style: GoogleFonts.inter(
                 fontSize: 16.sp,
                 fontWeight: FontWeight.w500,
@@ -324,7 +324,7 @@ class _ScrapbookTemplateScreenState extends State<ScrapbookTemplateScreen> {
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         title: Text(
-          'Scrapbook Templates',
+          'Lambook Templates',
           style: GoogleFonts.inter(
             fontSize: 20.sp,
             fontWeight: FontWeight.w700,

@@ -147,7 +147,21 @@ class _LambookReaderScreenState extends State<LambookReaderScreen> {
                                 final thumb =
                                     project.thumbnailPath ??
                                     project.backgroundImagePath;
+
+                                print(
+                                  'LambookReaderScreen: Page $index - thumb: $thumb',
+                                );
+                                print(
+                                  'LambookReaderScreen: Page $index - thumbnailPath: ${project.thumbnailPath}',
+                                );
+                                print(
+                                  'LambookReaderScreen: Page $index - backgroundImagePath: ${project.backgroundImagePath}',
+                                );
+
                                 if (thumb != null && File(thumb).existsSync()) {
+                                  print(
+                                    'LambookReaderScreen: Page $index - File exists, displaying image',
+                                  );
                                   return Container(
                                     decoration: BoxDecoration(
                                       color: project.canvasBackgroundColor
@@ -159,10 +173,34 @@ class _LambookReaderScreenState extends State<LambookReaderScreen> {
                                           child: Image.file(
                                             File(thumb),
                                             fit: BoxFit.cover,
+                                            errorBuilder:
+                                                (context, error, stackTrace) {
+                                                  print(
+                                                    'LambookReaderScreen: Page $index - Image load error: $error',
+                                                  );
+                                                  return Container(
+                                                    decoration: BoxDecoration(
+                                                      color: project
+                                                          .canvasBackgroundColor
+                                                          .toColor(),
+                                                    ),
+                                                    child: Center(
+                                                      child: Icon(
+                                                        Icons.broken_image,
+                                                        color: Colors.grey,
+                                                        size: 48,
+                                                      ),
+                                                    ),
+                                                  );
+                                                },
                                           ),
                                         ),
                                       ],
                                     ),
+                                  );
+                                } else {
+                                  print(
+                                    'LambookReaderScreen: Page $index - No valid image, showing background color only',
                                   );
                                 }
                                 return Container(
@@ -234,16 +272,13 @@ class _NavButton extends StatelessWidget {
         onTap: onPressed,
         customBorder: const CircleBorder(),
         child: Ink(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.black.withOpacity(0.25),
-          ),
+        
           child: Padding(
             padding: EdgeInsets.all(10.w),
             child: Icon(
               icon,
-              color: onPressed == null ? Colors.white38 : Colors.white,
-              size: 22.w,
+              color: const Color.fromARGB(97, 0, 0, 0) ,
+              size: 18.w,
             ),
           ),
         ),

@@ -2396,6 +2396,7 @@ class ExportManager {
   }) async {
     try {
       void report(int p) {
+        print('ExportManager: Progress: $p%');
         if (onProgress != null) {
           // Clamp to [1, 100] and report
           final int clamped = p.clamp(1, 100);
@@ -2403,26 +2404,42 @@ class ExportManager {
         }
       }
 
+      print('ExportManager: Starting loadLambook for: $filePath');
       report(1);
       final file = File(filePath);
-      if (!await file.exists()) return null;
+      if (!await file.exists()) {
+        print('ExportManager: File does not exist: $filePath');
+        return null;
+      }
+      print('ExportManager: File exists, reading bytes...');
       final bytes = await file.readAsBytes();
+      print('ExportManager: Read ${bytes.length} bytes');
       report(10);
+      print('ExportManager: Decoding ZIP archive...');
       final Archive archive = ZipDecoder().decodeBytes(bytes);
+      print('ExportManager: ZIP decoded, ${archive.length} files');
       report(25);
 
       ArchiveFile? book;
+      print('ExportManager: Looking for lambook.json...');
       for (final f in archive) {
+        print('ExportManager: Found file: ${f.name}');
         if (f.name == 'scrapbook.json') {
           book = f;
+          print('ExportManager: Found scrapbook.json (${f.size} bytes)');
           break;
         }
       }
-      if (book == null) return null;
+      if (book == null) {
+        print('ExportManager: lambook.json not found in archive');
+        return null;
+      }
       report(30);
+      print('ExportManager: Parsing lambook.json...');
       final Map<String, dynamic> sb =
           jsonDecode(String.fromCharCodes(book.content))
               as Map<String, dynamic>;
+      print('ExportManager: lambook.json parsed successfully');
       report(35);
 
       Color _readColor(dynamic v) {
@@ -2480,6 +2497,7 @@ class ExportManager {
       );
       report(55);
 
+      print('ExportManager: Looking for page files...');
       final List<ArchiveFile> pageFiles =
           archive
               .where(
@@ -2490,24 +2508,40 @@ class ExportManager {
               .toList()
             ..sort((a, b) => a.name.compareTo(b.name));
 
+      print('ExportManager: Found ${pageFiles.length} page files');
       final List<hive_model.PosterProject> pages = [];
       final int pageCount = pageFiles.length == 0 ? 1 : pageFiles.length;
       int processed = 0;
       for (final pf in pageFiles) {
         try {
+          print('ExportManager: Processing page file: ${pf.name}');
           final Map<String, dynamic> pageJson =
               jsonDecode(String.fromCharCodes(pf.content))
                   as Map<String, dynamic>;
           final project = await _parseProjectFromJson(pageJson, tempDir);
-          if (project != null) pages.add(project);
-        } catch (_) {}
+          if (project != null) {
+            pages.add(project);
+            print(
+              'ExportManager: Successfully processed page: ${project.name}',
+            );
+          } else {
+            print('ExportManager: Failed to parse page: ${pf.name}');
+          }
+        } catch (e) {
+          print('ExportManager: Error processing page ${pf.name}: $e');
+        }
         processed += 1;
         // Allocate 40% of progress to page processing (55 -> 95)
         final int percent = 55 + ((processed * 40) / pageCount).round();
         report(percent);
       }
-      if (pages.isEmpty) return null;
+      print('ExportManager: Processed ${pages.length} pages successfully');
+      if (pages.isEmpty) {
+        print('ExportManager: No pages processed, returning null');
+        return null;
+      }
       report(100);
+      print('ExportManager: Returning LambookData with ${pages.length} pages');
       return LambookData(meta: meta, pages: pages);
     } catch (e) {
       print('ExportManager: Error loading lambook: $e');

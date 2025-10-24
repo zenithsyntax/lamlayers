@@ -12,6 +12,7 @@ import 'package:lamlayers/utils/export_manager.dart';
 import 'package:lamlayers/screens/poster_maker_screen.dart';
 import 'package:lamlayers/screens/lambook_reader_screen.dart';
 import 'package:lamlayers/widgets/connectivity_overlay.dart';
+import 'package:archive/archive.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -115,7 +116,11 @@ class _DeepLinkHostState extends State<DeepLinkHost> {
     print('DeepLinkHost: Arguments: ${call.arguments}');
 
     if (call.method == 'openedFile') {
+      print('DeepLinkHost: Processing openedFile method call...');
+
       final Map args = (call.arguments as Map?) ?? {};
+      print('DeepLinkHost: Args extracted: $args');
+
       final String? path = args['path'] as String?;
       final String? uri = args['uri'] as String?;
       final String? candidate = path ?? uri;
@@ -149,8 +154,79 @@ class _DeepLinkHostState extends State<DeepLinkHost> {
       // ignore: avoid_print
       print('DeepLinkHost: attempting to open as lambook -> $normalized');
 
+      // Check if file has .lambook extension
+      bool isLikelyLambook = normalized.toLowerCase().endsWith('.lambook');
+      print('DeepLinkHost: file extension check: $isLikelyLambook');
+
+      print('DeepLinkHost: About to check file content...');
+
+      // If the file doesn't have .lambook extension, try to detect if it's a lambook file
+      // by checking if it's a valid ZIP file with scrapbook.json
+      print('DeepLinkHost: isLikelyLambook (by extension): $isLikelyLambook');
+
+      print('DeepLinkHost: About to check if content analysis is needed...');
+      if (!isLikelyLambook) {
+        print(
+          'DeepLinkHost: File does not have .lambook extension, checking content...',
+        );
+        try {
+          final file = File(normalized);
+          if (file.existsSync() && file.lengthSync() > 0) {
+            final bytes = await file.readAsBytes();
+            // Check for ZIP signature
+            if (bytes.length >= 4 &&
+                bytes[0] == 0x50 &&
+                bytes[1] == 0x4B &&
+                (bytes[2] == 0x03 || bytes[2] == 0x05 || bytes[2] == 0x07) &&
+                (bytes[3] == 0x04 || bytes[3] == 0x06 || bytes[3] == 0x08)) {
+              // It's a ZIP file, check if it contains scrapbook.json
+              try {
+                final archive = ZipDecoder().decodeBytes(bytes);
+                final hasScrapbookJson = archive.any(
+                  (f) => f.name == 'scrapbook.json',
+                );
+                if (hasScrapbookJson) {
+                  isLikelyLambook = true;
+                  print(
+                    'DeepLinkHost: Detected lambook file by content analysis',
+                  );
+                }
+              } catch (e) {
+                print('DeepLinkHost: Error analyzing ZIP content: $e');
+              }
+            }
+          }
+        } catch (e) {
+          print('DeepLinkHost: Error checking file content: $e');
+        }
+      }
+
+      print('DeepLinkHost: Content analysis check completed');
+      print(
+        'DeepLinkHost: After content analysis, isLikelyLambook: $isLikelyLambook',
+      );
+
+      if (!isLikelyLambook) {
+        print('DeepLinkHost: File does not appear to be a lambook file');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'This file does not appear to be a valid .lambook file',
+              ),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+        return null;
+      }
+
+      print('DeepLinkHost: Proceeding to file existence check...');
+
       // Check if file exists and has content
+      print('DeepLinkHost: Creating File object for: $normalized');
       final file = File(normalized);
+      print('DeepLinkHost: Checking if file exists...');
       if (!file.existsSync()) {
         print('DeepLinkHost: File does not exist: $normalized');
         if (mounted) {
@@ -164,6 +240,7 @@ class _DeepLinkHostState extends State<DeepLinkHost> {
         return null;
       }
 
+      print('DeepLinkHost: Getting file size...');
       final fileSize = file.lengthSync();
       print('DeepLinkHost: file size: $fileSize bytes');
 
@@ -178,7 +255,9 @@ class _DeepLinkHostState extends State<DeepLinkHost> {
         return null;
       }
 
+      print('DeepLinkHost: About to show loading dialog...');
       int _progress = 1;
+      StateSetter? _dialogSetState;
       if (mounted) {
         showDialog(
           context: context,
@@ -186,6 +265,7 @@ class _DeepLinkHostState extends State<DeepLinkHost> {
           builder: (ctx) {
             return StatefulBuilder(
               builder: (ctx, setState) {
+                _dialogSetState = setState;
                 return Dialog(
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -205,6 +285,20 @@ class _DeepLinkHostState extends State<DeepLinkHost> {
                         ),
                         const SizedBox(height: 8),
                         Text('$_progress%'),
+                        const SizedBox(height: 8),
+                        Text(
+                          _progress < 30
+                              ? 'Reading file...'
+                              : _progress < 60
+                              ? 'Processing pages...'
+                              : _progress < 90
+                              ? 'Loading images...'
+                              : 'Finalizing...',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -215,34 +309,67 @@ class _DeepLinkHostState extends State<DeepLinkHost> {
         );
       }
 
-      final data =
-          await ExportManager.loadLambook(
-            normalized,
-            onProgress: (p) {
-              _progress = p;
-              // try updating dialog if still mounted
-              if (mounted) {
-                // Force rebuild of dialog via Navigator overlay by popping and re-showing would flicker.
-                // Instead, rely on StatefulBuilder above: call setState captured there via context.
-                // Since we don't hold setState reference here, use Navigator to find current route's widget tree rebuild via addPostFrameCallback.
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  // No-op to keep UI responsive; StatefulBuilder rebuilds when its setState is called only.
-                });
-              }
-            },
-          ).catchError((error) {
-            print('DeepLinkHost: Error loading lambook: $error');
-            return null;
-          });
+      print('DeepLinkHost: Loading dialog created successfully');
+      print('DeepLinkHost: About to call ExportManager.loadLambook...');
+
+      final data = await Future.any([
+        ExportManager.loadLambook(
+          normalized,
+          onProgress: (p) {
+            _progress = p;
+            print('DeepLinkHost: Progress update: $p%');
+            // Update dialog if still mounted and dialog setState is available
+            if (mounted && _dialogSetState != null) {
+              _dialogSetState!(() {
+                // This will trigger a rebuild of the dialog
+              });
+            }
+          },
+        ).catchError((error) {
+          print('DeepLinkHost: Error loading lambook: $error');
+          return null;
+        }),
+        Future.delayed(const Duration(seconds: 30), () {
+          print('DeepLinkHost: Loading timeout after 30 seconds');
+          return null;
+        }),
+      ]);
+
+      print(
+        'DeepLinkHost: loadLambook completed, data: ${data != null ? 'success' : 'null'}',
+      );
+      if (data != null) {
+        print('DeepLinkHost: Pages count: ${data.pages.length}');
+        for (int i = 0; i < data.pages.length; i++) {
+          final page = data.pages[i];
+          print('DeepLinkHost: Page $i - name: ${page.name}');
+          print('DeepLinkHost: Page $i - thumbnailPath: ${page.thumbnailPath}');
+          print(
+            'DeepLinkHost: Page $i - backgroundImagePath: ${page.backgroundImagePath}',
+          );
+          if (page.thumbnailPath != null) {
+            print(
+              'DeepLinkHost: Page $i - thumbnail exists: ${File(page.thumbnailPath!).existsSync()}',
+            );
+          }
+          if (page.backgroundImagePath != null) {
+            print(
+              'DeepLinkHost: Page $i - background exists: ${File(page.backgroundImagePath!).existsSync()}',
+            );
+          }
+        }
+      }
       if (mounted) {
         Navigator.of(context, rootNavigator: true).pop();
       }
       if (!mounted) return null;
       if (data != null) {
         if (data.pages.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('This book has no pages')),
-          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('This book has no pages')),
+            );
+          }
           return null;
         }
         // ignore: avoid_print
@@ -250,13 +377,35 @@ class _DeepLinkHostState extends State<DeepLinkHost> {
           'DeepLinkHost: lambook pages loaded = ' +
               data.pages.length.toString(),
         );
-        WidgetsBinding.instance.addPostFrameCallback((_) {
+
+        // Add a small delay to ensure the loading dialog is fully closed
+        // and the context is ready for navigation
+        Future.delayed(const Duration(milliseconds: 300), () {
           if (!mounted) return;
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => LambookReaderScreen(lambook: data),
-            ),
-          );
+
+          try {
+            print(
+              'DeepLinkHost: Attempting navigation to LambookReaderScreen...',
+            );
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => LambookReaderScreen(lambook: data),
+              ),
+            );
+            print(
+              'DeepLinkHost: Successfully navigated to LambookReaderScreen',
+            );
+          } catch (e) {
+            print('DeepLinkHost: Navigation error: $e');
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Failed to open book reader: $e'),
+                  duration: const Duration(seconds: 3),
+                ),
+              );
+            }
+          }
         });
         return null;
       } else {

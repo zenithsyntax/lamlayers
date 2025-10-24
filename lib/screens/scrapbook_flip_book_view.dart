@@ -229,7 +229,7 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView>
                         child: Row(
                           children: [
                             Text(
-                              'Customize Scrapbook',
+                              'Customize Lambook',
                               style: GoogleFonts.inter(
                                 fontSize: 20.sp,
                                 fontWeight: FontWeight.w700,
@@ -1148,7 +1148,7 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView>
               ),
               SizedBox(height: 16.h),
               Text(
-                'Invalid scrapbook dimensions',
+                'Invalid lambook dimensions',
                 style: GoogleFonts.inter(
                   fontSize: 16.sp,
                   fontWeight: FontWeight.w600,
@@ -1258,7 +1258,7 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView>
     final pageIds = widget.scrapbook.pageProjectIds;
 
     // Debug information for release builds
-    print('Scrapbook Debug Info:');
+    print('Lambook Debug Info:');
     print('- Name: ${widget.scrapbook.name}');
     print('- Page count: ${pageIds.length}');
     print('- Page width: ${widget.scrapbook.pageWidth}');
@@ -1311,7 +1311,7 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView>
               ),
               SizedBox(height: 8.h),
               Text(
-                'Add some pages to your scrapbook first',
+                'Add some pages to your lambook first',
                 style: GoogleFonts.inter(
                   fontSize: 14.sp,
                   color: const Color(0xFF64748B),
@@ -1417,7 +1417,7 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView>
                                                 CrossAxisAlignment.start,
                                             children: [
                                               Text(
-                                                'Share scrapbook',
+                                                'Share Lambook',
                                                 style: GoogleFonts.inter(
                                                   fontSize: 18.sp,
                                                   fontWeight: FontWeight.w700,
@@ -1463,7 +1463,7 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView>
                                           iconColor: const Color(0xFF6366F1),
                                           title: 'Share file (.lambook)',
                                           subtitle:
-                                              'Export a portable scrapbook file',
+                                              'Export a portable lambook file',
                                           onTap: () async {
                                             Navigator.pop(ctx);
                                             await _showAdIfAvailable(
@@ -1530,7 +1530,7 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView>
                                                       ).showSnackBar(
                                                         const SnackBar(
                                                           content: Text(
-                                                            'Scrapbook exported and shared successfully!',
+                                                            'Lambook exported and shared successfully!',
                                                           ),
                                                           backgroundColor:
                                                               Colors.green,
@@ -1544,7 +1544,7 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView>
                                                       ).showSnackBar(
                                                         const SnackBar(
                                                           content: Text(
-                                                            'Failed to export scrapbook. Please try again.',
+                                                            'Failed to export lambook. Please try again.',
                                                           ),
                                                           backgroundColor:
                                                               Colors.red,
@@ -1554,7 +1554,7 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView>
                                                   }
                                                 } catch (e) {
                                                   print(
-                                                    'Error exporting scrapbook: $e',
+                                                    'Error exporting lambook: $e',
                                                   );
                                                   if (mounted) {
                                                     ScaffoldMessenger.of(
