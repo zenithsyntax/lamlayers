@@ -1488,40 +1488,23 @@ class _ShapePainter extends CustomPainter {
     }
 
     if (fillImage != null) {
-      // Draw image clipped to the shape path using BoxFit.fill to properly fill the reshaped area
-
+      // Draw image clipped to the shape path - manually scale to fill entire shape
       canvas.save();
-
       canvas.clipPath(path);
 
-      final Size imageSize = Size(
-        fillImage.width.toDouble(),
+      // Calculate the actual bounds of the custom shape
+      final Rect actualBounds = path.getBounds();
 
-        fillImage.height.toDouble(),
-      );
+      // Scale image to fill the entire shape bounds
+      final Rect imageRect =
+          Offset.zero &
+          Size(fillImage.width.toDouble(), fillImage.height.toDouble());
 
-      // Use BoxFit.fill to ensure the image fills the entire shape area
-      final FittedSizes fitted = applyBoxFit(BoxFit.fill, imageSize, size);
-
-      final Rect inputSubrect = Alignment.center.inscribe(
-        fitted.source,
-
-        Offset.zero & imageSize,
-      );
-
-      final Rect outputSubrect = Alignment.center.inscribe(
-        fitted.destination,
-
-        rect,
-      );
-
+      // Draw the image scaled to fill the actual shape bounds
       canvas.drawImageRect(
         fillImage,
-
-        inputSubrect,
-
-        outputSubrect,
-
+        imageRect,
+        actualBounds, // Use the actual shape bounds instead of rect
         Paint()..isAntiAlias = true,
       );
 
@@ -9568,7 +9551,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
           height: itemSize.height,
 
-          child: FittedBox(fit: BoxFit.contain, child: shapeWidget),
+          child: shapeWidget,
         );
 
       case CanvasItemType.drawing:
