@@ -43,22 +43,36 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun handleIntent(intent: Intent?) {
-        if (intent == null) return
+        if (intent == null) {
+            android.util.Log.d("MainActivity", "Intent is null")
+            return
+        }
+        
+        android.util.Log.d("MainActivity", "Handling intent with action: ${intent.action}")
+        android.util.Log.d("MainActivity", "Intent data: ${intent.data}")
+        android.util.Log.d("MainActivity", "Intent type: ${intent.type}")
+        
         if (Intent.ACTION_VIEW == intent.action) {
             val uri: Uri? = intent.data
-            if (uri == null) return
+            if (uri == null) {
+                android.util.Log.d("MainActivity", "Intent data URI is null")
+                return
+            }
             
             android.util.Log.d("MainActivity", "Received intent with URI: $uri")
             android.util.Log.d("MainActivity", "URI scheme: ${uri.scheme}")
             android.util.Log.d("MainActivity", "URI path: ${uri.path}")
+            android.util.Log.d("MainActivity", "URI lastPathSegment: ${uri.lastPathSegment}")
             
             val resolvedPath = resolveToLocalPath(uri)
             if (resolvedPath != null) {
                 android.util.Log.d("MainActivity", "Resolved path: $resolvedPath")
                 // Queue until Dart signals readiness to avoid losing the event on cold start
                 if (isDartReady && notifyOpenedFile(mapOf("path" to resolvedPath))) {
+                    android.util.Log.d("MainActivity", "Successfully notified Dart with path")
                     pendingOpenedPath = null
                 } else {
+                    android.util.Log.d("MainActivity", "Dart not ready, queuing path: $resolvedPath")
                     pendingOpenedPath = resolvedPath
                 }
             } else {
@@ -66,11 +80,15 @@ class MainActivity : FlutterActivity() {
                 val uriString = uri.toString()
                 android.util.Log.d("MainActivity", "Using URI string fallback: $uriString")
                 if (isDartReady && notifyOpenedFile(mapOf("uri" to uriString))) {
+                    android.util.Log.d("MainActivity", "Successfully notified Dart with URI")
                     pendingOpenedPath = null
                 } else {
+                    android.util.Log.d("MainActivity", "Dart not ready, queuing URI: $uriString")
                     pendingOpenedPath = uriString
                 }
             }
+        } else {
+            android.util.Log.d("MainActivity", "Intent action is not ACTION_VIEW: ${intent.action}")
         }
         // Also capture shared streams if needed in future
     }

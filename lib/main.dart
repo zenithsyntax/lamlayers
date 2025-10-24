@@ -15,6 +15,13 @@ import 'package:lamlayers/widgets/connectivity_overlay.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Lock orientation to portrait only
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
+
   // Initialize Google Mobile Ads SDK
   await MobileAds.instance.initialize();
   final appDocumentDirectory = await getApplicationDocumentsDirectory();
@@ -104,12 +111,23 @@ class _DeepLinkHostState extends State<DeepLinkHost> {
   }
 
   Future<dynamic> _handleMethodCall(MethodCall call) async {
+    print('DeepLinkHost: Received method call: ${call.method}');
+    print('DeepLinkHost: Arguments: ${call.arguments}');
+
     if (call.method == 'openedFile') {
       final Map args = (call.arguments as Map?) ?? {};
       final String? path = args['path'] as String?;
       final String? uri = args['uri'] as String?;
       final String? candidate = path ?? uri;
-      if (candidate == null) return null;
+
+      print('DeepLinkHost: Path: $path');
+      print('DeepLinkHost: URI: $uri');
+      print('DeepLinkHost: Candidate: $candidate');
+
+      if (candidate == null) {
+        print('DeepLinkHost: No candidate path/URI found');
+        return null;
+      }
 
       // Normalize to file path where possible
       String normalized = candidate;
@@ -117,8 +135,11 @@ class _DeepLinkHostState extends State<DeepLinkHost> {
         normalized = normalized.replaceFirst('file://', '');
       }
 
+      print('DeepLinkHost: Normalized path: $normalized');
+
       // Handle .lamlayers (poster project) directly via existing loader
       if (normalized.toLowerCase().endsWith('.lamlayers')) {
+        print('DeepLinkHost: Detected .lamlayers file, opening as project');
         await _openLamlayersProject(normalized);
         return null;
       }
