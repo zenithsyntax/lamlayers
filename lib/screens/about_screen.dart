@@ -162,7 +162,7 @@ class AboutScreen extends StatelessWidget {
               iconBgColor: const Color(0xFFCFFAFE),
               title: 'Contact Us',
               content:
-                  'Have questions or feedback? We\'d love to hear from you!\n\nEmail: support@lamlayers.com\nWebsite: www.lamlayers.com',
+                  'Have questions or feedback? We\'d love to hear from you!\n\nEmail: zenithsyntax@gmail.com',
             ),
 
             SizedBox(height: 16.h),

@@ -30,6 +30,8 @@ class _CanvasPresetScreenState extends State<CanvasPresetScreen> {
   final TextEditingController _h = TextEditingController(text: '1920');
   String? _bgPath;
   late final InterstitialAdManager _templatesAd;
+  String? _widthError;
+  String? _heightError;
 
   @override
   void initState() {
@@ -39,6 +41,10 @@ class _CanvasPresetScreenState extends State<CanvasPresetScreen> {
         'ca-app-pub-9698718721404755/8193728553';
     _templatesAd = InterstitialAdManager(adUnitId: productionInterstitialId);
     _templatesAd.load();
+
+    // Add listeners for validation
+    _w.addListener(_validateDimensions);
+    _h.addListener(_validateDimensions);
   }
 
   @override
@@ -47,6 +53,44 @@ class _CanvasPresetScreenState extends State<CanvasPresetScreen> {
     _h.dispose();
     _templatesAd.dispose();
     super.dispose();
+  }
+
+  void _validateDimensions() {
+    setState(() {
+      _widthError = null;
+      _heightError = null;
+
+      final width = double.tryParse(_w.text);
+      final height = double.tryParse(_h.text);
+
+      if (width != null) {
+        if (width < 500) {
+          _widthError = 'Width must be at least 500px';
+        } else if (width > 5000) {
+          _widthError = 'Width must be at most 5000px';
+        }
+      }
+
+      if (height != null) {
+        if (height < 500) {
+          _heightError = 'Height must be at least 500px';
+        } else if (height > 5000) {
+          _heightError = 'Height must be at most 5000px';
+        }
+      }
+    });
+  }
+
+  bool _isValidDimensions() {
+    final width = double.tryParse(_w.text);
+    final height = double.tryParse(_h.text);
+
+    return width != null &&
+        height != null &&
+        width >= 500 &&
+        width <= 5000 &&
+        height >= 500 &&
+        height <= 5000;
   }
 
   void _select(double w, double h) {
@@ -370,22 +414,10 @@ class _CanvasPresetScreenState extends State<CanvasPresetScreen> {
                 icon: Icons.badge_rounded,
               ),
               _presetCard(
-                title: 'Cover Banner',
-                width: 1584,
-                height: 396,
-                icon: Icons.view_carousel_rounded,
-              ),
-              _presetCard(
                 title: 'Company Logo',
                 width: 300,
                 height: 300,
                 icon: Icons.business_rounded,
-              ),
-              _presetCard(
-                title: 'Company Cover',
-                width: 1128,
-                height: 191,
-                icon: Icons.dashboard_rounded,
               ),
             ]),
 
@@ -449,27 +481,6 @@ class _CanvasPresetScreenState extends State<CanvasPresetScreen> {
                 width: 1080,
                 height: 1920,
                 icon: Icons.bolt_rounded,
-              ),
-            ]),
-
-            _categorySection('X (Twitter)', Icons.alternate_email_rounded, [
-              _presetCard(
-                title: 'Profile Picture',
-                width: 400,
-                height: 400,
-                icon: Icons.account_circle_rounded,
-              ),
-              _presetCard(
-                title: 'Header Banner',
-                width: 1500,
-                height: 500,
-                icon: Icons.image_rounded,
-              ),
-              _presetCard(
-                title: 'Post Image',
-                width: 1200,
-                height: 675,
-                icon: Icons.photo_rounded,
               ),
             ]),
 
@@ -599,7 +610,9 @@ class _CanvasPresetScreenState extends State<CanvasPresetScreen> {
                                           14.r,
                                         ),
                                         borderSide: BorderSide(
-                                          color: const Color(0xFFE2E8F0),
+                                          color: _widthError != null
+                                              ? const Color(0xFFEF4444)
+                                              : const Color(0xFFE2E8F0),
                                           width: 1.5,
                                         ),
                                       ),
@@ -608,7 +621,9 @@ class _CanvasPresetScreenState extends State<CanvasPresetScreen> {
                                           14.r,
                                         ),
                                         borderSide: BorderSide(
-                                          color: const Color(0xFF6366F1),
+                                          color: _widthError != null
+                                              ? const Color(0xFFEF4444)
+                                              : const Color(0xFF6366F1),
                                           width: 2,
                                         ),
                                       ),
@@ -618,6 +633,17 @@ class _CanvasPresetScreenState extends State<CanvasPresetScreen> {
                                       ),
                                     ),
                                   ),
+                                  if (_widthError != null) ...[
+                                    SizedBox(height: 4.h),
+                                    Text(
+                                      _widthError!,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 11.sp,
+                                        color: const Color(0xFFEF4444),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),
@@ -671,7 +697,9 @@ class _CanvasPresetScreenState extends State<CanvasPresetScreen> {
                                           14.r,
                                         ),
                                         borderSide: BorderSide(
-                                          color: const Color(0xFFE2E8F0),
+                                          color: _heightError != null
+                                              ? const Color(0xFFEF4444)
+                                              : const Color(0xFFE2E8F0),
                                           width: 1.5,
                                         ),
                                       ),
@@ -680,7 +708,9 @@ class _CanvasPresetScreenState extends State<CanvasPresetScreen> {
                                           14.r,
                                         ),
                                         borderSide: BorderSide(
-                                          color: const Color(0xFF6366F1),
+                                          color: _heightError != null
+                                              ? const Color(0xFFEF4444)
+                                              : const Color(0xFF6366F1),
                                           width: 2,
                                         ),
                                       ),
@@ -690,6 +720,17 @@ class _CanvasPresetScreenState extends State<CanvasPresetScreen> {
                                       ),
                                     ),
                                   ),
+                                  if (_heightError != null) ...[
+                                    SizedBox(height: 4.h),
+                                    Text(
+                                      _heightError!,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 11.sp,
+                                        color: const Color(0xFFEF4444),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),
@@ -699,24 +740,28 @@ class _CanvasPresetScreenState extends State<CanvasPresetScreen> {
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
-                            onPressed: () {
-                              final w = double.tryParse(_w.text);
-                              final h = double.tryParse(_h.text);
-                              if (w != null && h != null && w > 0 && h > 0) {
-                                _select(w, h);
-                              }
-                            },
+                            onPressed: _isValidDimensions()
+                                ? () {
+                                    final w = double.tryParse(_w.text);
+                                    final h = double.tryParse(_h.text);
+                                    if (w != null && h != null) {
+                                      _select(w, h);
+                                    }
+                                  }
+                                : null,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF6366F1),
+                              backgroundColor: _isValidDimensions()
+                                  ? const Color(0xFF6366F1)
+                                  : const Color(0xFF94A3B8),
                               foregroundColor: Colors.white,
                               padding: EdgeInsets.symmetric(vertical: 18.h),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14.r),
                               ),
                               elevation: 0,
-                              shadowColor: const Color(
-                                0xFF6366F1,
-                              ).withOpacity(0.3),
+                              shadowColor: _isValidDimensions()
+                                  ? const Color(0xFF6366F1).withOpacity(0.3)
+                                  : Colors.transparent,
                             ),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,

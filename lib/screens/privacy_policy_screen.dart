@@ -319,7 +319,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
               iconBgColor: const Color(0xFFFCE7F3),
               title: 'Contact Us',
               content:
-                  'If you have any questions or concerns about this privacy policy or how we handle your data, please contact us at:\n\nEmail: privacy@lamlayers.com\nWebsite: www.lamlayers.com/privacy',
+                  'If you have any questions or concerns about this privacy policy or how we handle your data, please contact us at:\n\nEmail: zenithsyntax@gmail.com',
             ),
 
             SizedBox(height: 32.h),

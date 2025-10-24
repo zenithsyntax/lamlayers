@@ -30,3 +30,4 @@
 
 # Keep UCrop OkHttp client store
 -keep class com.yalantis.ucrop.OkHttpClientStore { *; }
+

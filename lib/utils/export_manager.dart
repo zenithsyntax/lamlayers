@@ -2265,21 +2265,33 @@ class ExportManager {
     String? backgroundImagePath;
     if (projectData['backgroundImageData'] is String &&
         (projectData['backgroundImageData'] as String).isNotEmpty) {
+      print(
+        'ExportManager: Processing background image data (${(projectData['backgroundImageData'] as String).length} chars)',
+      );
       final data = base64Decode(projectData['backgroundImageData'] as String);
       final ext = _getImageFileExtension(null, data);
       final f = File('$projectDir/background.$ext');
       await f.writeAsBytes(data);
       backgroundImagePath = f.path;
+      print('ExportManager: Background image saved to: $backgroundImagePath');
+    } else {
+      print('ExportManager: No background image data found');
     }
 
     String? thumbnailPath;
     if (projectData['thumbnailData'] is String &&
         (projectData['thumbnailData'] as String).isNotEmpty) {
+      print(
+        'ExportManager: Processing thumbnail data (${(projectData['thumbnailData'] as String).length} chars)',
+      );
       final data = base64Decode(projectData['thumbnailData'] as String);
       final ext = _getImageFileExtension(null, data);
       final f = File('$projectDir/thumbnail.$ext');
       await f.writeAsBytes(data);
       thumbnailPath = f.path;
+      print('ExportManager: Thumbnail saved to: $thumbnailPath');
+    } else {
+      print('ExportManager: No thumbnail data found');
     }
 
     final List<hive_model.HiveCanvasItem> canvasItems = [];
@@ -2368,7 +2380,7 @@ class ExportManager {
         ? tagsData.whereType<String>().toList()
         : <String>[];
 
-    return hive_model.PosterProject(
+    final project = hive_model.PosterProject(
       id: newProjectId,
       name: importedProjectName,
       description: projectData['description'] as String?,
@@ -2386,6 +2398,15 @@ class ExportManager {
       tags: tags,
       isFavorite: projectData['isFavorite'] as bool? ?? false,
     );
+
+    print('ExportManager: Created project: ${project.name}');
+    print(
+      'ExportManager: Project backgroundImagePath: ${project.backgroundImagePath}',
+    );
+    print('ExportManager: Project thumbnailPath: ${project.thumbnailPath}');
+    print('ExportManager: Project canvas items: ${project.canvasItems.length}');
+
+    return project;
   }
 
   // Load a .lambook file (ZIP) into in-memory metadata and pages for read-only viewing
@@ -2509,6 +2530,9 @@ class ExportManager {
             ..sort((a, b) => a.name.compareTo(b.name));
 
       print('ExportManager: Found ${pageFiles.length} page files');
+      for (final pf in pageFiles) {
+        print('ExportManager: Page file: ${pf.name} (${pf.size} bytes)');
+      }
       final List<hive_model.PosterProject> pages = [];
       final int pageCount = pageFiles.length == 0 ? 1 : pageFiles.length;
       int processed = 0;

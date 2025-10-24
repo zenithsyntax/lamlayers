@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:lamlayers/utils/export_manager.dart';
 import 'package:lamlayers/scrap_book_page_turn/interactive_book.dart';
+import 'package:lamlayers/widgets/canvas_renderer.dart';
 
 class LambookReaderScreen extends StatefulWidget {
   final LambookData lambook;
@@ -141,6 +142,9 @@ class _LambookReaderScreenState extends State<LambookReaderScreen> {
                               ),
                               builder: (context, index, constraints) {
                                 if (index >= pages.length) {
+                                  print(
+                                    'LambookReaderScreen: Index $index >= pages.length ${pages.length}',
+                                  );
                                   return Container(color: Colors.white);
                                 }
                                 final project = pages[index];
@@ -148,15 +152,44 @@ class _LambookReaderScreenState extends State<LambookReaderScreen> {
                                     project.thumbnailPath ??
                                     project.backgroundImagePath;
 
+                                print('=== LAMBOOK READER DEBUG ===');
                                 print(
-                                  'LambookReaderScreen: Page $index - thumb: $thumb',
+                                  'LambookReaderScreen: Page $index of ${pages.length}',
                                 );
                                 print(
-                                  'LambookReaderScreen: Page $index - thumbnailPath: ${project.thumbnailPath}',
+                                  'LambookReaderScreen: Project name: ${project.name}',
                                 );
                                 print(
-                                  'LambookReaderScreen: Page $index - backgroundImagePath: ${project.backgroundImagePath}',
+                                  'LambookReaderScreen: Project ID: ${project.id}',
                                 );
+                                print(
+                                  'LambookReaderScreen: Canvas items count: ${project.canvasItems.length}',
+                                );
+                                print(
+                                  'LambookReaderScreen: Canvas size: ${project.canvasWidth}x${project.canvasHeight}',
+                                );
+                                print(
+                                  'LambookReaderScreen: thumbnailPath: ${project.thumbnailPath}',
+                                );
+                                print(
+                                  'LambookReaderScreen: backgroundImagePath: ${project.backgroundImagePath}',
+                                );
+                                print(
+                                  'LambookReaderScreen: thumb (final): $thumb',
+                                );
+
+                                if (thumb != null) {
+                                  final file = File(thumb);
+                                  print(
+                                    'LambookReaderScreen: File exists check: ${file.existsSync()}',
+                                  );
+                                  if (file.existsSync()) {
+                                    print(
+                                      'LambookReaderScreen: File size: ${file.lengthSync()} bytes',
+                                    );
+                                  }
+                                }
+                                print('============================');
 
                                 if (thumb != null && File(thumb).existsSync()) {
                                   print(
@@ -176,21 +209,13 @@ class _LambookReaderScreenState extends State<LambookReaderScreen> {
                                             errorBuilder:
                                                 (context, error, stackTrace) {
                                                   print(
-                                                    'LambookReaderScreen: Page $index - Image load error: $error',
+                                                    'LambookReaderScreen: Page $index - Image load error: $error, falling back to canvas renderer',
                                                   );
-                                                  return Container(
-                                                    decoration: BoxDecoration(
-                                                      color: project
-                                                          .canvasBackgroundColor
-                                                          .toColor(),
-                                                    ),
-                                                    child: Center(
-                                                      child: Icon(
-                                                        Icons.broken_image,
-                                                        color: Colors.grey,
-                                                        size: 48,
-                                                      ),
-                                                    ),
+                                                  return CanvasRenderer(
+                                                    project: project,
+                                                    width: constraints.maxWidth,
+                                                    height:
+                                                        constraints.maxHeight,
                                                   );
                                                 },
                                           ),
@@ -200,15 +225,14 @@ class _LambookReaderScreenState extends State<LambookReaderScreen> {
                                   );
                                 } else {
                                   print(
-                                    'LambookReaderScreen: Page $index - No valid image, showing background color only',
+                                    'LambookReaderScreen: Page $index - No valid image, using canvas renderer',
+                                  );
+                                  return CanvasRenderer(
+                                    project: project,
+                                    width: constraints.maxWidth,
+                                    height: constraints.maxHeight,
                                   );
                                 }
-                                return Container(
-                                  decoration: BoxDecoration(
-                                    color: project.canvasBackgroundColor
-                                        .toColor(),
-                                  ),
-                                );
                               },
                             ),
                           ),
@@ -272,12 +296,11 @@ class _NavButton extends StatelessWidget {
         onTap: onPressed,
         customBorder: const CircleBorder(),
         child: Ink(
-        
           child: Padding(
             padding: EdgeInsets.all(10.w),
             child: Icon(
               icon,
-              color: const Color.fromARGB(97, 0, 0, 0) ,
+              color: const Color.fromARGB(97, 0, 0, 0),
               size: 18.w,
             ),
           ),
