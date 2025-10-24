@@ -68,6 +68,7 @@ import 'package:lamlayers/utils/image_stroke_processor.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:image_background_remover/image_background_remover.dart';
+import 'package:lamlayers/screens/image_crop_screen.dart';
 
 class PosterMakerScreen extends StatefulWidget {
   final String? projectId;
@@ -4467,7 +4468,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
       case CanvasItemType.image:
         return [
-          _miniIconButton('Edit Image', Icons.edit_rounded, _editSelectedImage),
+          _miniIconButton('Crop Image', Icons.crop_rounded, _cropSelectedImage),
 
           _miniIconButton(
             'Remove BG',
@@ -10953,13 +10954,13 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     return Column(
       children: [
         _buildOptionButton(
-          'Edit Image',
+          'Crop Image',
 
-          Icons.edit_rounded,
+          Icons.crop_rounded,
 
           Colors.purple.shade400,
 
-          _editSelectedImage,
+          _cropSelectedImage,
         ),
 
         SizedBox(height: 20.h),
@@ -14258,6 +14259,127 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Failed to edit image')));
+    }
+  }
+
+  Future<void> _cropSelectedImage() async {
+    if (selectedItem == null || selectedItem!.type != CanvasItemType.image)
+      return;
+
+    try {
+      final String? filePath = selectedItem!.properties['filePath'] as String?;
+      final String? imageUrl = selectedItem!.properties['imageUrl'] as String?;
+
+      Uint8List? imageBytes;
+
+      // Get image bytes based on source
+      if (filePath != null) {
+        imageBytes = await File(filePath).readAsBytes();
+      } else if (imageUrl != null) {
+        // For network images, download first
+        final response = await http.get(Uri.parse(imageUrl));
+        if (response.statusCode == 200) {
+          imageBytes = response.bodyBytes;
+        }
+      }
+
+      if (imageBytes == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not load image for cropping')),
+        );
+        return;
+      }
+
+      // Navigate to crop screen
+      final Uint8List? croppedBytes = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ImageCropScreen(
+            imageBytes: imageBytes!,
+            originalFilePath: filePath,
+            originalImageUrl: imageUrl,
+          ),
+        ),
+      );
+
+      // If user cropped and saved the image
+      if (croppedBytes != null) {
+        // Save cropped image to temporary file
+        final Directory tempDir = await getTemporaryDirectory();
+        final String croppedFilePath =
+            '${tempDir.path}/cropped_image_${DateTime.now().millisecondsSinceEpoch}.png';
+        final File croppedFile = File(croppedFilePath);
+        await croppedFile.writeAsBytes(croppedBytes);
+
+        // Get cropped image dimensions
+        final ui.Image decoded = await decodeImageFromList(croppedBytes);
+        final double intrinsicW = decoded.width.toDouble();
+        final double intrinsicH = decoded.height.toDouble();
+
+        // Calculate display size maintaining aspect ratio
+        const double maxEdge = 240.0;
+        double displayW = intrinsicW;
+        double displayH = intrinsicH;
+
+        if (intrinsicW > intrinsicH && intrinsicW > maxEdge) {
+          displayW = maxEdge;
+          displayH = maxEdge * (intrinsicH / intrinsicW);
+        } else if (intrinsicH >= intrinsicW && intrinsicH > maxEdge) {
+          displayH = maxEdge;
+          displayW = maxEdge * (intrinsicW / intrinsicH);
+        }
+
+        // Update the canvas item with cropped image
+        final previous = selectedItem!.copyWith();
+
+        setState(() {
+          selectedItem!.properties['filePath'] = croppedFilePath;
+          selectedItem!.properties['imageUrl'] =
+              null; // Clear network URL since we now have local file
+          selectedItem!.properties['intrinsicWidth'] = intrinsicW;
+          selectedItem!.properties['intrinsicHeight'] = intrinsicH;
+          selectedItem!.properties['displayWidth'] = displayW;
+          selectedItem!.properties['displayHeight'] = displayH;
+        });
+
+        _addAction(
+          CanvasAction(
+            type: 'modify',
+            item: selectedItem,
+            previousState: previous,
+            timestamp: DateTime.now(),
+          ),
+        );
+
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 12.w),
+                Text(
+                  'Image cropped successfully!',
+                  style: TextStyle(
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.green.shade400,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12.r),
+            ),
+            margin: EdgeInsets.all(16.w),
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to crop image: ${e.toString()}')),
+      );
     }
   }
 

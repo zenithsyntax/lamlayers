@@ -63,6 +63,7 @@ dependencies:
   connectivity_plus: ^6.0.5
   internet_connection_checker_plus: ^2.7.2
   shimmer: ^3.0.0
+  image_cropper: ^11.0.0
 
 dev_dependencies:
   flutter_test:
