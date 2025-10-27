@@ -27,12 +27,14 @@ class _LambookReaderScreenState extends State<LambookReaderScreen> {
       backgroundColor: meta.scaffoldBgColor,
       body: Stack(
         children: [
-          if (meta.scaffoldBgImagePath != null &&
-              File(meta.scaffoldBgImagePath!).existsSync())
+          if (meta.scaffoldBgImagePath != null)
             Positioned.fill(
               child: Image.file(
                 File(meta.scaffoldBgImagePath!),
                 fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return const SizedBox.shrink();
+                },
               ),
             ),
           Center(
@@ -43,7 +45,6 @@ class _LambookReaderScreenState extends State<LambookReaderScreen> {
                 height: double.infinity,
                 child: Stack(
                   children: [
-
                     //background book cover
                     Center(
                       child: Container(
@@ -68,11 +69,7 @@ class _LambookReaderScreenState extends State<LambookReaderScreen> {
                                   color: meta.rightCoverImagePath == null
                                       ? meta.rightCoverColor
                                       : null,
-                                  image:
-                                      meta.rightCoverImagePath != null &&
-                                          File(
-                                            meta.rightCoverImagePath!,
-                                          ).existsSync()
+                                  image: meta.rightCoverImagePath != null
                                       ? DecorationImage(
                                           image: FileImage(
                                             File(meta.rightCoverImagePath!),
@@ -100,11 +97,7 @@ class _LambookReaderScreenState extends State<LambookReaderScreen> {
                                   color: meta.leftCoverImagePath == null
                                       ? meta.leftCoverColor
                                       : null,
-                                  image:
-                                      meta.leftCoverImagePath != null &&
-                                          File(
-                                            meta.leftCoverImagePath!,
-                                          ).existsSync()
+                                  image: meta.leftCoverImagePath != null
                                       ? DecorationImage(
                                           image: FileImage(
                                             File(meta.leftCoverImagePath!),
@@ -141,101 +134,21 @@ class _LambookReaderScreenState extends State<LambookReaderScreen> {
                               settings: FlipSettings(
                                 startPageIndex: 0,
                                 usePortrait: false,
-                                flippingTime: 1200,swipeDistance: 1200
+                                flippingTime: 1200,
+                                swipeDistance: 1200,
                               ),
                               builder: (context, index, constraints) {
                                 if (index >= pages.length) {
-                                  print(
-                                    'LambookReaderScreen: Index $index >= pages.length ${pages.length}',
-                                  );
                                   return Container(color: Colors.white);
                                 }
                                 final project = pages[index];
-                                final thumb =
-                                    project.thumbnailPath ??
-                                    project.backgroundImagePath;
 
-                                print('=== LAMBOOK READER DEBUG ===');
-                                print(
-                                  'LambookReaderScreen: Page $index of ${pages.length}',
+                                // Always use CanvasRenderer for reliability in release builds
+                                return CanvasRenderer(
+                                  project: project,
+                                  width: constraints.maxWidth,
+                                  height: constraints.maxHeight,
                                 );
-                                print(
-                                  'LambookReaderScreen: Project name: ${project.name}',
-                                );
-                                print(
-                                  'LambookReaderScreen: Project ID: ${project.id}',
-                                );
-                                print(
-                                  'LambookReaderScreen: Canvas items count: ${project.canvasItems.length}',
-                                );
-                                print(
-                                  'LambookReaderScreen: Canvas size: ${project.canvasWidth}x${project.canvasHeight}',
-                                );
-                                print(
-                                  'LambookReaderScreen: thumbnailPath: ${project.thumbnailPath}',
-                                );
-                                print(
-                                  'LambookReaderScreen: backgroundImagePath: ${project.backgroundImagePath}',
-                                );
-                                print(
-                                  'LambookReaderScreen: thumb (final): $thumb',
-                                );
-
-                                if (thumb != null) {
-                                  final file = File(thumb);
-                                  print(
-                                    'LambookReaderScreen: File exists check: ${file.existsSync()}',
-                                  );
-                                  if (file.existsSync()) {
-                                    print(
-                                      'LambookReaderScreen: File size: ${file.lengthSync()} bytes',
-                                    );
-                                  }
-                                }
-                                print('============================');
-
-                                if (thumb != null && File(thumb).existsSync()) {
-                                  print(
-                                    'LambookReaderScreen: Page $index - File exists, displaying image',
-                                  );
-                                  return Container(
-                                    decoration: BoxDecoration(
-                                      color: project.canvasBackgroundColor
-                                          .toColor(),
-                                    ),
-                                    child: Stack(
-                                      children: [
-                                        Positioned.fill(
-                                          child: Image.file(
-                                            File(thumb),
-                                            fit: BoxFit.cover,
-                                            errorBuilder:
-                                                (context, error, stackTrace) {
-                                                  print(
-                                                    'LambookReaderScreen: Page $index - Image load error: $error, falling back to canvas renderer',
-                                                  );
-                                                  return CanvasRenderer(
-                                                    project: project,
-                                                    width: constraints.maxWidth,
-                                                    height:
-                                                        constraints.maxHeight,
-                                                  );
-                                                },
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                } else {
-                                  print(
-                                    'LambookReaderScreen: Page $index - No valid image, using canvas renderer',
-                                  );
-                                  return CanvasRenderer(
-                                    project: project,
-                                    width: constraints.maxWidth,
-                                    height: constraints.maxHeight,
-                                  );
-                                }
                               },
                             ),
                           ),
