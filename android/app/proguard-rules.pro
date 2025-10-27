@@ -31,3 +31,41 @@
 # Keep UCrop OkHttp client store
 -keep class com.yalantis.ucrop.OkHttpClientStore { *; }
 
+# Flutter/Dart specific rules
+-keep class io.flutter.** { *; }
+-dontwarn io.flutter.**
+
+# Keep Hive classes for data persistence
+-keep class **$**Adapter { *; }
+-keep class hive.** { *; }
+-dontwarn hive.**
+
+# Keep model classes
+-keep class * extends HiveObject { *; }
+-keep class * implements HiveTypeAdapterFactory { *; }
+
+# Keep serialization classes
+-keepattributes Signature
+-keepattributes *Annotation*
+-keepattributes EnclosingMethod
+-keepattributes InnerClasses
+
+# Keep all model classes in the lamlayers package
+-keep class com.zenithsyntax.lamlayers.** { *; }
+
+# Keep native methods
+-keepclasseswithmembernames class * {
+    native <methods>;
+}
+
+# Preserve line numbers for easier debugging in release builds
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
+
+# Prevent obfuscation of JSON serialization
+-keepclassmembers class * {
+    @hive.** <methods>;
+}
+-keep @hive.HiveType class *
+-keep @hive.HiveField class *
+

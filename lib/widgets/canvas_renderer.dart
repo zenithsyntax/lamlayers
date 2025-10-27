@@ -19,36 +19,52 @@ class CanvasRenderer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Check if background image file exists and is accessible
+    DecorationImage? backgroundImage;
+    if (project.backgroundImagePath != null) {
+      try {
+        final file = File(project.backgroundImagePath!);
+        if (file.existsSync()) {
+          backgroundImage = DecorationImage(
+            image: FileImage(file),
+            fit: BoxFit.cover,
+          );
+        }
+      } catch (e) {
+        // Background image file not accessible, use color only
+      }
+    }
+
+    // Get explicit sizes, ensuring they are finite and positive
+    double w = width ?? project.canvasWidth;
+    double h = height ?? project.canvasHeight;
+
+    // Ensure sizes are valid
+    if (!w.isFinite || w <= 0) w = 800;
+    if (!h.isFinite || h <= 0) h = 600;
+
+    // Get canvas items to render
+    final items = [...project.canvasItems]
+      ..sort((a, b) => a.layerIndex.compareTo(b.layerIndex));
+    final visibleItems = items.where((it) => it.isVisible).toList();
+
     return Container(
-      width: width ?? project.canvasWidth,
-      height: height ?? project.canvasHeight,
+      width: w,
+      height: h,
       decoration: BoxDecoration(
         color: project.canvasBackgroundColor.toColor(),
-        image: project.backgroundImagePath != null
-            ? DecorationImage(
-                image: FileImage(File(project.backgroundImagePath!)),
-                fit: BoxFit.cover,
-              )
-            : null,
+        image: backgroundImage,
       ),
       child: Stack(
-        children: [
-          // Render canvas items
-          ...(() {
-            final items = [...project.canvasItems]
-              ..sort((a, b) => a.layerIndex.compareTo(b.layerIndex));
-            final visibleItems = items.where((it) => it.isVisible).toList();
-            return visibleItems.map((it) => _buildCanvasItem(it)).toList();
-          })(),
-        ],
+        fit: StackFit.expand,
+        children: visibleItems.map((it) => _buildCanvasItem(it)).toList(),
       ),
     );
   }
 
   Widget _buildCanvasItem(hive_model.HiveCanvasItem item) {
-    return Positioned(
-      left: item.position.dx,
-      top: item.position.dy,
+    return Transform.translate(
+      offset: item.position,
       child: Transform.rotate(
         angle: item.rotation,
         child: Transform.scale(
@@ -156,27 +172,35 @@ class CanvasRenderer extends StatelessWidget {
     final props = item.properties;
     final filePath = props['filePath'] as String?;
 
-    if (filePath == null || !File(filePath).existsSync()) {
-      return Container(
-        width: 100,
-        height: 100,
-        color: Colors.grey[300],
-        child: const Icon(Icons.broken_image),
-      );
+    // Handle missing or inaccessible files gracefully
+    Widget errorWidget = Container(
+      width: 100,
+      height: 100,
+      color: Colors.grey[300],
+      child: const Icon(Icons.broken_image),
+    );
+
+    if (filePath == null) {
+      return errorWidget;
     }
 
-    return Image.file(
-      File(filePath),
-      fit: BoxFit.contain,
-      errorBuilder: (context, error, stackTrace) {
-        return Container(
-          width: 100,
-          height: 100,
-          color: Colors.grey[300],
-          child: const Icon(Icons.broken_image),
-        );
-      },
-    );
+    try {
+      final file = File(filePath);
+      if (!file.existsSync()) {
+        return errorWidget;
+      }
+
+      return Image.file(
+        file,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) {
+          return errorWidget;
+        },
+      );
+    } catch (e) {
+      // File access error, return error widget
+      return errorWidget;
+    }
   }
 
   Widget _buildShapeItem(hive_model.HiveCanvasItem item) {
@@ -197,23 +221,45 @@ class CanvasRenderer extends StatelessWidget {
 
     Widget shapeWidget;
 
-    if (imagePath != null && File(imagePath).existsSync()) {
-      shapeWidget = ClipRRect(
-        borderRadius: BorderRadius.circular(cornerRadius),
-        child: Image.file(
-          File(imagePath),
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return _buildBasicShape(
-              shape,
-              fillColor,
-              strokeColor,
-              strokeWidth,
-              cornerRadius,
-            );
-          },
-        ),
-      );
+    if (imagePath != null) {
+      try {
+        final file = File(imagePath);
+        if (file.existsSync()) {
+          shapeWidget = ClipRRect(
+            borderRadius: BorderRadius.circular(cornerRadius),
+            child: Image.file(
+              file,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return _buildBasicShape(
+                  shape,
+                  fillColor,
+                  strokeColor,
+                  strokeWidth,
+                  cornerRadius,
+                );
+              },
+            ),
+          );
+        } else {
+          shapeWidget = _buildBasicShape(
+            shape,
+            fillColor,
+            strokeColor,
+            strokeWidth,
+            cornerRadius,
+          );
+        }
+      } catch (e) {
+        // File access error, use basic shape
+        shapeWidget = _buildBasicShape(
+          shape,
+          fillColor,
+          strokeColor,
+          strokeWidth,
+          cornerRadius,
+        );
+      }
     } else if (imageBase64 != null && imageBase64.isNotEmpty) {
       try {
         final bytes = base64Decode(imageBase64);

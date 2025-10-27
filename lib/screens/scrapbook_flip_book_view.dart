@@ -18,9 +18,27 @@ import 'package:share_plus/share_plus.dart';
 
 class ScrapbookFlipBookView extends StatefulWidget {
   final Scrapbook scrapbook;
+  final List<PosterProject>? directPages; // For displaying lambook files
+  final String? scrapbookName;
+  final Color? scaffoldBgColor;
+  final String? scaffoldBgImagePath;
+  final Color? leftCoverColor;
+  final String? leftCoverImagePath;
+  final Color? rightCoverColor;
+  final String? rightCoverImagePath;
 
-  const ScrapbookFlipBookView({Key? key, required this.scrapbook})
-    : super(key: key);
+  const ScrapbookFlipBookView({
+    Key? key,
+    required this.scrapbook,
+    this.directPages,
+    this.scrapbookName,
+    this.scaffoldBgColor,
+    this.scaffoldBgImagePath,
+    this.leftCoverColor,
+    this.leftCoverImagePath,
+    this.rightCoverColor,
+    this.rightCoverImagePath,
+  }) : super(key: key);
 
   @override
   State<ScrapbookFlipBookView> createState() => _ScrapbookFlipBookViewState();
@@ -35,14 +53,17 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView>
   int _currentRightPage = 1; // ignore: unused_field
 
   // Customization state
-  Color _scaffoldBgColor = const Color(0xFFF1F5F9);
+  late Color _scaffoldBgColor;
   String? _scaffoldBgImagePath;
 
-  Color _rightCoverColor = const Color(0xFFD7B89C);
+  late Color _rightCoverColor;
   String? _rightCoverImagePath;
 
-  Color _leftCoverColor = const Color.fromARGB(255, 192, 161, 134);
+  late Color _leftCoverColor;
   String? _leftCoverImagePath;
+
+  // Direct pages for lambook files
+  List<PosterProject>? _directPages;
 
   bool _showArrows = true;
 
@@ -158,6 +179,17 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView>
     WidgetsBinding.instance.addObserver(this);
     _projectBox = Hive.box<PosterProject>('posterProjects');
     _pageController = PageTurnController();
+
+    // Initialize customization from passed parameters or defaults
+    _scaffoldBgColor = widget.scaffoldBgColor ?? const Color(0xFFF1F5F9);
+    _scaffoldBgImagePath = widget.scaffoldBgImagePath;
+    _rightCoverColor = widget.rightCoverColor ?? const Color(0xFFD7B89C);
+    _rightCoverImagePath = widget.rightCoverImagePath;
+    _leftCoverColor =
+        widget.leftCoverColor ?? const Color.fromARGB(255, 192, 161, 134);
+    _leftCoverImagePath = widget.leftCoverImagePath;
+    _directPages = widget.directPages;
+
     // Initialize and load Google Mobile Ads interstitial
     MobileAds.instance.initialize();
     _loadInterstitial();
@@ -944,9 +976,13 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView>
     );
   }
 
-  Widget _buildPageContent(String projectId, int pageIndex) {
+  Widget _buildPageContent(
+    String projectId,
+    int pageIndex, [
+    PosterProject? directProject,
+  ]) {
     try {
-      final project = _projectBox.get(projectId);
+      final project = directProject ?? _projectBox.get(projectId);
       if (project == null) {
         return Container(
           decoration: BoxDecoration(
@@ -1131,7 +1167,10 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView>
   }
 
   Widget _buildInteractiveBook() {
-    final pageIds = widget.scrapbook.pageProjectIds;
+    final pageIds = _directPages != null
+        ? _directPages!.map((p) => p.id).toList()
+        : widget.scrapbook.pageProjectIds;
+    final directPagesList = _directPages;
 
     // Validate scrapbook dimensions to prevent division by zero
     if (widget.scrapbook.pageWidth <= 0 || widget.scrapbook.pageHeight <= 0) {
@@ -1189,11 +1228,12 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView>
         aspectRatio: aspectRatio,
         pageViewMode: PageViewMode.double,
         onPageChanged: _onPageChanged,
-       settings: FlipSettings(
-                                startPageIndex: 0,
-                                usePortrait: false,
-                                flippingTime: 1200,swipeDistance: 1200
-                              ),
+        settings: FlipSettings(
+          startPageIndex: 0,
+          usePortrait: false,
+          flippingTime: 1200,
+          swipeDistance: 1200,
+        ),
 
         builder: (context, pageIndex, constraints) {
           if (pageIndex >= pageIds.length) {
@@ -1211,7 +1251,16 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView>
               ),
             );
           }
-          return _buildPageContent(pageIds[pageIndex], pageIndex);
+          // Use direct project if available, otherwise use ID to look up
+          final directProject =
+              directPagesList != null && pageIndex < directPagesList.length
+              ? directPagesList[pageIndex]
+              : null;
+          return _buildPageContent(
+            pageIds[pageIndex],
+            pageIndex,
+            directProject,
+          );
         },
       );
     } catch (e) {
@@ -1257,7 +1306,9 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView>
 
   @override
   Widget build(BuildContext context) {
-    final pageIds = widget.scrapbook.pageProjectIds;
+    final pageIds = _directPages != null
+        ? _directPages!.map((p) => p.id).toList()
+        : widget.scrapbook.pageProjectIds;
 
     // Debug information for release builds
     print('Lambook Debug Info:');
@@ -1341,375 +1392,387 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView>
                   fit: BoxFit.cover,
                 ),
               ),
-            Positioned(
-              top: 8,
-              right: 8,
-              child: Material(
-                color: Colors.white,
-                shape: const CircleBorder(),
-                elevation: 2,
-                child: IconButton(
-                  icon: const Icon(Icons.edit, color: Color(0xFF0F172A)),
-                  onPressed: _openEditSheet,
-                  tooltip: 'Edit view',
+            // Only show edit button if not viewing a lambook file
+            if (_directPages == null)
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Material(
+                  color: Colors.white,
+                  shape: const CircleBorder(),
+                  elevation: 2,
+                  child: IconButton(
+                    icon: const Icon(Icons.edit, color: Color(0xFF0F172A)),
+                    onPressed: _openEditSheet,
+                    tooltip: 'Edit view',
+                  ),
                 ),
               ),
-            ),
-            // Share button (bottom-left at 8,8)
-            Positioned(
-              bottom: 8,
-              right: 8,
-              child: Material(
-                color: Colors.white,
-                shape: const CircleBorder(),
-                elevation: 2,
-                child: IconButton(
-                  icon: const Icon(Icons.ios_share, color: Color(0xFF0F172A)),
-                  tooltip: 'Share flip book',
-                  onPressed: () async {
-                    // Present actions: Share file (existing) or Share Link (new)
-                    showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (ctx) {
-                        return SafeArea(
-                          child: Padding(
-                            padding: EdgeInsets.only(
-                              left: 12.w,
-                              right: 12.w,
-                              bottom: 12.h,
-                            ),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(20.r),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.08),
-                                    blurRadius: 24,
-                                    offset: const Offset(0, 8),
-                                  ),
-                                ],
+            // Only show share button if not viewing a lambook file
+            if (_directPages == null)
+              Positioned(
+                bottom: 8,
+                right: 8,
+                child: Material(
+                  color: Colors.white,
+                  shape: const CircleBorder(),
+                  elevation: 2,
+                  child: IconButton(
+                    icon: const Icon(Icons.ios_share, color: Color(0xFF0F172A)),
+                    tooltip: 'Share flip book',
+                    onPressed: () async {
+                      // Present actions: Share file (existing) or Share Link (new)
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (ctx) {
+                          return SafeArea(
+                            child: Padding(
+                              padding: EdgeInsets.only(
+                                left: 12.w,
+                                right: 12.w,
+                                bottom: 12.h,
                               ),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  // Handle
-                                  Container(
-                                    margin: EdgeInsets.only(top: 12.h),
-                                    width: 40.w,
-                                    height: 4.h,
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFE2E8F0),
-                                      borderRadius: BorderRadius.circular(2.r),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(20.r),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.08),
+                                      blurRadius: 24,
+                                      offset: const Offset(0, 8),
                                     ),
-                                  ),
-                                  // Header
-                                  Padding(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: 16.w,
-                                      vertical: 12.h,
+                                  ],
+                                ),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    // Handle
+                                    Container(
+                                      margin: EdgeInsets.only(top: 12.h),
+                                      width: 40.w,
+                                      height: 4.h,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFE2E8F0),
+                                        borderRadius: BorderRadius.circular(
+                                          2.r,
+                                        ),
+                                      ),
                                     ),
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                'Share Lambook',
-                                                style: GoogleFonts.inter(
-                                                  fontSize: 18.sp,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: const Color(
-                                                    0xFF0F172A,
+                                    // Header
+                                    Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: 16.w,
+                                        vertical: 12.h,
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  'Share Lambook',
+                                                  style: GoogleFonts.inter(
+                                                    fontSize: 18.sp,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: const Color(
+                                                      0xFF0F172A,
+                                                    ),
                                                   ),
                                                 ),
-                                              ),
-                                              SizedBox(height: 4.h),
-                                              Text(
-                                                'Choose how you want to share your flip book',
-                                                style: GoogleFonts.inter(
-                                                  fontSize: 13.sp,
-                                                  color: const Color(
-                                                    0xFF64748B,
+                                                SizedBox(height: 4.h),
+                                                Text(
+                                                  'Choose how you want to share your flip book',
+                                                  style: GoogleFonts.inter(
+                                                    fontSize: 13.sp,
+                                                    color: const Color(
+                                                      0xFF64748B,
+                                                    ),
                                                   ),
                                                 ),
-                                              ),
-                                            ],
+                                              ],
+                                            ),
                                           ),
-                                        ),
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.close_rounded,
-                                            color: Color(0xFF64748B),
+                                          IconButton(
+                                            icon: const Icon(
+                                              Icons.close_rounded,
+                                              color: Color(0xFF64748B),
+                                            ),
+                                            onPressed: () => Navigator.pop(ctx),
                                           ),
-                                          onPressed: () => Navigator.pop(ctx),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                  Divider(height: 1.h),
-                                  Padding(
-                                    padding: EdgeInsets.all(12.r),
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        // Option: Share file
-                                        _ShareOptionCard(
-                                          icon:
-                                              Icons.insert_drive_file_outlined,
-                                          iconBg: const Color(0xFFEEF2FF),
-                                          iconColor: const Color(0xFF6366F1),
-                                          title: 'Share file (.lambook)',
-                                          subtitle:
-                                              'Export a portable lambook file',
-                                          onTap: () async {
-                                            Navigator.pop(ctx);
-                                            await _showAdIfAvailable(
-                                              onAfter: () async {
-                                                final granted =
-                                                    await _ensureFileAccessPermission();
-                                                if (!granted) {
-                                                  if (!mounted) return;
-                                                  ScaffoldMessenger.of(
-                                                    context,
-                                                  ).showSnackBar(
-                                                    const SnackBar(
-                                                      content: Text(
-                                                        'Storage permission is required to share the file',
+                                    Divider(height: 1.h),
+                                    Padding(
+                                      padding: EdgeInsets.all(12.r),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          // Option: Share file
+                                          _ShareOptionCard(
+                                            icon: Icons
+                                                .insert_drive_file_outlined,
+                                            iconBg: const Color(0xFFEEF2FF),
+                                            iconColor: const Color(0xFF6366F1),
+                                            title: 'Share file (.lambook)',
+                                            subtitle:
+                                                'Export a portable lambook file',
+                                            onTap: () async {
+                                              Navigator.pop(ctx);
+                                              await _showAdIfAvailable(
+                                                onAfter: () async {
+                                                  final granted =
+                                                      await _ensureFileAccessPermission();
+                                                  if (!granted) {
+                                                    if (!mounted) return;
+                                                    ScaffoldMessenger.of(
+                                                      context,
+                                                    ).showSnackBar(
+                                                      const SnackBar(
+                                                        content: Text(
+                                                          'Storage permission is required to share the file',
+                                                        ),
                                                       ),
+                                                    );
+                                                    return;
+                                                  }
+                                                  final ids = widget
+                                                      .scrapbook
+                                                      .pageProjectIds;
+                                                  final List<PosterProject>
+                                                  pages = [];
+                                                  for (final id in ids) {
+                                                    final p = _projectBox.get(
+                                                      id,
+                                                    );
+                                                    if (p != null) pages.add(p);
+                                                  }
+                                                  if (pages.isEmpty) return;
+                                                  showDialog(
+                                                    context: context,
+                                                    barrierDismissible: false,
+                                                    builder: (_) => const Center(
+                                                      child:
+                                                          CircularProgressIndicator(),
                                                     ),
                                                   );
-                                                  return;
-                                                }
-                                                final ids = widget
-                                                    .scrapbook
-                                                    .pageProjectIds;
-                                                final List<PosterProject>
-                                                pages = [];
-                                                for (final id in ids) {
-                                                  final p = _projectBox.get(id);
-                                                  if (p != null) pages.add(p);
-                                                }
-                                                if (pages.isEmpty) return;
-                                                showDialog(
-                                                  context: context,
-                                                  barrierDismissible: false,
-                                                  builder: (_) => const Center(
-                                                    child:
-                                                        CircularProgressIndicator(),
-                                                  ),
-                                                );
-                                                try {
-                                                  final String? path =
-                                                      await ExportManager.exportScrapbookLambook(
-                                                        scrapbook:
-                                                            widget.scrapbook,
-                                                        pages: pages,
-                                                        scaffoldBgColor:
-                                                            _scaffoldBgColor,
-                                                        scaffoldBgImagePath:
-                                                            _scaffoldBgImagePath,
-                                                        leftCoverColor:
-                                                            _leftCoverColor,
-                                                        leftCoverImagePath:
-                                                            _leftCoverImagePath,
-                                                        rightCoverColor:
-                                                            _rightCoverColor,
-                                                        rightCoverImagePath:
-                                                            _rightCoverImagePath,
+                                                  try {
+                                                    final String?
+                                                    path = await ExportManager.exportScrapbookLambook(
+                                                      scrapbook:
+                                                          widget.scrapbook,
+                                                      pages: pages,
+                                                      scaffoldBgColor:
+                                                          _scaffoldBgColor,
+                                                      scaffoldBgImagePath:
+                                                          _scaffoldBgImagePath,
+                                                      leftCoverColor:
+                                                          _leftCoverColor,
+                                                      leftCoverImagePath:
+                                                          _leftCoverImagePath,
+                                                      rightCoverColor:
+                                                          _rightCoverColor,
+                                                      rightCoverImagePath:
+                                                          _rightCoverImagePath,
+                                                    );
+                                                    if (path != null) {
+                                                      await ExportManager.shareLambook(
+                                                        path,
                                                       );
-                                                  if (path != null) {
-                                                    await ExportManager.shareLambook(
-                                                      path,
+                                                      if (mounted) {
+                                                        ScaffoldMessenger.of(
+                                                          context,
+                                                        ).showSnackBar(
+                                                          const SnackBar(
+                                                            content: Text(
+                                                              'Lambook exported and shared successfully!',
+                                                            ),
+                                                            backgroundColor:
+                                                                Colors.green,
+                                                          ),
+                                                        );
+                                                      }
+                                                    } else {
+                                                      if (mounted) {
+                                                        ScaffoldMessenger.of(
+                                                          context,
+                                                        ).showSnackBar(
+                                                          const SnackBar(
+                                                            content: Text(
+                                                              'Failed to export lambook. Please try again.',
+                                                            ),
+                                                            backgroundColor:
+                                                                Colors.red,
+                                                          ),
+                                                        );
+                                                      }
+                                                    }
+                                                  } catch (e) {
+                                                    print(
+                                                      'Error exporting lambook: $e',
                                                     );
                                                     if (mounted) {
                                                       ScaffoldMessenger.of(
                                                         context,
                                                       ).showSnackBar(
-                                                        const SnackBar(
+                                                        SnackBar(
                                                           content: Text(
-                                                            'Lambook exported and shared successfully!',
-                                                          ),
-                                                          backgroundColor:
-                                                              Colors.green,
-                                                        ),
-                                                      );
-                                                    }
-                                                  } else {
-                                                    if (mounted) {
-                                                      ScaffoldMessenger.of(
-                                                        context,
-                                                      ).showSnackBar(
-                                                        const SnackBar(
-                                                          content: Text(
-                                                            'Failed to export lambook. Please try again.',
+                                                            'Export failed: ${e.toString()}',
                                                           ),
                                                           backgroundColor:
                                                               Colors.red,
                                                         ),
                                                       );
                                                     }
+                                                  } finally {
+                                                    if (mounted) {
+                                                      Navigator.of(
+                                                        context,
+                                                        rootNavigator: true,
+                                                      ).pop();
+                                                    }
                                                   }
-                                                } catch (e) {
-                                                  print(
-                                                    'Error exporting lambook: $e',
-                                                  );
-                                                  if (mounted) {
+                                                },
+                                              );
+                                            },
+                                          ),
+                                          SizedBox(height: 10.h),
+                                          // Option: Share link
+                                          _ShareOptionCard(
+                                            icon: Icons.link,
+                                            iconBg: const Color(0xFFEFFCF5),
+                                            iconColor: const Color(0xFF10B981),
+                                            title: 'Share link',
+                                            subtitle:
+                                                'Upload to Drive and send a web link',
+                                            onTap: () async {
+                                              Navigator.pop(ctx);
+                                              await _showAdIfAvailable(
+                                                onAfter: () async {
+                                                  // Ensure Google account first (for Drive upload)
+                                                  final account =
+                                                      await _ensureSignedInToGoogle();
+                                                  if (account == null) {
+                                                    if (!mounted) return;
                                                     ScaffoldMessenger.of(
                                                       context,
                                                     ).showSnackBar(
-                                                      SnackBar(
+                                                      const SnackBar(
                                                         content: Text(
-                                                          'Export failed: ${e.toString()}',
+                                                          'Google sign-in is required to share a link',
                                                         ),
-                                                        backgroundColor:
-                                                            Colors.red,
                                                       ),
                                                     );
+                                                    return;
                                                   }
-                                                } finally {
-                                                  if (mounted) {
-                                                    Navigator.of(
-                                                      context,
-                                                      rootNavigator: true,
-                                                    ).pop();
+                                                  final ids = widget
+                                                      .scrapbook
+                                                      .pageProjectIds;
+                                                  final List<PosterProject>
+                                                  pages = [];
+                                                  for (final id in ids) {
+                                                    final p = _projectBox.get(
+                                                      id,
+                                                    );
+                                                    if (p != null) pages.add(p);
                                                   }
-                                                }
-                                              },
-                                            );
-                                          },
-                                        ),
-                                        SizedBox(height: 10.h),
-                                        // Option: Share link
-                                        _ShareOptionCard(
-                                          icon: Icons.link,
-                                          iconBg: const Color(0xFFEFFCF5),
-                                          iconColor: const Color(0xFF10B981),
-                                          title: 'Share link',
-                                          subtitle:
-                                              'Upload to Drive and send a web link',
-                                          onTap: () async {
-                                            Navigator.pop(ctx);
-                                            await _showAdIfAvailable(
-                                              onAfter: () async {
-                                                // Ensure Google account first (for Drive upload)
-                                                final account =
-                                                    await _ensureSignedInToGoogle();
-                                                if (account == null) {
-                                                  if (!mounted) return;
-                                                  ScaffoldMessenger.of(
-                                                    context,
-                                                  ).showSnackBar(
-                                                    const SnackBar(
-                                                      content: Text(
-                                                        'Google sign-in is required to share a link',
-                                                      ),
+                                                  if (pages.isEmpty) return;
+                                                  showDialog(
+                                                    context: context,
+                                                    barrierDismissible: false,
+                                                    builder: (_) => const Center(
+                                                      child:
+                                                          CircularProgressIndicator(),
                                                     ),
                                                   );
-                                                  return;
-                                                }
-                                                final ids = widget
-                                                    .scrapbook
-                                                    .pageProjectIds;
-                                                final List<PosterProject>
-                                                pages = [];
-                                                for (final id in ids) {
-                                                  final p = _projectBox.get(id);
-                                                  if (p != null) pages.add(p);
-                                                }
-                                                if (pages.isEmpty) return;
-                                                showDialog(
-                                                  context: context,
-                                                  barrierDismissible: false,
-                                                  builder: (_) => const Center(
-                                                    child:
-                                                        CircularProgressIndicator(),
-                                                  ),
-                                                );
-                                                try {
-                                                  // 1) Export .lambook locally
-                                                  final String? path =
-                                                      await ExportManager.exportScrapbookLambook(
-                                                        scrapbook:
-                                                            widget.scrapbook,
-                                                        pages: pages,
-                                                        scaffoldBgColor:
-                                                            _scaffoldBgColor,
-                                                        scaffoldBgImagePath:
-                                                            _scaffoldBgImagePath,
-                                                        leftCoverColor:
-                                                            _leftCoverColor,
-                                                        leftCoverImagePath:
-                                                            _leftCoverImagePath,
-                                                        rightCoverColor:
-                                                            _rightCoverColor,
-                                                        rightCoverImagePath:
-                                                            _rightCoverImagePath,
-                                                      );
-                                                  if (path == null) return;
+                                                  try {
+                                                    // 1) Export .lambook locally
+                                                    final String?
+                                                    path = await ExportManager.exportScrapbookLambook(
+                                                      scrapbook:
+                                                          widget.scrapbook,
+                                                      pages: pages,
+                                                      scaffoldBgColor:
+                                                          _scaffoldBgColor,
+                                                      scaffoldBgImagePath:
+                                                          _scaffoldBgImagePath,
+                                                      leftCoverColor:
+                                                          _leftCoverColor,
+                                                      leftCoverImagePath:
+                                                          _leftCoverImagePath,
+                                                      rightCoverColor:
+                                                          _rightCoverColor,
+                                                      rightCoverImagePath:
+                                                          _rightCoverImagePath,
+                                                    );
+                                                    if (path == null) return;
 
-                                                  // 2) Upload to Google Drive and make public
-                                                  final fileBytes = await File(
-                                                    path,
-                                                  ).readAsBytes();
-                                                  final driveService =
-                                                      GoogleDriveShareService();
-                                                  final fileId = await driveService
-                                                      .uploadAndMakePublic(
-                                                        fileName:
-                                                            widget
-                                                                .scrapbook
-                                                                .name
-                                                                .endsWith(
-                                                                  '.lambook',
-                                                                )
-                                                            ? widget
+                                                    // 2) Upload to Google Drive and make public
+                                                    final fileBytes =
+                                                        await File(
+                                                          path,
+                                                        ).readAsBytes();
+                                                    final driveService =
+                                                        GoogleDriveShareService();
+                                                    final fileId = await driveService
+                                                        .uploadAndMakePublic(
+                                                          fileName:
+                                                              widget
                                                                   .scrapbook
                                                                   .name
-                                                            : '${widget.scrapbook.name}.lambook',
-                                                        bytes: fileBytes,
-                                                        mimeType:
-                                                            'application/octet-stream',
-                                                      );
+                                                                  .endsWith(
+                                                                    '.lambook',
+                                                                  )
+                                                              ? widget
+                                                                    .scrapbook
+                                                                    .name
+                                                              : '${widget.scrapbook.name}.lambook',
+                                                          bytes: fileBytes,
+                                                          mimeType:
+                                                              'application/octet-stream',
+                                                        );
 
-                                                  // 3) Build web viewer URL
-                                                  final viewerUrl =
-                                                      'https://$firebaseWebDomain/?file='
-                                                      'https://drive.google.com/uc?id=$fileId&export=download';
+                                                    // 3) Build web viewer URL
+                                                    final viewerUrl =
+                                                        'https://$firebaseWebDomain/?file='
+                                                        'https://drive.google.com/uc?id=$fileId&export=download';
 
-                                                  await Share.share(viewerUrl);
-                                                } catch (_) {
-                                                } finally {
-                                                  if (mounted) {
-                                                    Navigator.of(
-                                                      context,
-                                                      rootNavigator: true,
-                                                    ).pop();
+                                                    await Share.share(
+                                                      viewerUrl,
+                                                    );
+                                                  } catch (_) {
+                                                  } finally {
+                                                    if (mounted) {
+                                                      Navigator.of(
+                                                        context,
+                                                        rootNavigator: true,
+                                                      ).pop();
+                                                    }
                                                   }
-                                                }
-                                              },
-                                            );
-                                          },
-                                        ),
-                                        SizedBox(height: 6.h),
-                                      ],
+                                                },
+                                              );
+                                            },
+                                          ),
+                                          SizedBox(height: 6.h),
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
-                        );
-                      },
-                    );
-                  },
+                          );
+                        },
+                      );
+                    },
+                  ),
                 ),
               ),
-            ),
             Center(
               child: RotatedBox(
                 quarterTurns: 1,
@@ -1718,7 +1781,6 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView>
                   height: double.infinity,
                   child: Stack(
                     children: [
-                    
                       // 🟤 Background book cover (below)
                       Center(
                         child: Container(

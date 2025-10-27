@@ -358,6 +358,18 @@ class _CanvasPresetScreenState extends State<CanvasPresetScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SizedBox(height: 24.h),
+
+              _categorySection('Lambook', Icons.camera_alt_rounded, [
+              _presetCard(
+                title: 'Lambook Page',
+                width: 1600,
+                height: 1200,
+                icon: Icons.menu_book_rounded,
+              ),
+       
+            ]),
+
+
             _categorySection('Instagram', Icons.camera_alt_rounded, [
               _presetCard(
                 title: 'Profile Picture',

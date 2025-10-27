@@ -10,7 +10,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:lamlayers/utils/export_manager.dart';
 import 'package:lamlayers/screens/poster_maker_screen.dart';
-import 'package:lamlayers/screens/lambook_reader_screen.dart';
+import 'package:lamlayers/screens/scrapbook_flip_book_view.dart';
 import 'package:lamlayers/widgets/connectivity_overlay.dart';
 import 'package:archive/archive.dart';
 
@@ -385,15 +385,37 @@ class _DeepLinkHostState extends State<DeepLinkHost> {
 
           try {
             print(
-              'DeepLinkHost: Attempting navigation to LambookReaderScreen...',
+              'DeepLinkHost: Attempting navigation to ScrapbookFlipBookView...',
             );
+
+            // Create a dummy Scrapbook for the viewer
+            final scrapbook = Scrapbook(
+              id: data.meta.id,
+              name: data.meta.name,
+              createdAt: DateTime.now(),
+              lastModified: DateTime.now(),
+              pageProjectIds: data.pages.map((p) => p.id).toList(),
+              pageWidth: data.meta.pageWidth,
+              pageHeight: data.meta.pageHeight,
+            );
+
             Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) => LambookReaderScreen(lambook: data),
+                builder: (_) => ScrapbookFlipBookView(
+                  scrapbook: scrapbook,
+                  directPages: data.pages,
+                  scrapbookName: data.meta.name,
+                  scaffoldBgColor: data.meta.scaffoldBgColor,
+                  scaffoldBgImagePath: data.meta.scaffoldBgImagePath,
+                  leftCoverColor: data.meta.leftCoverColor,
+                  leftCoverImagePath: data.meta.leftCoverImagePath,
+                  rightCoverColor: data.meta.rightCoverColor,
+                  rightCoverImagePath: data.meta.rightCoverImagePath,
+                ),
               ),
             );
             print(
-              'DeepLinkHost: Successfully navigated to LambookReaderScreen',
+              'DeepLinkHost: Successfully navigated to ScrapbookFlipBookView',
             );
           } catch (e) {
             print('DeepLinkHost: Navigation error: $e');

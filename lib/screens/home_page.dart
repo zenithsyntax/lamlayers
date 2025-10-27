@@ -8,7 +8,7 @@ import 'package:lamlayers/screens/canvas_preset_screen.dart';
 import 'package:lamlayers/screens/hive_model.dart';
 import 'package:lamlayers/screens/scrapbook_manager_screen.dart';
 import 'package:lamlayers/screens/settings_screen.dart';
-import 'package:lamlayers/screens/lambook_reader_screen.dart';
+import 'package:lamlayers/screens/scrapbook_flip_book_view.dart';
 import 'package:lamlayers/utils/export_manager.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:file_picker/file_picker.dart';
@@ -285,10 +285,31 @@ class _HomePageState extends State<HomePage>
           Navigator.of(context).pop();
 
           if (lambook != null) {
+            // Create a dummy Scrapbook for the viewer
+            final scrapbook = Scrapbook(
+              id: lambook.meta.id,
+              name: lambook.meta.name,
+              createdAt: DateTime.now(),
+              lastModified: DateTime.now(),
+              pageProjectIds: lambook.pages.map((p) => p.id).toList(),
+              pageWidth: lambook.meta.pageWidth,
+              pageHeight: lambook.meta.pageHeight,
+            );
+
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => LambookReaderScreen(lambook: lambook),
+                builder: (context) => ScrapbookFlipBookView(
+                  scrapbook: scrapbook,
+                  directPages: lambook.pages,
+                  scrapbookName: lambook.meta.name,
+                  scaffoldBgColor: lambook.meta.scaffoldBgColor,
+                  scaffoldBgImagePath: lambook.meta.scaffoldBgImagePath,
+                  leftCoverColor: lambook.meta.leftCoverColor,
+                  leftCoverImagePath: lambook.meta.leftCoverImagePath,
+                  rightCoverColor: lambook.meta.rightCoverColor,
+                  rightCoverImagePath: lambook.meta.rightCoverImagePath,
+                ),
               ),
             );
 

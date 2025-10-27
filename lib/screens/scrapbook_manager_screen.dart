@@ -1562,14 +1562,7 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
           ],
         ),
         actions: [
-          IconButton(
-            icon: Icon(
-              Icons.high_quality_rounded,
-              color: const Color(0xFF64748B),
-            ),
-            onPressed: () => _regenerateHighQualityThumbnails(),
-            tooltip: 'Regenerate High-Quality Thumbnails',
-          ),
+          
           IconButton(
             icon: Icon(Icons.menu_book_rounded, color: const Color(0xFF64748B)),
             onPressed: () => _openFlipBookView(),
