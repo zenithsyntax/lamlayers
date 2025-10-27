@@ -32,6 +32,9 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen> {
   final ImagePicker _imagePicker = ImagePicker();
   final ScreenshotController _screenshotController = ScreenshotController();
 
+  // Current image path (local state)
+  String? _currentImagePath;
+
   // Image transformation state
   BoxFit _selectedFit = BoxFit.cover;
   Offset _offset = Offset.zero;
@@ -41,6 +44,20 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen> {
   bool get _hasChanges => _scale != 1.0 || _offset != Offset.zero;
   bool _isCapturing = false;
 
+  @override
+  void initState() {
+    super.initState();
+    _currentImagePath = widget.currentImagePath;
+  }
+
+  @override
+  void didUpdateWidget(ReplaceImageScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.currentImagePath != oldWidget.currentImagePath) {
+      _currentImagePath = widget.currentImagePath;
+    }
+  }
+
   Future<void> _pickImage() async {
     try {
       final XFile? picked = await _imagePicker.pickImage(
@@ -49,6 +66,9 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen> {
       );
 
       if (picked != null && mounted) {
+        setState(() {
+          _currentImagePath = picked.path;
+        });
         widget.onImageSelected(picked.path);
         _resetTransformations(); // Reset transformations for new image
       }
@@ -154,8 +174,7 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen> {
     if (!mounted) return;
 
     final hasImage =
-        widget.currentImagePath != null &&
-        File(widget.currentImagePath!).existsSync();
+        _currentImagePath != null && File(_currentImagePath!).existsSync();
 
     if (hasImage) {
       // Always capture and crop the image to exact container size
@@ -176,8 +195,7 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen> {
   @override
   Widget build(BuildContext context) {
     final hasImage =
-        widget.currentImagePath != null &&
-        File(widget.currentImagePath!).existsSync();
+        _currentImagePath != null && File(_currentImagePath!).existsSync();
 
     return Scaffold(
       backgroundColor: Colors.black.withOpacity(0.9),
@@ -239,6 +257,10 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen> {
               children: [
                 _buildImageContainer(hasImage),
                 SizedBox(height: 24.h),
+                if (hasImage) ...[
+                  _buildReplaceImageButton(),
+                  SizedBox(height: 16.h),
+                ],
                 _buildInstructions(),
               ],
             ),
@@ -292,7 +314,7 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen> {
           child: Transform.scale(
             scale: _scale,
             child: Image.file(
-              File(widget.currentImagePath!),
+              File(_currentImagePath!),
               fit: _selectedFit,
               width: widget.imageWidth,
               height: widget.imageHeight,
@@ -347,6 +369,36 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen> {
                 ],
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReplaceImageButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: _pickImage,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.white.withOpacity(0.9),
+          padding: EdgeInsets.symmetric(vertical: 14.h),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12.r),
+          ),
+          elevation: 2,
+        ),
+        icon: Icon(
+          Icons.photo_library_outlined,
+          color: const Color(0xFF6366F1),
+          size: 20.sp,
+        ),
+        label: Text(
+          'Replace Image',
+          style: TextStyle(
+            color: const Color(0xFF6366F1),
+            fontSize: 15.sp,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ),
