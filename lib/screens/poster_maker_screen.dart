@@ -36,6 +36,7 @@ import 'package:lamlayers/widgets/ad_banner.dart';
 import 'package:flutter/services.dart';
 
 import 'package:lamlayers/screens/add_images.dart';
+import 'package:lamlayers/screens/replace_image_screen.dart';
 
 import 'package:lamlayers/widgets/export_dialog.dart' as export_dialog;
 import 'package:lamlayers/utils/export_manager.dart';
@@ -4667,7 +4668,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
             Icons.photo_library_rounded,
 
-            () => _pickImage(replace: true),
+            _replaceImage,
           ),
 
           // _miniColorSwatch('Tint', selectedItem!.properties['tint'] as Color? ?? Colors.transparent,
@@ -11192,9 +11193,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
           Colors.blue.shade400,
 
-          () {
-            _pickImage(replace: true);
-          },
+          _replaceImage,
         ),
 
         SizedBox(height: 20.h),
@@ -12718,6 +12717,122 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         );
       },
     );
+  }
+
+  Future<void> _replaceImage() async {
+    if (selectedItem == null || selectedItem!.type != CanvasItemType.image)
+      return;
+
+    final String? currentImagePath =
+        selectedItem!.properties['filePath'] as String?;
+    final double imageWidth =
+        (selectedItem!.properties['displayWidth'] as double?) ?? 200.0;
+    final double imageHeight =
+        (selectedItem!.properties['displayHeight'] as double?) ?? 200.0;
+
+    final String? resultPath = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ReplaceImageScreen(
+          currentImagePath: currentImagePath,
+          imageWidth: imageWidth,
+          imageHeight: imageHeight,
+          onImageSelected: (String newImagePath) async {
+            if (selectedItem == null) return;
+
+            try {
+              // Decode intrinsic dimensions to preserve original aspect ratio
+              final File file = File(newImagePath);
+              final Uint8List bytes = await file.readAsBytes();
+              final ui.Image decoded = await decodeImageFromList(bytes);
+
+              final double intrinsicW = decoded.width.toDouble();
+              final double intrinsicH = decoded.height.toDouble();
+
+              // Set an initial displayed size that fits within a reasonable box while keeping ratio
+              const double maxEdge =
+                  240.0; // logical px baseline before user scaling
+
+              double displayW = intrinsicW;
+              double displayH = intrinsicH;
+
+              if (intrinsicW > intrinsicH && intrinsicW > maxEdge) {
+                displayW = maxEdge;
+                displayH = maxEdge * (intrinsicH / intrinsicW);
+              } else if (intrinsicH >= intrinsicW && intrinsicH > maxEdge) {
+                displayH = maxEdge;
+                displayW = maxEdge * (intrinsicW / intrinsicH);
+              }
+
+              final previous = selectedItem!.copyWith();
+
+              setState(() {
+                selectedItem!.properties['filePath'] = newImagePath;
+                selectedItem!.properties['intrinsicWidth'] = intrinsicW;
+                selectedItem!.properties['intrinsicHeight'] = intrinsicH;
+                selectedItem!.properties['displayWidth'] = displayW;
+                selectedItem!.properties['displayHeight'] = displayH;
+              });
+
+              _addAction(
+                CanvasAction(
+                  type: 'modify',
+                  item: selectedItem,
+                  previousState: previous,
+                  timestamp: DateTime.now(),
+                ),
+              );
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Failed to replace image')),
+                );
+              }
+            }
+          },
+        ),
+      ),
+    );
+
+    // Handle the cropped image result from the Done button
+    if (resultPath != null && resultPath.isNotEmpty && selectedItem != null) {
+      try {
+        // The result is already cropped to the exact container size
+        final File file = File(resultPath);
+        final Uint8List bytes = await file.readAsBytes();
+        final ui.Image decoded = await decodeImageFromList(bytes);
+
+        final double intrinsicW = decoded.width.toDouble();
+        final double intrinsicH = decoded.height.toDouble();
+
+        final previous = selectedItem!.copyWith();
+
+        setState(() {
+          // Update with cropped image - keep display size as specified container size
+          selectedItem!.properties['filePath'] = resultPath;
+          selectedItem!.properties['intrinsicWidth'] = intrinsicW;
+          selectedItem!.properties['intrinsicHeight'] = intrinsicH;
+          // Keep the display size the same as the container it was cropped for
+          selectedItem!.properties['displayWidth'] = imageWidth;
+          selectedItem!.properties['displayHeight'] = imageHeight;
+        });
+
+        _addAction(
+          CanvasAction(
+            type: 'modify',
+            item: selectedItem,
+            previousState: previous,
+            timestamp: DateTime.now(),
+          ),
+        );
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to apply cropped image: $e')),
+          );
+        }
+      }
+    }
   }
 
   Future<void> _pickImage({bool replace = false}) async {
