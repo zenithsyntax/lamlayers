@@ -8,7 +8,7 @@ import 'package:screenshot/screenshot.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:image/image.dart' as img;
 
-/// Professional screen for replacing and adjusting images with enhanced UX.
+/// Professional screen for replacing and adjusting images with clean black & white design.
 class ReplaceImageScreen extends StatefulWidget {
   final String? currentImagePath;
   final double imageWidth;
@@ -125,12 +125,10 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen>
             ),
           ],
         ),
-        backgroundColor: isError
-            ? const Color(0xFFEF4444)
-            : const Color(0xFF10B981),
+        backgroundColor: isError ? Colors.red : Colors.green,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12.r),
+          borderRadius: BorderRadius.circular(8.r),
         ),
         margin: EdgeInsets.all(16.w),
         duration: const Duration(seconds: 2),
@@ -235,12 +233,10 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen>
         _currentImagePath != null && File(_currentImagePath!).existsSync();
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
-      extendBodyBehindAppBar: true,
+      backgroundColor: Colors.black,
       appBar: _buildAppBar(hasImage),
       body: Stack(
         children: [
-          _buildGradientBackground(),
           SafeArea(
             child: FadeTransition(
               opacity: _fadeAnimation,
@@ -278,17 +274,10 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen>
 
   PreferredSizeWidget _buildAppBar(bool hasImage) {
     return AppBar(
-      backgroundColor: Colors.transparent,
+      backgroundColor: Colors.black,
       elevation: 0,
       leading: IconButton(
-        icon: Container(
-          padding: EdgeInsets.all(8.w),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.1),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(Icons.close, color: Colors.white, size: 20.sp),
-        ),
+        icon: Icon(Icons.close, color: Colors.white, size: 24.sp),
         onPressed: () => Navigator.pop(context),
       ),
       title: Text(
@@ -297,32 +286,22 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen>
           color: Colors.white,
           fontSize: 18.sp,
           fontWeight: FontWeight.w600,
-          letterSpacing: -0.5,
         ),
       ),
       centerTitle: true,
       actions: [
         if (hasImage)
           IconButton(
-            icon: Container(
-              padding: EdgeInsets.all(8.w),
-              decoration: BoxDecoration(
-                color: _hasChanges
-                    ? Colors.white.withOpacity(0.15)
-                    : Colors.transparent,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.refresh_rounded,
-                color: _hasChanges ? Colors.white : Colors.white38,
-                size: 20.sp,
-              ),
+            icon: Icon(
+              Icons.refresh_rounded,
+              color: _hasChanges ? Colors.white : Colors.grey,
+              size: 24.sp,
             ),
             onPressed: _hasChanges ? _resetTransformations : null,
             tooltip: 'Reset',
           ),
         Padding(
-          padding: EdgeInsets.only(right: 12.w),
+          padding: EdgeInsets.only(right: 8.w),
           child: Center(child: _buildDoneButton()),
         ),
       ],
@@ -330,51 +309,22 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen>
   }
 
   Widget _buildDoneButton() {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(24.r),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF6366F1).withOpacity(0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: _isProcessing ? null : _handleDone,
-          borderRadius: BorderRadius.circular(24.r),
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 10.h),
-            child: Text(
-              'Done',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 15.sp,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.3,
-              ),
-            ),
-          ),
+    return ElevatedButton(
+      onPressed: _isProcessing ? null : _handleDone,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        elevation: 0,
+        padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 12.h),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8.r),
         ),
       ),
-    );
-  }
-
-  Widget _buildGradientBackground() {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF0F172A), Color(0xFF1E293B), Color(0xFF0F172A)],
+      child: Text(
+        'Done',
+        style: TextStyle(
+          fontSize: 15.sp,
+          fontWeight: FontWeight.w600,
         ),
       ),
     );
@@ -390,31 +340,17 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen>
           border: _isCapturing
               ? null
               : Border.all(
-                  color: hasImage
-                      ? Colors.white.withOpacity(0.2)
-                      : Colors.white.withOpacity(0.1),
+                  color: hasImage ? Colors.white : Colors.grey.shade800,
                   width: 2,
                 ),
-          borderRadius: BorderRadius.zero,
-          boxShadow: hasImage
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
-                    blurRadius: 24,
-                    offset: const Offset(0, 8),
-                  ),
-                ]
-              : [],
+          color: Colors.grey.shade900,
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.zero,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              if (hasImage) _buildImageWithGestures(),
-              if (!hasImage) _buildAddImageButton(),
-            ],
-          ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            if (hasImage) _buildImageWithGestures(),
+            if (!hasImage) _buildAddImageButton(),
+          ],
         ),
       ),
     );
@@ -435,7 +371,7 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen>
         _previousScale = 1.0;
       },
       child: Container(
-        color: const Color(0xFF1E293B),
+        color: Colors.grey.shade900,
         child: ClipRect(
           child: Transform.translate(
             offset: _offset,
@@ -459,12 +395,8 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen>
       color: Colors.transparent,
       child: InkWell(
         onTap: _pickImage,
-        borderRadius: BorderRadius.zero,
         child: Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFF1E293B),
-            borderRadius: BorderRadius.zero,
-          ),
+          color: Colors.grey.shade900,
           child: Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -472,24 +404,13 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen>
                 Container(
                   padding: EdgeInsets.all(24.w),
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
+                    color: Colors.white,
                     shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF6366F1).withOpacity(0.4),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
                   ),
                   child: Icon(
                     Icons.add_photo_alternate_rounded,
                     size: 40.sp,
-                    color: Colors.white,
+                    color: Colors.black,
                   ),
                 ),
                 SizedBox(height: 20.h),
@@ -499,14 +420,13 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen>
                     color: Colors.white,
                     fontSize: 20.sp,
                     fontWeight: FontWeight.w700,
-                    letterSpacing: -0.5,
                   ),
                 ),
                 SizedBox(height: 8.h),
                 Text(
                   'Tap to select from gallery',
                   style: TextStyle(
-                    color: Colors.white54,
+                    color: Colors.grey.shade400,
                     fontSize: 14.sp,
                     fontWeight: FontWeight.w400,
                   ),
@@ -540,22 +460,15 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen>
   }) {
     return Container(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Colors.white.withOpacity(0.1),
-            Colors.white.withOpacity(0.05),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
+        color: Colors.grey.shade900,
+        borderRadius: BorderRadius.circular(8.r),
+        border: Border.all(color: Colors.grey.shade800, width: 1),
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(16.r),
+          borderRadius: BorderRadius.circular(8.r),
           child: Padding(
             padding: EdgeInsets.symmetric(vertical: 16.h),
             child: Row(
@@ -569,7 +482,6 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen>
                     color: Colors.white,
                     fontSize: 16.sp,
                     fontWeight: FontWeight.w600,
-                    letterSpacing: 0.3,
                   ),
                 ),
               ],
@@ -586,19 +498,19 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen>
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(24.r),
-        border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
+        color: Colors.grey.shade900,
+        borderRadius: BorderRadius.circular(8.r),
+        border: Border.all(color: Colors.grey.shade800, width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.zoom_in_rounded, color: Colors.white70, size: 18.sp),
+          Icon(Icons.zoom_in_rounded, color: Colors.grey.shade400, size: 18.sp),
           SizedBox(width: 12.w),
           Text(
             'Pinch to zoom • Drag to reposition',
             style: TextStyle(
-              color: Colors.white70,
+              color: Colors.grey.shade400,
               fontSize: 13.sp,
               fontWeight: FontWeight.w500,
             ),
@@ -608,13 +520,13 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen>
             Container(
               padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
               decoration: BoxDecoration(
-                color: const Color(0xFF6366F1).withOpacity(0.2),
-                borderRadius: BorderRadius.circular(12.r),
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(4.r),
               ),
               child: Text(
                 '$percentage%',
                 style: TextStyle(
-                  color: const Color(0xFF6366F1),
+                  color: Colors.black,
                   fontSize: 12.sp,
                   fontWeight: FontWeight.w700,
                 ),
@@ -630,18 +542,18 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen>
     return Container(
       padding: EdgeInsets.all(24.w),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
+        color: Colors.grey.shade900,
+        borderRadius: BorderRadius.circular(8.r),
+        border: Border.all(color: Colors.grey.shade800, width: 1),
       ),
       child: Column(
         children: [
-          Icon(Icons.touch_app_rounded, color: Colors.white54, size: 32.sp),
+          Icon(Icons.touch_app_rounded, color: Colors.grey.shade600, size: 32.sp),
           SizedBox(height: 16.h),
           Text(
             'Select an image to get started',
             style: TextStyle(
-              color: Colors.white70,
+              color: Colors.grey.shade400,
               fontSize: 15.sp,
               fontWeight: FontWeight.w500,
             ),
@@ -654,20 +566,14 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen>
 
   Widget _buildProcessingOverlay() {
     return Container(
-      color: Colors.black.withOpacity(0.7),
+      color: Colors.black.withOpacity(0.8),
       child: Center(
         child: Container(
           padding: EdgeInsets.all(32.w),
           decoration: BoxDecoration(
-            color: const Color(0xFF1E293B),
-            borderRadius: BorderRadius.circular(24.r),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.3),
-                blurRadius: 24,
-                offset: const Offset(0, 8),
-              ),
-            ],
+            color: Colors.grey.shade900,
+            borderRadius: BorderRadius.circular(8.r),
+            border: Border.all(color: Colors.grey.shade800, width: 1),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -677,9 +583,7 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen>
                 height: 48.w,
                 child: CircularProgressIndicator(
                   strokeWidth: 3,
-                  valueColor: const AlwaysStoppedAnimation<Color>(
-                    Color(0xFF6366F1),
-                  ),
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
               ),
               SizedBox(height: 24.h),
