@@ -359,7 +359,7 @@ class _CanvasPresetScreenState extends State<CanvasPresetScreen> {
           children: [
             SizedBox(height: 24.h),
 
-              _categorySection('Lambook', Icons.camera_alt_rounded, [
+              _categorySection('Lambook', Icons.menu_book_rounded, [
               _presetCard(
                 title: 'Lambook Page',
                 width: 1600,
