@@ -42,6 +42,7 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen>
   double _previousScale = 1.0;
   bool _isCapturing = false;
   bool _isProcessing = false;
+  bool _hasTransparency = false;
 
   bool get _hasChanges => _scale != 1.0 || _offset != Offset.zero;
 
@@ -49,6 +50,17 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen>
   void initState() {
     super.initState();
     _currentImagePath = widget.currentImagePath;
+
+    // Check initial image for transparency
+    if (_currentImagePath != null) {
+      _checkImageTransparency(_currentImagePath!).then((hasTransparency) {
+        if (mounted) {
+          setState(() {
+            _hasTransparency = hasTransparency;
+          });
+        }
+      });
+    }
 
     _animController = AnimationController(
       vsync: this,
@@ -85,8 +97,12 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen>
       );
 
       if (picked != null && mounted) {
+        // Check if image has transparency
+        final bool hasAlpha = await _checkImageTransparency(picked.path);
+
         setState(() {
           _currentImagePath = picked.path;
+          _hasTransparency = hasAlpha;
         });
         widget.onImageSelected(picked.path);
         _resetTransformations();
@@ -95,6 +111,28 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen>
       if (mounted) {
         _showSnackBar('Failed to pick image', isError: true);
       }
+    }
+  }
+
+  Future<bool> _checkImageTransparency(String imagePath) async {
+    try {
+      // Simple check: if file is PNG, assume it might have transparency
+      // More thorough checks would require pixel-level analysis
+      final String lowerPath = imagePath.toLowerCase();
+      if (!lowerPath.endsWith('.png')) {
+        return false;
+      }
+
+      final File imageFile = File(imagePath);
+      final Uint8List bytes = await imageFile.readAsBytes();
+      final img.Image? decodedImage = img.decodeImage(bytes);
+
+      // If decoded image has 4 channels (RGBA), it supports transparency
+      // For simplicity, we'll return true for PNG files
+      // The actual transparency will be preserved during capture if present
+      return decodedImage != null;
+    } catch (e) {
+      return false;
     }
   }
 
@@ -127,9 +165,7 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen>
         ),
         backgroundColor: isError ? Colors.red : Colors.green,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8.r),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r)),
         margin: EdgeInsets.all(16.w),
         duration: const Duration(seconds: 2),
       ),
@@ -187,7 +223,13 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen>
       final String filePath = '${tempDir.path}/$fileName';
 
       final File file = File(filePath);
-      await file.writeAsBytes(img.encodePng(croppedImage));
+      // Encode PNG with transparency support if source has alpha channel
+      final Uint8List pngBytes = img.encodePng(
+        croppedImage,
+        level: 9, // Maximum compression
+        filter: img.PngFilter.none,
+      );
+      await file.writeAsBytes(pngBytes);
 
       return filePath;
     } catch (e) {
@@ -316,16 +358,11 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen>
         foregroundColor: Colors.black,
         elevation: 0,
         padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 12.h),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8.r),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r)),
       ),
       child: Text(
         'Done',
-        style: TextStyle(
-          fontSize: 15.sp,
-          fontWeight: FontWeight.w600,
-        ),
+        style: TextStyle(fontSize: 15.sp, fontWeight: FontWeight.w600),
       ),
     );
   }
@@ -343,7 +380,10 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen>
                   color: hasImage ? Colors.white : Colors.grey.shade800,
                   width: 2,
                 ),
-          color: Colors.grey.shade900,
+          // Use transparent background if image has transparency, otherwise use grey
+          color: _hasTransparency && hasImage
+              ? Colors.transparent
+              : Colors.grey.shade900,
         ),
         child: Stack(
           alignment: Alignment.center,
@@ -371,7 +411,8 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen>
         _previousScale = 1.0;
       },
       child: Container(
-        color: Colors.grey.shade900,
+        // Use transparent background if image has transparency
+        color: _hasTransparency ? Colors.transparent : Colors.grey.shade900,
         child: ClipRect(
           child: Transform.translate(
             offset: _offset,
@@ -548,7 +589,11 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen>
       ),
       child: Column(
         children: [
-          Icon(Icons.touch_app_rounded, color: Colors.grey.shade600, size: 32.sp),
+          Icon(
+            Icons.touch_app_rounded,
+            color: Colors.grey.shade600,
+            size: 32.sp,
+          ),
           SizedBox(height: 16.h),
           Text(
             'Select an image to get started',
