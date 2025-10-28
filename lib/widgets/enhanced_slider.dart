@@ -77,12 +77,16 @@ class EnhancedSlider extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
-                  Text(
-                    clamped.toStringAsFixed(1),
-                    style: TextStyle(
-                      fontSize: 12.sp,
-                      color: accent,
-                      fontWeight: FontWeight.w700,
+                  GestureDetector(
+                    onTap: () =>
+                        _showNumberInputDialog(context, clamped, accent),
+                    child: Text(
+                      clamped.toStringAsFixed(1),
+                      style: TextStyle(
+                        fontSize: 12.sp,
+                        color: accent,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ],
@@ -184,19 +188,25 @@ class EnhancedSlider extends StatelessWidget {
                 style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w500),
               ),
               const Spacer(),
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-                decoration: BoxDecoration(
-                  color: Colors.transparent,
-                  borderRadius: BorderRadius.circular(12.r),
-                  // no border
-                ),
-                child: Text(
-                  clamped.toStringAsFixed(1),
-                  style: TextStyle(
-                    fontSize: 14.sp,
-                    color: accent,
-                    fontWeight: FontWeight.w600,
+              GestureDetector(
+                onTap: () => _showNumberInputDialog(context, clamped, accent),
+                child: Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 12.w,
+                    vertical: 6.h,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(12.r),
+                    // no border
+                  ),
+                  child: Text(
+                    clamped.toStringAsFixed(1),
+                    style: TextStyle(
+                      fontSize: 14.sp,
+                      color: accent,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
@@ -268,6 +278,104 @@ class EnhancedSlider extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _showNumberInputDialog(
+    BuildContext context,
+    double current,
+    Color accent,
+  ) async {
+    final controller = TextEditingController(text: current.toStringAsFixed(2));
+    String? errorText;
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setState) {
+            return AlertDialog(
+              title: Text('Set $label'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Allowed: $min to $max'),
+                  SizedBox(height: 8.h),
+                  TextField(
+                    controller: controller,
+                    autofocus: true,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                      signed: true,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: 'Enter $label',
+                      errorText: errorText,
+                    ),
+                    onChanged: (text) {
+                      final parsed = double.tryParse(text);
+                      String? err;
+                      if (parsed == null) {
+                        err = 'Enter a valid number';
+                      } else if (parsed < min || parsed > max) {
+                        err = 'Enter value between $min and $max';
+                      }
+                      setState(() => errorText = err);
+                    },
+                    onSubmitted: (_) => _trySubmit(
+                      ctx,
+                      controller,
+                      setState,
+                      refErrorText: () => errorText,
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: errorText == null
+                      ? () => _trySubmit(
+                          ctx,
+                          controller,
+                          setState,
+                          refErrorText: () => errorText,
+                        )
+                      : null,
+                  child: const Text('OK'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _trySubmit(
+    BuildContext ctx,
+    TextEditingController controller,
+    void Function(void Function()) setState, {
+    required String? Function() refErrorText,
+  }) {
+    final text = controller.text.trim();
+    final parsed = double.tryParse(text);
+    if (parsed == null) {
+      setState(() {}); // keep current error state
+      return;
+    }
+    if (parsed < min || parsed > max) {
+      setState(() {});
+      return;
+    }
+    onChanged(parsed);
+    if (onChangeEnd != null) {
+      onChangeEnd!(parsed);
+    }
+    Navigator.of(ctx).pop();
   }
 
   Color _colorForLabel(String label) {
