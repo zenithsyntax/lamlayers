@@ -8625,16 +8625,16 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                 setState(() {
                   // Normalize by current canvas zoom and amplify by item scale so large items
                   // don't feel sluggish to move.
-                final double zoomAdjusted = (() {
-                  final double z = _currentCanvasZoom();
-                  return z == 0 ? 1.0 : z;
-                })();
+                  final double zoomAdjusted = (() {
+                    final double z = _currentCanvasZoom();
+                    return z == 0 ? 1.0 : z;
+                  })();
                   final double scaleAmplify = (item.scale <= 0)
                       ? 1.0
                       : item.scale;
                   // details.delta is in the widget's local (rotated) space.
                   // Convert it to parent/canvas space by rotating by the item's angle.
-                final Offset localDelta =
+                  final Offset localDelta =
                       details.delta * (scaleAmplify / zoomAdjusted);
                   final double a = item.rotation;
                   final double cosA = math.cos(a);
@@ -8701,25 +8701,31 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                       ((item.properties['shape'] as String?) == 'rectangle' ||
                           (item.properties['shape'] as String?) == 'square'));
 
-                  return Container(
-                    // Counteract the inside-painting border shift by padding when not selected
-                    padding: EdgeInsets.all(isSelected ? 0 : selectionStroke),
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: hideDefaultForQuad
-                            ? Colors.transparent
-                            : (isSelected
-                                  ? Colors.blue.shade400
-                                  : Colors.transparent),
-                        width: isSelected ? selectionStroke : 0,
-                      ),
-                    ),
-                    child: item.type == CanvasItemType.text
-                        ? _buildItemContent(item)
-                        : Opacity(
-                            opacity: item.opacity.clamp(0.0, 1.0),
-                            child: _buildItemContent(item),
+                  return Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      // Content without any selection-driven padding/border to avoid layout shift
+                      item.type == CanvasItemType.text
+                          ? _buildItemContent(item)
+                          : Opacity(
+                              opacity: item.opacity.clamp(0.0, 1.0),
+                              child: _buildItemContent(item),
+                            ),
+                      // Selection overlay drawn on top so it doesn't affect layout
+                      if (isSelected && !hideDefaultForQuad)
+                        Positioned.fill(
+                          child: IgnorePointer(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: Colors.blue.shade400,
+                                  width: selectionStroke,
+                                ),
+                              ),
+                            ),
                           ),
+                        ),
+                    ],
                   );
                 })(),
 
@@ -15215,7 +15221,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                     ],
                   ),
                 ),
-
                 // Content
                 Padding(
                   padding: EdgeInsets.all(20.w),
