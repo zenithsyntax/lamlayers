@@ -89,6 +89,12 @@ class EnhancedSlider extends StatelessWidget {
                       ),
                     ),
                   ),
+                  SizedBox(width: 6.w),
+                  GestureDetector(
+                    onTap: () =>
+                        _showNumberInputDialog(context, clamped, accent),
+                    child: Icon(Icons.edit_rounded, size: 14.sp, color: accent),
+                  ),
                 ],
               ),
               SizedBox(height: 8.h),
@@ -210,6 +216,11 @@ class EnhancedSlider extends StatelessWidget {
                   ),
                 ),
               ),
+              SizedBox(width: 6.w),
+              GestureDetector(
+                onTap: () => _showNumberInputDialog(context, clamped, accent),
+                child: Icon(Icons.edit_rounded, size: 16.sp, color: accent),
+              ),
             ],
           ),
           SizedBox(height: 12.h),
@@ -294,13 +305,58 @@ class EnhancedSlider extends StatelessWidget {
         return StatefulBuilder(
           builder: (ctx, setState) {
             return AlertDialog(
-              title: Text('Set $label'),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16.r),
+              ),
+              titlePadding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 0),
+              contentPadding: EdgeInsets.fromLTRB(20.w, 8.h, 20.w, 0),
+              actionsPadding: EdgeInsets.fromLTRB(12.w, 0, 12.w, 8.h),
+              title: Row(
+                children: [
+                  Icon(icon, color: accent),
+                  SizedBox(width: 10.w),
+                  Expanded(
+                    child: Text(
+                      'Set $label',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ],
+              ),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Allowed: $min to $max'),
-                  SizedBox(height: 8.h),
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 10.w,
+                      vertical: 8.h,
+                    ),
+                    decoration: BoxDecoration(
+                      color: accent.withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(10.r),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline_rounded,
+                          size: 16.sp,
+                          color: accent.withOpacity(0.9),
+                        ),
+                        SizedBox(width: 8.w),
+                        Expanded(
+                          child: Text(
+                            'Allowed range: ${min.toStringAsFixed(2)} to ${max.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontSize: 12.sp,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: 12.h),
                   TextField(
                     controller: controller,
                     autofocus: true,
@@ -309,8 +365,24 @@ class EnhancedSlider extends StatelessWidget {
                       signed: true,
                     ),
                     decoration: InputDecoration(
-                      hintText: 'Enter $label',
+                      labelText: label,
+                      prefixIcon: Icon(Icons.edit_rounded, color: accent),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12.r),
+                        borderSide: BorderSide(color: accent, width: 1.5),
+                      ),
+                      helperText: errorText == null
+                          ? 'Tap Min/Max to quick set'
+                          : null,
                       errorText: errorText,
+                      isDense: true,
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 12.w,
+                        vertical: 12.h,
+                      ),
                     ),
                     onChanged: (text) {
                       final parsed = double.tryParse(text);
@@ -318,7 +390,8 @@ class EnhancedSlider extends StatelessWidget {
                       if (parsed == null) {
                         err = 'Enter a valid number';
                       } else if (parsed < min || parsed > max) {
-                        err = 'Enter value between $min and $max';
+                        err =
+                            'Enter value between ${min.toStringAsFixed(2)} and ${max.toStringAsFixed(2)}';
                       }
                       setState(() => errorText = err);
                     },
@@ -329,6 +402,44 @@ class EnhancedSlider extends StatelessWidget {
                       refErrorText: () => errorText,
                     ),
                   ),
+                  SizedBox(height: 10.h),
+                  Wrap(
+                    spacing: 8.w,
+                    runSpacing: 6.h,
+                    children: [
+                      ActionChip(
+                        label: const Text('Min'),
+                        avatar: const Icon(
+                          Icons.chevron_left_rounded,
+                          size: 18,
+                        ),
+                        onPressed: () {
+                          controller.text = min.toStringAsFixed(2);
+                          setState(() => errorText = null);
+                        },
+                        backgroundColor: Colors.grey.shade100,
+                        shape: StadiumBorder(
+                          side: BorderSide(color: accent.withOpacity(0.2)),
+                        ),
+                      ),
+                      ActionChip(
+                        label: const Text('Max'),
+                        avatar: const Icon(
+                          Icons.chevron_right_rounded,
+                          size: 18,
+                        ),
+                        onPressed: () {
+                          controller.text = max.toStringAsFixed(2);
+                          setState(() => errorText = null);
+                        },
+                        backgroundColor: Colors.grey.shade100,
+                        shape: StadiumBorder(
+                          side: BorderSide(color: accent.withOpacity(0.2)),
+                        ),
+                      ),
+                      
+                    ],
+                  ),
                 ],
               ),
               actions: [
@@ -337,6 +448,17 @@ class EnhancedSlider extends StatelessWidget {
                   child: const Text('Cancel'),
                 ),
                 TextButton(
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    backgroundColor: accent,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 16.w,
+                      vertical: 10.h,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10.r),
+                    ),
+                  ),
                   onPressed: errorText == null
                       ? () => _trySubmit(
                           ctx,
@@ -345,7 +467,7 @@ class EnhancedSlider extends StatelessWidget {
                           refErrorText: () => errorText,
                         )
                       : null,
-                  child: const Text('OK'),
+                  child: const Text('Save'),
                 ),
               ],
             );
