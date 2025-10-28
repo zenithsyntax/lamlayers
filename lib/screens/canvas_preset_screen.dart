@@ -225,19 +225,19 @@ class _CanvasPresetScreenState extends State<CanvasPresetScreen> {
           padding: EdgeInsets.symmetric(horizontal: 24.w),
           child: Row(
             children: [
-              Container(
-                padding: EdgeInsets.all(8.w),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                  ),
-                  borderRadius: BorderRadius.circular(10.r),
-                ),
-                child: Icon(icon, color: Colors.white, size: 18.r),
-              ),
-              SizedBox(width: 12.w),
+              // Container(
+              //   padding: EdgeInsets.all(8.w),
+              //   decoration: BoxDecoration(
+              //     gradient: const LinearGradient(
+              //       begin: Alignment.topLeft,
+              //       end: Alignment.bottomRight,
+              //       colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+              //     ),
+              //     borderRadius: BorderRadius.circular(10.r),
+              //   ),
+              //   child: Icon(icon, color: Colors.white, size: 18.r),
+              // ),
+              // SizedBox(width: 12.w),
               Text(
                 title,
                 style: GoogleFonts.inter(

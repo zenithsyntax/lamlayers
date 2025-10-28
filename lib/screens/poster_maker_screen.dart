@@ -2203,6 +2203,18 @@ class _ShapePainter extends CustomPainter {
 
 class _PosterMakerScreenState extends State<PosterMakerScreen>
     with TickerProviderStateMixin, WidgetsBindingObserver {
+  // Gracefully get a GoogleFont TextStyle or fall back to the given style.
+  TextStyle _safeGoogleFont(String family, {TextStyle? textStyle}) {
+    try {
+      if (GoogleFonts.asMap().containsKey(family)) {
+        return GoogleFonts.getFont(family, textStyle: textStyle);
+      }
+    } catch (_) {
+      // ignore and fall back
+    }
+    return textStyle ?? const TextStyle();
+  }
+
   int selectedTabIndex = 0;
 
   List<CanvasItem> canvasItems = [];
@@ -2221,6 +2233,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   final ImagePicker _imagePicker = ImagePicker();
 
   final GlobalKey _canvasRepaintKey = GlobalKey();
+  final GlobalKey _viewerKey = GlobalKey();
 
   // Controls InteractiveViewer pan/zoom without triggering full rebuilds each frame
   late final TransformationController _canvasController;
@@ -2267,6 +2280,11 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   CanvasItem? _preDragState;
 
   CanvasItem? _preTransformState;
+  // Drag/gesture recognition state to avoid moving on select/deselect taps
+  bool _isDraggingLayer = false;
+  bool _wasSelectedAtPanStart = false;
+  Offset _accumulatedPanDelta = Offset.zero;
+  static const double _dragSlop = 6.0; // logical pixels before we start moving
   // Snapshot before a nudge interaction (single-tap or press-and-hold)
   CanvasItem? _preNudgeState;
 
@@ -2343,13 +2361,13 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
       {'tool': DrawingTool.arrow, 'icon': Icons.arrow_forward, 'name': 'Arrow'},
 
-      {
-        'tool': DrawingTool.dottedLine,
+      // {
+      //   'tool': DrawingTool.dottedLine,
 
-        'icon': Icons.more_horiz,
+      //   'icon': Icons.more_horiz,
 
-        'name': 'Dotted Line',
-      },
+      //   'name': 'Dotted Line',
+      // },
     ];
   }
 
@@ -2538,7 +2556,21 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   void _animateCanvasZoom(double targetZoom) {
     final Matrix4 currentMatrix = _canvasController.value.clone();
-    final Matrix4 targetMatrix = Matrix4.identity()..scale(targetZoom);
+
+    // Preserve the scene point under the viewport center when zooming
+    final RenderBox? viewerBox =
+        _viewerKey.currentContext?.findRenderObject() as RenderBox?;
+    final Size viewportSize = viewerBox?.size ?? const Size(0, 0);
+    final Offset viewportCenter = Offset(
+      viewportSize.width / 2.0,
+      viewportSize.height / 2.0,
+    );
+    final Offset scenePoint = _canvasController.toScene(viewportCenter);
+    final Offset newTranslation = viewportCenter - (scenePoint * targetZoom);
+
+    final Matrix4 targetMatrix = Matrix4.identity()
+      ..translate(newTranslation.dx, newTranslation.dy)
+      ..scale(targetZoom);
 
     _canvasPanZoomController?.dispose();
     _canvasPanZoomController = AnimationController(
@@ -6565,7 +6597,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                   Text(
                     fontFamily,
 
-                    style: GoogleFonts.getFont(
+                    style: _safeGoogleFont(
                       fontFamily,
                       textStyle: TextStyle(
                         fontSize: 16.sp,
@@ -6583,7 +6615,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                   Text(
                     'The quick brown fox jumps',
 
-                    style: GoogleFonts.getFont(
+                    style: _safeGoogleFont(
                       fontFamily,
                       textStyle: TextStyle(
                         fontSize: 12.sp,
@@ -6669,7 +6701,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               ),
 
               Text(
-                fontFamily.length > 10
+                fontFamily.length > 12
                     ? '${fontFamily.substring(0, 12)}...'
                     : fontFamily,
 
@@ -6832,7 +6864,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
               child: Text(
                 family,
                 style: _isValidFontFamily(family)
-                    ? GoogleFonts.getFont(
+                    ? _safeGoogleFont(
                         family,
                         textStyle: TextStyle(
                           fontSize: 15.sp,
@@ -7762,7 +7794,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                               family,
 
                               style: _isGoogleFont
-                                  ? GoogleFonts.getFont(family)
+                                  ? _safeGoogleFont(family)
                                   : TextStyle(fontFamily: family),
                             ),
 
@@ -7770,7 +7802,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                               'The quick brown fox jumps over the lazy dog',
 
                               style: _isGoogleFont
-                                  ? GoogleFonts.getFont(family)
+                                  ? _safeGoogleFont(family)
                                   : TextStyle(fontFamily: family),
                             ),
 
@@ -7780,10 +7812,13 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                               String resolvedFamily = family;
 
                               if (_isGoogleFont) {
-                                final ts = GoogleFonts.getFont(family);
+                                final ts = _safeGoogleFont(family);
 
                                 try {
-                                  await GoogleFonts.pendingFonts([ts]);
+                                  // Best effort: try to ensure font is loaded
+                                  try {
+                                    await GoogleFonts.pendingFonts([ts]);
+                                  } catch (_) {}
                                 } catch (_) {
                                   // ignore loading errors; fallback to default
                                 }
@@ -8572,6 +8607,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
             onTap: () {
               if (!item.isLocked) {
+                // Selecting/deselecting should never move the item
+                _isDraggingLayer = false;
+                _accumulatedPanDelta = Offset.zero;
                 _selectItem(item);
               }
             },
@@ -8587,16 +8625,16 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                 setState(() {
                   // Normalize by current canvas zoom and amplify by item scale so large items
                   // don't feel sluggish to move.
-                  final double zoomAdjusted = (() {
-                    final double z = _currentCanvasZoom();
-                    return z == 0 ? 1.0 : z;
-                  })();
+                final double zoomAdjusted = (() {
+                  final double z = _currentCanvasZoom();
+                  return z == 0 ? 1.0 : z;
+                })();
                   final double scaleAmplify = (item.scale <= 0)
                       ? 1.0
                       : item.scale;
                   // details.delta is in the widget's local (rotated) space.
                   // Convert it to parent/canvas space by rotating by the item's angle.
-                  final Offset localDelta =
+                final Offset localDelta =
                       details.delta * (scaleAmplify / zoomAdjusted);
                   final double a = item.rotation;
                   final double cosA = math.cos(a);
@@ -9261,35 +9299,19 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
         Widget _buildTextWithStyle(TextStyle style) {
           if (fontFamily != null) {
-            try {
-              final TextStyle gfStyle = GoogleFonts.getFont(
-                fontFamily,
-
-                textStyle: style,
-              );
-              return Text(
-                (props['text'] ?? 'Text') as String,
-
-                style: gfStyle,
-
-                textAlign: textAlign,
-              );
-            } catch (_) {
-              // Fallback to normal Text if GoogleFonts lookup fails
-              return Text(
-                (props['text'] ?? 'Text') as String,
-
-                style: style,
-
-                textAlign: textAlign,
-              );
-            }
+            final TextStyle resolved = _safeGoogleFont(
+              fontFamily,
+              textStyle: style,
+            );
+            return Text(
+              (props['text'] ?? 'Text') as String,
+              style: resolved,
+              textAlign: textAlign,
+            );
           }
           return Text(
             (props['text'] ?? 'Text') as String,
-
             style: style,
-
             textAlign: textAlign,
           );
         }

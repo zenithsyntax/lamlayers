@@ -1682,14 +1682,91 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView>
                                                     if (p != null) pages.add(p);
                                                   }
                                                   if (pages.isEmpty) return;
+
+                                                  // Show progress dialog with linear progress indicator
+                                                  double uploadProgress = 0.0;
+                                                  late void Function(
+                                                    void Function(),
+                                                  )
+                                                  progressSetState;
+
                                                   showDialog(
                                                     context: context,
                                                     barrierDismissible: false,
-                                                    builder: (_) => const Center(
-                                                      child:
-                                                          CircularProgressIndicator(),
+                                                    builder: (context) => StatefulBuilder(
+                                                      builder: (context, setState) {
+                                                        progressSetState =
+                                                            setState;
+                                                        return AlertDialog(
+                                                          contentPadding:
+                                                              EdgeInsets.all(
+                                                                24.r,
+                                                              ),
+                                                          content: Column(
+                                                            mainAxisSize:
+                                                                MainAxisSize
+                                                                    .min,
+                                                            children: [
+                                                              Text(
+                                                                'Uploading to Google Drive',
+                                                                style: GoogleFonts.inter(
+                                                                  fontSize:
+                                                                      18.sp,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w700,
+                                                                  color: const Color(
+                                                                    0xFF0F172A,
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                              SizedBox(
+                                                                height: 24.h,
+                                                              ),
+                                                              LinearProgressIndicator(
+                                                                value:
+                                                                    uploadProgress,
+                                                                backgroundColor:
+                                                                    const Color(
+                                                                      0xFFE2E8F0,
+                                                                    ),
+                                                                valueColor:
+                                                                    AlwaysStoppedAnimation<
+                                                                      Color
+                                                                    >(
+                                                                      const Color(
+                                                                        0xFF10B981,
+                                                                      ),
+                                                                    ),
+                                                                minHeight: 8.h,
+                                                                borderRadius:
+                                                                    BorderRadius.circular(
+                                                                      4.r,
+                                                                    ),
+                                                              ),
+                                                              SizedBox(
+                                                                height: 12.h,
+                                                              ),
+                                                              Text(
+                                                                '${(uploadProgress * 100).toStringAsFixed(0)}%',
+                                                                style: GoogleFonts.inter(
+                                                                  fontSize:
+                                                                      16.sp,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w600,
+                                                                  color: const Color(
+                                                                    0xFF64748B,
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        );
+                                                      },
                                                     ),
                                                   );
+
                                                   try {
                                                     // 1) Export .lambook locally
                                                     final String?
@@ -1735,6 +1812,18 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView>
                                                           bytes: fileBytes,
                                                           mimeType:
                                                               'application/octet-stream',
+                                                          onProgress:
+                                                              (
+                                                                uploaded,
+                                                                total,
+                                                              ) {
+                                                                uploadProgress =
+                                                                    uploaded /
+                                                                    total;
+                                                                progressSetState(
+                                                                  () {},
+                                                                );
+                                                              },
                                                         );
 
                                                     // 3) Build web viewer URL

@@ -38,17 +38,31 @@ class GoogleDriveShareService {
     required String fileName,
     required Uint8List bytes,
     String mimeType = 'application/octet-stream',
-  }) async {  
+    Function(int uploaded, int total)? onProgress,
+  }) async {
     final driveApi = await _getDriveApi();
 
     final drive.File fileMetadata = drive.File()
       ..name = fileName
       ..mimeType = mimeType;
 
-    final media = drive.Media(
-      Stream<List<int>>.fromIterable(<List<int>>[bytes]),
-      bytes.length,
-    );
+    // Create a custom stream that tracks upload progress
+    Stream<List<int>> uploadStream;
+    if (onProgress != null) {
+      int uploadedBytes = 0;
+      final int totalBytes = bytes.length;
+
+      uploadStream = Stream<List<int>>.fromIterable(
+        _splitBytesForProgress(bytes, (chunkLength) {
+          uploadedBytes += chunkLength;
+          onProgress(uploadedBytes, totalBytes);
+        }),
+      );
+    } else {
+      uploadStream = Stream<List<int>>.fromIterable(<List<int>>[bytes]);
+    }
+
+    final media = drive.Media(uploadStream, bytes.length);
 
     final created = await driveApi.files.create(
       fileMetadata,
@@ -66,6 +80,26 @@ class GoogleDriveShareService {
     );
 
     return fileId;
+  }
+
+  // Split bytes into smaller chunks and invoke callback for progress tracking
+  List<List<int>> _splitBytesForProgress(
+    Uint8List bytes,
+    Function(int) onChunk,
+  ) {
+    const int chunkSize = 8192; // 8KB chunks
+    final List<List<int>> chunks = [];
+
+    for (int i = 0; i < bytes.length; i += chunkSize) {
+      final int end = (i + chunkSize < bytes.length)
+          ? i + chunkSize
+          : bytes.length;
+      final chunk = bytes.sublist(i, end);
+      chunks.add(chunk);
+      onChunk(chunk.length);
+    }
+
+    return chunks;
   }
 }
 

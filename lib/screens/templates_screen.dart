@@ -19,8 +19,6 @@ class TemplatesScreen extends StatefulWidget {
 
 class _TemplatesScreenState extends State<TemplatesScreen> {
   List<Template> templates = [];
-  List<String> categories = [];
-  String selectedCategory = 'All';
   int currentPage = 1;
   int totalPages = 1;
   bool isLoading = false;
@@ -31,7 +29,6 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
   @override
   void initState() {
     super.initState();
-    _loadCategories();
     _loadTemplates();
     _scrollController.addListener(_onScroll);
   }
@@ -48,17 +45,6 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
       if (!isLoadingMore && currentPage < totalPages) {
         _loadMoreTemplates();
       }
-    }
-  }
-
-  Future<void> _loadCategories() async {
-    try {
-      final categoriesList = await TemplateApiService.getCategories();
-      setState(() {
-        categories = categoriesList;
-      });
-    } catch (e) {
-      // Handle error silently for categories
     }
   }
 
@@ -79,7 +65,6 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
       final response = await TemplateApiService.getTemplates(
         page: currentPage,
         limit: 10,
-        category: selectedCategory == 'All' ? null : selectedCategory,
       );
 
       setState(() {
@@ -113,7 +98,6 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
       final response = await TemplateApiService.getTemplates(
         page: currentPage,
         limit: 10,
-        category: selectedCategory == 'All' ? null : selectedCategory,
       );
 
       setState(() {
@@ -126,13 +110,6 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
         isLoadingMore = false;
       });
     }
-  }
-
-  void _onCategoryChanged(String category) {
-    setState(() {
-      selectedCategory = category;
-    });
-    _loadTemplates(refresh: true);
   }
 
   Future<void> _loadTemplate(Template template) async {
@@ -262,49 +239,6 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
     );
   }
 
-  Widget _buildCategoryFilter() {
-    return Container(
-      height: 50.h,
-      margin: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: categories.length,
-        itemBuilder: (context, index) {
-          final category = categories[index];
-          final isSelected = category == selectedCategory;
-
-          return Container(
-            margin: EdgeInsets.only(right: 8.w),
-            child: FilterChip(
-              label: Text(
-                category,
-                style: GoogleFonts.inter(
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w500,
-                  color: isSelected ? Colors.white : const Color(0xFF475569),
-                ),
-              ),
-              selected: isSelected,
-              onSelected: (selected) => _onCategoryChanged(category),
-              backgroundColor: Colors.white,
-              selectedColor: const Color(0xFF3B82F6),
-              checkmarkColor: Colors.white,
-              side: BorderSide(
-                color: isSelected
-                    ? const Color(0xFF3B82F6)
-                    : const Color(0xFFE2E8F0),
-                width: 1,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20.r),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
   Widget _buildTemplateCard(Template template) {
     return GestureDetector(
       onTap: () => _loadTemplate(template),
@@ -353,14 +287,6 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
                 fontSize: 16.sp,
                 fontWeight: FontWeight.w500,
                 color: const Color(0xFF475569),
-              ),
-            ),
-            SizedBox(height: 8.h),
-            Text(
-              'Try selecting a different category',
-              style: GoogleFonts.inter(
-                fontSize: 14.sp,
-                color: const Color(0xFF94A3B8),
               ),
             ),
           ],
@@ -421,71 +347,64 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
           child: Container(color: const Color(0xFFE2E8F0), height: 1.h),
         ),
       ),
-      body: Column(
-        children: [
-          if (categories.isNotEmpty) _buildCategoryFilter(),
-          Expanded(
-            child: errorMessage != null
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.error_outline,
-                          size: 64.w,
-                          color: const Color(0xFFEF4444),
-                        ),
-                        SizedBox(height: 16.h),
-                        Text(
-                          'Error loading templates',
-                          style: GoogleFonts.inter(
-                            fontSize: 16.sp,
-                            fontWeight: FontWeight.w500,
-                            color: const Color(0xFF475569),
-                          ),
-                        ),
-                        SizedBox(height: 8.h),
-                        Text(
-                          errorMessage!,
-                          style: GoogleFonts.inter(
-                            fontSize: 14.sp,
-                            color: const Color(0xFF94A3B8),
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        SizedBox(height: 16.h),
-                        ElevatedButton(
-                          onPressed: () => _loadTemplates(refresh: true),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF3B82F6),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8.r),
-                            ),
-                          ),
-                          child: Text(
-                            'Retry',
-                            style: GoogleFonts.inter(
-                              fontSize: 14.sp,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
+      body: errorMessage != null
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    size: 64.w,
+                    color: const Color(0xFFEF4444),
+                  ),
+                  SizedBox(height: 16.h),
+                  Text(
+                    'Error loading templates',
+                    style: GoogleFonts.inter(
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(0xFF475569),
                     ),
-                  )
-                : isLoading && templates.isEmpty
-                ? const Center(
-                    child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        Color(0xFF3B82F6),
+                  ),
+                  SizedBox(height: 8.h),
+                  Text(
+                    errorMessage!,
+                    style: GoogleFonts.inter(
+                      fontSize: 14.sp,
+                      color: const Color(0xFF94A3B8),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 16.h),
+                  ElevatedButton(
+                    onPressed: () => _loadTemplates(refresh: true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF3B82F6),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8.r),
                       ),
                     ),
-                  )
-                : _buildTemplatesGrid(),
-          ),
-        ],
-      ),
+                    child: Text(
+                      'Retry',
+                      style: GoogleFonts.inter(
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : isLoading && templates.isEmpty
+          ? const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  Color(0xFF3B82F6),
+                ),
+              ),
+            )
+          : _buildTemplatesGrid(),
     );
   }
 }
