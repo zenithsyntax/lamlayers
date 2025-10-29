@@ -2441,6 +2441,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
         _loadProjectData();
 
+        // Ensure unique IDs to avoid missing items in lists due to key collisions
+        _ensureUniqueItemIds();
+
         // Clean up any invalid layers after loading project data
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _cleanupInvalidLayers();
@@ -3703,6 +3706,25 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           duration: Duration(seconds: 2),
         ),
       );
+    }
+  }
+
+  // Ensures all canvas items have unique IDs to prevent UI key collisions
+  void _ensureUniqueItemIds() {
+    final Set<String> seen = <String>{};
+    bool changed = false;
+    for (int i = 0; i < canvasItems.length; i++) {
+      final CanvasItem item = canvasItems[i];
+      if (seen.contains(item.id)) {
+        // Regenerate a unique id and replace the item
+        final String newId = _generateUniqueId();
+        canvasItems[i] = item.copyWith(id: newId);
+        changed = true;
+      }
+      seen.add(canvasItems[i].id);
+    }
+    if (changed) {
+      setState(() {});
     }
   }
 
@@ -13389,7 +13411,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         final isSelected = selectedItem == item;
 
         return Container(
-          key: ValueKey(item.id),
+          key: ValueKey('${item.id}_${item.layerIndex}'),
 
           margin: EdgeInsets.only(bottom: 12.h),
 
