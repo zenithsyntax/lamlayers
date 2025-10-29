@@ -711,6 +711,20 @@ class _PixabayImagesPageState extends State<PixabayImagesPage>
                         ),
                         child: Stack(
                           children: [
+                            // Checkerboard background to show transparency for PNG stickers
+                            if (_isPngUrl(sticker.imageUrl))
+                              Positioned.fill(
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(15.r),
+                                  child: CustomPaint(
+                                    painter: CheckerboardPainter(
+                                      cellSize: 10.0,
+                                      lightColor: Colors.white,
+                                      darkColor: _surfaceGray,
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ClipRRect(
                               borderRadius: BorderRadius.circular(15.r),
                               child: CachedNetworkImage(
@@ -1421,6 +1435,50 @@ class _PixabayImagesPageState extends State<PixabayImagesPage>
         ),
       ),
     );
+  }
+
+  // Utility to detect if a URL likely points to a PNG image
+  bool _isPngUrl(String url) {
+    final lower = url.toLowerCase();
+    return lower.endsWith('.png') ||
+        lower.contains('format=png') ||
+        lower.contains('image/png');
+  }
+}
+
+// Simple checkerboard painter for indicating transparent backgrounds
+class CheckerboardPainter extends CustomPainter {
+  final double cellSize;
+  final Color lightColor;
+  final Color darkColor;
+
+  CheckerboardPainter({
+    this.cellSize = 8.0,
+    this.lightColor = const Color(0xFFFFFFFF),
+    this.darkColor = const Color(0xFFE5E7EB),
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Paint lightPaint = Paint()..color = lightColor;
+    final Paint darkPaint = Paint()..color = darkColor;
+
+    bool dark = false;
+    for (double y = 0; y < size.height; y += cellSize) {
+      dark = !dark;
+      for (double x = 0; x < size.width; x += cellSize) {
+        final Rect rect = Rect.fromLTWH(x, y, cellSize, cellSize);
+        canvas.drawRect(rect, dark ? darkPaint : lightPaint);
+        dark = !dark;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CheckerboardPainter oldDelegate) {
+    return oldDelegate.cellSize != cellSize ||
+        oldDelegate.lightColor != lightColor ||
+        oldDelegate.darkColor != darkColor;
   }
 }
 

@@ -81,8 +81,31 @@ class ExportManager {
       final pixelRatio = getPixelRatio(options.clarity);
       final ui.Image image = await boundary.toImage(pixelRatio: pixelRatio);
 
+      // For JPG, first composite onto a solid white background to ensure plain white (#FFFFFF)
+      ui.Image imageForEncoding = image;
+      if (options.format == export_dialog.ExportFormat.jpg) {
+        final ui.PictureRecorder recorder = ui.PictureRecorder();
+        final ui.Canvas canvas = ui.Canvas(
+          recorder,
+          Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
+        );
+        // Paint white background
+        final Paint bgPaint = Paint()..color = const Color(0xFFFFFFFF);
+        canvas.drawRect(
+          Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
+          bgPaint,
+        );
+        // Draw the captured image on top
+        final Paint imgPaint = Paint();
+        canvas.drawImage(image, const Offset(0, 0), imgPaint);
+        final ui.Picture picture = recorder.endRecording();
+        imageForEncoding = await picture.toImage(image.width, image.height);
+      }
+
       final format = getImageFormat(options.format);
-      final ByteData? byteData = await image.toByteData(format: format);
+      final ByteData? byteData = await imageForEncoding.toByteData(
+        format: format,
+      );
 
       if (byteData == null) return null;
 
@@ -92,8 +115,8 @@ class ExportManager {
       if (options.format == export_dialog.ExportFormat.jpg) {
         imageBytes = await _convertToJpeg(
           imageBytes,
-          image.width,
-          image.height,
+          imageForEncoding.width,
+          imageForEncoding.height,
         );
       }
 
