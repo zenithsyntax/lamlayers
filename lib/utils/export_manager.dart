@@ -633,14 +633,43 @@ class ExportManager {
           }
         }
 
+        String? imageData;
         if (filePathToEncode != null && filePathToEncode.isNotEmpty) {
-          final imageData = await _encodeImageToBase64(filePathToEncode);
+          imageData = await _encodeImageToBase64(filePathToEncode);
           if (imageData != null) {
             itemData["imageData"] = imageData;
             itemData["originalImageName"] = _basename(filePathToEncode);
           } else {
-            print('Warning: Failed to encode image for item ${item.id}');
+            print(
+              'Warning: Failed to encode image from file for item ${item.id}',
+            );
           }
+        }
+
+        // Fallback: if file encoding failed or file path missing, use any preserved base64
+        if (imageData == null || imageData.isEmpty) {
+          try {
+            final Map<String, dynamic> props = Map<String, dynamic>.from(
+              itemData["properties"] as Map<String, dynamic>,
+            );
+            String? inlineBase64;
+            // Prefer nested imageProperties when present
+            if (props['imageProperties'] is Map<String, dynamic>) {
+              final Map<String, dynamic> ip = Map<String, dynamic>.from(
+                props['imageProperties'] as Map<String, dynamic>,
+              );
+              inlineBase64 = ip['imageBase64'] as String?;
+            }
+            // Fallback to flat key used by runtime
+            inlineBase64 ??= props['imageBase64'] as String?;
+            if (inlineBase64 != null && inlineBase64.isNotEmpty) {
+              itemData['imageData'] = inlineBase64;
+              // originalImageName cannot be reliably known without a path; omit
+              print(
+                'ExportManager: Image item ${item.id} - using preserved inline base64',
+              );
+            }
+          } catch (_) {}
         }
       }
 
@@ -786,8 +815,19 @@ class ExportManager {
           'ExportManager: Text item ${item.id} - all properties: ${item.properties.keys.toList()}',
         );
 
-        // Ensure text content is properly serialized
-        final textContent = item.properties['text'] as String?;
+        // Ensure text content is properly serialized (with robust fallbacks)
+        String? textContent = item.properties['text'] as String?;
+        if (textContent == null || textContent.isEmpty) {
+          final dynamic tp = item.properties['textProperties'];
+          if (tp is hive_model.HiveTextProperties) {
+            textContent = tp.text;
+          } else if (tp is Map<String, dynamic>) {
+            final Object? t = tp['text'];
+            if (t is String && t.isNotEmpty) {
+              textContent = t;
+            }
+          }
+        }
         if (textContent != null && textContent.isNotEmpty) {
           itemData["textContent"] = textContent;
           print(
@@ -1357,6 +1397,25 @@ class ExportManager {
             }
           }
 
+          // Preserve original inline base64 for images to ensure re-export works even if temp files disappear
+          if (itemData['imageData'] is String &&
+              (itemData['imageData'] as String).isNotEmpty) {
+            final String preserved = itemData['imageData'] as String;
+            try {
+              // Flat key for runtime
+              properties['imageBase64'] = preserved;
+              // Mirror into nested imageProperties when present
+              if (properties['imageProperties'] != null &&
+                  properties['imageProperties'] is Map<String, dynamic>) {
+                final Map<String, dynamic> ip = Map<String, dynamic>.from(
+                  properties['imageProperties'] as Map<String, dynamic>,
+                );
+                ip['imageBase64'] = preserved;
+                properties['imageProperties'] = ip;
+              }
+            } catch (_) {}
+          }
+
           // For shapes: store base64 directly and also materialize a temp file for code paths
           // that only read file paths. This maximizes compatibility across versions.
           if (shapeImageBase64 != null) {
@@ -1437,8 +1496,13 @@ class ExportManager {
 
             // Log what text properties are available in import data
             if (itemData['textProperties'] is Map<String, dynamic>) {
-              final textPropsData =
-                  itemData['textProperties'] as Map<String, dynamic>;
+              // Work on a mutable copy and deserialize special values
+              final Map<String, dynamic> textPropsData =
+                  Map<String, dynamic>.from(
+                    itemData['textProperties'] as Map<String, dynamic>,
+                  );
+              // Convert enums/colors/offsets inside textPropsData so we don't lose styling on re-export
+              _deserializeSpecialValuesInProperties(textPropsData);
               print(
                 'ExportManager: Text item $i - textProperties keys: ${textPropsData.keys.toList()}',
               );
@@ -1464,7 +1528,11 @@ class ExportManager {
                       (textPropsData['fontSize'] as num?)?.toDouble() ?? 24.0,
                   color: textPropsData['color'] is hive_model.HiveColor
                       ? textPropsData['color'] as hive_model.HiveColor
-                      : hive_model.HiveColor(Colors.black.value),
+                      : (textPropsData['color'] is Color
+                            ? hive_model.HiveColor.fromColor(
+                                textPropsData['color'] as Color,
+                              )
+                            : hive_model.HiveColor(Colors.black.value)),
                   fontWeight: textPropsData['fontWeight'] is FontWeight
                       ? textPropsData['fontWeight'] as FontWeight
                       : FontWeight.normal,
@@ -1480,7 +1548,11 @@ class ExportManager {
                           ?.map(
                             (e) => e is hive_model.HiveColor
                                 ? e
-                                : hive_model.HiveColor(Colors.black.value),
+                                : (e is Color
+                                      ? hive_model.HiveColor.fromColor(e)
+                                      : hive_model.HiveColor(
+                                          Colors.black.value,
+                                        )),
                           )
                           .toList() ??
                       [],
@@ -1495,7 +1567,11 @@ class ExportManager {
                   shadowColor:
                       textPropsData['shadowColor'] is hive_model.HiveColor
                       ? textPropsData['shadowColor'] as hive_model.HiveColor
-                      : hive_model.HiveColor(Colors.black.value),
+                      : (textPropsData['shadowColor'] is Color
+                            ? hive_model.HiveColor.fromColor(
+                                textPropsData['shadowColor'] as Color,
+                              )
+                            : hive_model.HiveColor(Colors.black.value)),
                   shadowOffset: textPropsData['shadowOffset'] is Offset
                       ? textPropsData['shadowOffset'] as Offset
                       : Offset.zero,
@@ -1964,6 +2040,13 @@ class ExportManager {
             map[key] = matched;
             return;
           }
+          // Also handle legacy numeric encoding directly stored under map wrapper
+          if (lowerKey == 'textalign' && value.containsKey('index')) {
+            final idx = (value['index'] as num).toInt();
+            map[key] =
+                TextAlign.values[idx.clamp(0, TextAlign.values.length - 1)];
+            return;
+          }
 
           // FontStyle shape: { fontStyle: index }
           if (lowerKey == 'fontstyle' && value.containsKey('fontStyle')) {
@@ -1972,13 +2055,34 @@ class ExportManager {
                 FontStyle.values[idx.clamp(0, FontStyle.values.length - 1)];
             return;
           }
+          if (lowerKey == 'fontstyle' && value.containsKey('enum')) {
+            final name = (value['enum'] as String).toLowerCase();
+            final matched = FontStyle.values.firstWhere(
+              (e) => e.toString().split('.').last.toLowerCase() == name,
+              orElse: () => FontStyle.normal,
+            );
+            map[key] = matched;
+            return;
+          }
 
-          // FontWeight shape: { fontWeightValue: 100..900 }
+          // FontWeight shape: { fontWeightValue: 100..900 } or { enum: "w400" }
           if (lowerKey == 'fontweight' &&
               value.containsKey('fontWeightValue')) {
             final weight = (value['fontWeightValue'] as num).toInt();
             map[key] = _fontWeightFromNumeric(weight);
             return;
+          }
+          if (lowerKey == 'fontweight' && value.containsKey('enum')) {
+            final String name = (value['enum'] as String).toLowerCase();
+            // Parse patterns like w100..w900
+            if (name.startsWith('w')) {
+              final numStr = name.substring(1);
+              final parsed = int.tryParse(numStr);
+              if (parsed != null) {
+                map[key] = _fontWeightFromNumeric(parsed);
+                return;
+              }
+            }
           }
 
           // Offset-like shapes for keys ending with 'offset'
