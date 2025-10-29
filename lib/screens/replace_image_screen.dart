@@ -116,7 +116,7 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen>
           _currentImagePath = picked.path;
           _hasTransparency = hasAlpha;
         });
-        widget.onImageSelected(picked.path);
+        // Don't call onImageSelected here - only call it when Done is clicked
         await _loadImageInfoAndInit(picked.path);
       }
     } catch (e) {
@@ -288,6 +288,8 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen>
         setState(() => _isProcessing = false);
 
         if (croppedPath != null) {
+          // Only update the parent screen when Done is clicked with a successful crop
+          widget.onImageSelected(croppedPath);
           Navigator.pop(context, croppedPath);
         } else {
           Navigator.pop(context);
