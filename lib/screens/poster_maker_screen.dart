@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'dart:convert';
-
+//change
 import 'dart:ui' as ui;
 
 import 'dart:math' as math;
@@ -5903,7 +5903,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                               ),
 
                               // Text editing area
-                              Flexible(
+                              SizedBox(
                                 child: Container(
                                   padding: EdgeInsets.all(24.w),
                                   child: Column(
@@ -5941,7 +5941,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                                       ),
                                       SizedBox(height: 16.h),
                                       // Multi-line text field
-                                      Flexible(
+                                      SizedBox(
                                         child: Container(
                                           width: double.infinity,
                                           decoration: BoxDecoration(
