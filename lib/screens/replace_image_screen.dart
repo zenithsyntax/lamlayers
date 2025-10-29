@@ -241,7 +241,10 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen>
 
       if (!mounted) return null;
 
-      final Uint8List? imageBytes = await _screenshotController.capture();
+      final double dpr = MediaQuery.of(context).devicePixelRatio;
+      final Uint8List? imageBytes = await _screenshotController.capture(
+        pixelRatio: dpr,
+      );
 
       if (imageBytes == null) {
         _showSnackBar('Failed to capture image', isError: true);
@@ -407,9 +410,11 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen>
                   width: 2,
                 ),
           // Use transparent background if image has transparency, otherwise use grey
-          color: _hasTransparency && hasImage
+          color: _isCapturing
               ? Colors.transparent
-              : Colors.grey.shade900,
+              : (_hasTransparency && hasImage
+                    ? Colors.transparent
+                    : Colors.grey.shade900),
         ),
         child: Stack(
           alignment: Alignment.center,
@@ -434,7 +439,9 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen>
       },
       child: ClipRect(
         child: Container(
-          color: _hasTransparency ? Colors.transparent : Colors.grey.shade900,
+          color: _isCapturing
+              ? Colors.transparent
+              : (_hasTransparency ? Colors.transparent : Colors.grey.shade900),
           child: InteractiveViewer(
             transformationController: _transformController,
             clipBehavior: Clip.hardEdge,
