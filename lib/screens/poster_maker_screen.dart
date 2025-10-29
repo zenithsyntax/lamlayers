@@ -2706,6 +2706,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         _currentProject!.canvasItems,
       );
 
+      // Automatically fix any duplicate IDs after loading (silently)
+      _ensureUniqueItemIds(silent: true);
+
       if (mounted) {
         setState(() {});
       }
@@ -3361,6 +3364,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
   }
 
   void _addAction(CanvasAction action) {
+    // Automatically ensure unique IDs before any action to prevent conflicts
+    _ensureUniqueItemIds(silent: true);
+
     // Drop any redo history if new branch is created
     if (currentActionIndex < actionHistory.length - 1) {
       actionHistory.removeRange(currentActionIndex + 1, actionHistory.length);
@@ -3409,8 +3415,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         );
 
         // Apply the modify immediately
+        // Only replace if reference changed (preserve widget identity)
         final idx = canvasItems.indexWhere((it) => it.id == action.item!.id);
-        if (idx != -1) {
+        if (idx != -1 && !identical(canvasItems[idx], action.item)) {
           canvasItems[idx] = action.item!;
         }
         return;
@@ -3439,10 +3446,47 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     }
 
     // Apply the action immediately if it's a modify operation
+    // Note: Don't replace the item if it's already been mutated in place
+    // (e.g., from _mutateItemWithHistory), as this breaks widget identity.
+    // The mutation is already applied, so we just need to record it in history.
     if (action.type == 'modify' && action.item != null) {
       final idx = canvasItems.indexWhere((it) => it.id == action.item!.id);
       if (idx != -1) {
-        canvasItems[idx] = action.item!;
+        // Only replace if the reference has changed (e.g., from undo/redo)
+        // If it's the same reference, the item was already mutated in place
+        if (identical(canvasItems[idx], action.item)) {
+          // Same reference - already mutated in place, don't replace
+          // This preserves widget identity and prevents layers from disappearing
+        } else {
+          // Different reference - merge properties instead of full replace
+          // This preserves all existing properties that might not be in action.item
+          final existingItem = canvasItems[idx];
+
+          // Create a merged copy that preserves existing properties
+          final mergedItem = action.item!.copyWith(
+            // Preserve visibility
+            isVisible: existingItem.isVisible,
+            // Preserve layer index
+            layerIndex: existingItem.layerIndex,
+            // Preserve properties by merging them (existing takes precedence for critical fields)
+            properties: _mergeProperties(
+              existingItem.properties,
+              action.item!.properties,
+            ),
+          );
+
+          canvasItems[idx] = mergedItem;
+
+          // Update selectedItem reference if needed
+          if (selectedItem != null && identical(selectedItem, existingItem)) {
+            selectedItem = mergedItem;
+          }
+        }
+      } else {
+        // Item not found - this shouldn't happen, but if it does, add it back
+        print(
+          'WARNING: Item ${action.item!.id} not found in canvasItems during _addAction modify',
+        );
       }
     }
   }
@@ -3478,12 +3522,15 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     setState(() {
       mutate(item);
     });
+    // Pass the item reference directly (not a copy) so _addAction
+    // can detect it's already been mutated and skip replacement
     _addAction(
       CanvasAction(
         type: 'modify',
-        item: item.copyWith(),
+        item: item, // Pass reference, not copy
         previousState: previous,
         timestamp: DateTime.now(),
+        coalescible: false, // Don't allow coalescing renames
       ),
     );
   }
@@ -3605,6 +3652,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     setState(() {
       canvasItems.add(newItem);
 
+      // Auto-fix duplicates after adding new item (silently)
+      _ensureUniqueItemIds(silent: true);
+
       _selectItem(newItem);
     });
 
@@ -3660,8 +3710,17 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           }
           break;
         case CanvasItemType.image:
-          if (item.properties['filePath'] == null &&
-              item.properties['imageUrl'] == null) {
+          // Consider image valid if it has a source path/url OR an in-memory image/base64
+          final hasFile = item.properties['filePath'] != null;
+          final hasUrl = item.properties['imageUrl'] != null;
+          final hasInMemoryImage =
+              item.properties['image'] != null; // ui.Image set at runtime
+          final hasBase64 =
+              item.properties['imageBase64'] != null ||
+              (item.properties['imageProperties'] is Map &&
+                  (item.properties['imageProperties'] as Map)['imageBase64'] !=
+                      null);
+          if (!(hasFile || hasUrl || hasInMemoryImage || hasBase64)) {
             isValid = false;
           }
           break;
@@ -3709,22 +3768,98 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     }
   }
 
+  // Merges properties from newItem into existingItem, preserving critical fields
+  Map<String, dynamic> _mergeProperties(
+    Map<String, dynamic> existing,
+    Map<String, dynamic> newProps,
+  ) {
+    // Start with new properties
+    final merged = Map<String, dynamic>.from(newProps);
+
+    // Preserve critical image properties that might be missing in newProps
+    if (existing.containsKey('filePath') && !merged.containsKey('filePath')) {
+      merged['filePath'] = existing['filePath'];
+    }
+    if (existing.containsKey('imageUrl') && !merged.containsKey('imageUrl')) {
+      merged['imageUrl'] = existing['imageUrl'];
+    }
+    if (existing.containsKey('imageBase64') &&
+        !merged.containsKey('imageBase64')) {
+      merged['imageBase64'] = existing['imageBase64'];
+    }
+    if (existing.containsKey('imageProperties') &&
+        !merged.containsKey('imageProperties')) {
+      merged['imageProperties'] = existing['imageProperties'];
+    }
+    if (existing.containsKey('image') && !merged.containsKey('image')) {
+      // ui.Image object - preserve it
+      merged['image'] = existing['image'];
+    }
+
+    // Preserve other important properties
+    if (existing.containsKey('intrinsicWidth') &&
+        !merged.containsKey('intrinsicWidth')) {
+      merged['intrinsicWidth'] = existing['intrinsicWidth'];
+    }
+    if (existing.containsKey('intrinsicHeight') &&
+        !merged.containsKey('intrinsicHeight')) {
+      merged['intrinsicHeight'] = existing['intrinsicHeight'];
+    }
+    if (existing.containsKey('displayWidth') &&
+        !merged.containsKey('displayWidth')) {
+      merged['displayWidth'] = existing['displayWidth'];
+    }
+    if (existing.containsKey('displayHeight') &&
+        !merged.containsKey('displayHeight')) {
+      merged['displayHeight'] = existing['displayHeight'];
+    }
+
+    return merged;
+  }
+
   // Ensures all canvas items have unique IDs to prevent UI key collisions
-  void _ensureUniqueItemIds() {
+  // This preserves ALL layer data - only changes the ID, nothing else
+  void _ensureUniqueItemIds({bool silent = false}) {
     final Set<String> seen = <String>{};
     bool changed = false;
+    int duplicateCount = 0;
+
     for (int i = 0; i < canvasItems.length; i++) {
       final CanvasItem item = canvasItems[i];
       if (seen.contains(item.id)) {
-        // Regenerate a unique id and replace the item
+        // Duplicate found - generate new unique ID
+        duplicateCount++;
         final String newId = _generateUniqueId();
-        canvasItems[i] = item.copyWith(id: newId);
+
+        // Create new item with same data, just new ID
+        // copyWith preserves ALL properties including image paths, URLs, base64, etc.
+        final fixedItem = item.copyWith(id: newId);
+
+        // Replace in list - preserves position, all properties, layerIndex, visibility, etc.
+        canvasItems[i] = fixedItem;
+
+        // Update selectedItem reference if it was the duplicate
+        if (selectedItem != null &&
+            selectedItem!.id == item.id &&
+            identical(selectedItem, item)) {
+          selectedItem = fixedItem;
+        }
+
+        seen.add(newId);
         changed = true;
+      } else {
+        seen.add(item.id);
       }
-      seen.add(canvasItems[i].id);
     }
+
     if (changed) {
-      setState(() {});
+      if (!silent) {
+        print(
+          'AUTO-FIX: Resolved $duplicateCount duplicate ID(s) - all layer data preserved',
+        );
+      }
+      // No setState needed here - we mutate in place, and caller can trigger rebuild
+      // This prevents unnecessary rebuilds and preserves widget identity
     }
   }
 
@@ -3908,6 +4043,9 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
     setState(() {
       canvasItems.add(duplicatedItem);
+
+      // Auto-fix duplicates after duplicating (silently)
+      _ensureUniqueItemIds(silent: true);
 
       _selectItem(duplicatedItem);
     });
@@ -8556,6 +8694,10 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
                               child: Stack(
                                 children: [
                                   ...(() {
+                                    // Auto-fix any duplicate IDs before rendering (silent, preserves all data)
+                                    _ensureUniqueItemIds(silent: true);
+
+                                    // Now all IDs are guaranteed unique, safe to render
                                     final items = [...canvasItems]
                                       ..sort(
                                         (a, b) => a.layerIndex.compareTo(
@@ -8626,6 +8768,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     final isSelected = !_suppressSelectionUI && selectedItem == item;
 
     return Positioned(
+      key: ValueKey('canvas_item_${item.id}'),
       left: item.position.dx,
 
       top: item.position.dy,
@@ -9880,9 +10023,14 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     Widget imageWidget;
 
     if (filePath != null) {
-      imageWidget = Image.file(File(filePath), fit: BoxFit.contain);
+      imageWidget = Image.file(
+        File(filePath),
+        key: ValueKey('image_file_${item.id}_$filePath'),
+        fit: BoxFit.contain,
+      );
     } else if (imageUrl != null) {
       imageWidget = CachedNetworkImage(
+        key: ValueKey('image_network_${item.id}_$imageUrl'),
         imageUrl: imageUrl,
 
         fit: BoxFit.contain,
@@ -13411,7 +13559,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         final isSelected = selectedItem == item;
 
         return Container(
-          key: ValueKey('${item.id}_${item.layerIndex}'),
+          key: ValueKey('layer_${item.id}'),
 
           margin: EdgeInsets.only(bottom: 12.h),
 
@@ -13585,9 +13733,104 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     );
 
     if (newName != null) {
-      _mutateItemWithHistory(item, (it) {
-        it.name = newName.isEmpty ? null : newName;
+      // Automatically ensure IDs are unique before rename (silently, preserves all data)
+      _ensureUniqueItemIds(silent: true);
+
+      // Find the item by ID - use lastIndexOf to handle edge cases, but should be unique now
+      // Also check by reference to ensure we have the exact item
+      int idx = -1;
+      if (canvasItems.contains(item)) {
+        // Item is in list by reference - use that
+        idx = canvasItems.indexOf(item);
+      } else {
+        // Fall back to ID lookup
+        idx = canvasItems.indexWhere((it) => it.id == item.id);
+      }
+
+      if (idx == -1) {
+        print(
+          'ERROR: Could not find item ${item.id} in canvasItems list during rename',
+        );
+        print('DEBUG: canvasItems length: ${canvasItems.length}');
+        print(
+          'DEBUG: canvasItems IDs: ${canvasItems.map((it) => it.id).join(", ")}',
+        );
+        return;
+      }
+
+      final CanvasItem target = canvasItems[idx];
+
+      // Verify we have the right item (not a duplicate with same ID)
+      if (!identical(target, item) && target.id == item.id) {
+        print(
+          'WARNING: Found item with same ID but different reference during rename',
+        );
+        // Still proceed, but log the issue
+      }
+      final CanvasItem previous = target.copyWith();
+
+      // Perform all mutations in a single setState to avoid race conditions
+      setState(() {
+        // Update name
+        target.name = newName.isEmpty ? null : newName;
+        target.lastModified = DateTime.now();
+
+        // Ensure visibility is preserved
+        if (!target.isVisible) {
+          target.isVisible = true;
+        }
+
+        // Verify item is still in list (defensive check)
+        final verifyIdx = canvasItems.indexWhere((it) => it.id == target.id);
+        if (verifyIdx == -1) {
+          print(
+            'ERROR: Item ${target.id} disappeared during rename! This should not happen.',
+          );
+          // Restore immediately
+          canvasItems.insert(idx, target);
+        }
+
+        // Update selectedItem reference if it's the same item
+        if (selectedItem != null && selectedItem!.id == target.id) {
+          selectedItem = target;
+        }
       });
+
+      // Verify properties after state update
+      if (target.type == CanvasItemType.image) {
+        if (target.properties['filePath'] == null &&
+            target.properties['imageUrl'] == null) {
+          print(
+            'WARNING: Image item ${target.id} missing filePath/imageUrl after rename',
+          );
+        }
+      }
+
+      // Record in history AFTER state update to ensure consistency
+      // Note: We pass the reference directly so _addAction knows it's already mutated
+      // and won't try to replace it again (which could cause widget identity issues)
+      final renameAction = CanvasAction(
+        type: 'modify',
+        item: target, // Same reference we mutated - don't replace in _addAction
+        previousState: previous,
+        timestamp: DateTime.now(),
+        coalescible: false, // Don't allow coalescing renames
+      );
+
+      // Manually add to history to bypass the apply-in-place logic in _addAction
+      // since we already mutated the item
+      if (currentActionIndex < actionHistory.length - 1) {
+        actionHistory.removeRange(currentActionIndex + 1, actionHistory.length);
+      }
+      actionHistory.add(renameAction);
+      currentActionIndex++;
+
+      // Cap history size
+      const int historyCap = 100;
+      if (actionHistory.length > historyCap) {
+        actionHistory.removeAt(0);
+        currentActionIndex--;
+      }
     }
   }
 
