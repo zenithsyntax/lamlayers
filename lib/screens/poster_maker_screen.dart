@@ -2261,6 +2261,17 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   int currentActionIndex = -1;
 
+  // Generates collision-resistant IDs for layers/items. Using milliseconds can
+  // produce duplicates in release builds when multiple items are created in the
+  // same millisecond. We combine microseconds with a monotonically increasing
+  // counter to guarantee uniqueness during the app lifetime.
+  int _idCounter = 0;
+  String _generateUniqueId() {
+    final int micros = DateTime.now().microsecondsSinceEpoch;
+    final String id = '${micros}-${_idCounter++}';
+    return id;
+  }
+
   // Animation controllers
 
   late AnimationController _bottomSheetController;
@@ -2437,7 +2448,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       }
     } else {
       _currentProject = PosterProject(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        id: _generateUniqueId(),
 
         name: 'New Project',
 
@@ -3573,7 +3584,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     }
 
     final newItem = CanvasItem(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: _generateUniqueId(),
 
       type: type,
 
@@ -3866,7 +3877,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
   void _duplicateItem(CanvasItem item) {
     final duplicatedItem = item.copyWith(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: _generateUniqueId(),
 
       position: item.position + const Offset(20, 20),
 
@@ -7430,7 +7441,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       if (currentDrawingPoints.isNotEmpty) {
         drawingLayers.add(
           DrawingLayer(
-            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            id: _generateUniqueId(),
 
             tool: selectedDrawingTool,
 
@@ -8203,7 +8214,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
     if (currentDrawingPoints.isNotEmpty) {
       drawingLayers.add(
         DrawingLayer(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          id: _generateUniqueId(),
 
           tool: selectedDrawingTool,
 
@@ -8296,7 +8307,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         .toList();
 
     final drawingItem = CanvasItem(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: _generateUniqueId(),
 
       type: CanvasItemType.drawing,
 
@@ -13901,9 +13912,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       );
     } else {
       return PosterProject(
-        id:
-            widget.projectId ??
-            DateTime.now().millisecondsSinceEpoch.toString(),
+        id: widget.projectId ?? _generateUniqueId(),
         name: 'Current Project',
         description: 'Exported project',
         createdAt: DateTime.now(),

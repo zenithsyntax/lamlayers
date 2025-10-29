@@ -36,13 +36,24 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen>
   late Animation<double> _fadeAnimation;
 
   String? _currentImagePath;
-  BoxFit _selectedFit = BoxFit.cover;
-  Offset _offset = Offset.zero;
-  double _scale = 1.0;
+  // kept for API compatibility; no longer needed with InteractiveViewer
+  // ignore: unused_field
+  BoxFit _selectedFit = BoxFit.contain;
+  // InteractiveViewer state
+  final TransformationController _transformController =
+      TransformationController();
+  Matrix4? _initialTransform;
+  double _baseContainScale = 1.0;
+  double _baseCoverScale = 1.0;
+  double _scale = 1.0; // derived from controller for UI
+  // ignore: unused_field
   double _previousScale = 1.0;
+  Offset _offset = Offset.zero; // kept for backward compatibility with UI state
   bool _isCapturing = false;
   bool _isProcessing = false;
   bool _hasTransparency = false;
+  double? _imageNaturalWidth;
+  double? _imageNaturalHeight;
 
   bool get _hasChanges => _scale != 1.0 || _offset != Offset.zero;
 
@@ -60,6 +71,7 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen>
           });
         }
       });
+      _loadImageInfoAndInit(_currentImagePath!);
     }
 
     _animController = AnimationController(
@@ -105,7 +117,7 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen>
           _hasTransparency = hasAlpha;
         });
         widget.onImageSelected(picked.path);
-        _resetTransformations();
+        await _loadImageInfoAndInit(picked.path);
       }
     } catch (e) {
       if (mounted) {
@@ -137,11 +149,61 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen>
   }
 
   void _resetTransformations() {
-    setState(() {
-      _offset = Offset.zero;
-      _scale = 1.0;
-      _previousScale = 1.0;
-    });
+    if (_initialTransform != null) {
+      _transformController.value = _initialTransform!;
+    }
+    _previousScale = 1.0;
+  }
+
+  Future<void> _loadImageInfoAndInit(String imagePath) async {
+    try {
+      final Uint8List bytes = await File(imagePath).readAsBytes();
+      final img.Image? decoded = img.decodeImage(bytes);
+      if (decoded == null) return;
+      _imageNaturalWidth = decoded.width.toDouble();
+      _imageNaturalHeight = decoded.height.toDouble();
+      _setInitialContainTransform();
+    } catch (_) {
+      // ignore; fall back to default
+      _imageNaturalWidth = null;
+      _imageNaturalHeight = null;
+      _setInitialContainTransform();
+    }
+  }
+
+  void _setInitialContainTransform() {
+    final double frameW = widget.imageWidth;
+    final double frameH = widget.imageHeight;
+
+    final double imgW = _imageNaturalWidth ?? frameW;
+    final double imgH = _imageNaturalHeight ?? frameH;
+
+    // Base scales
+    _baseContainScale = [
+      frameW / imgW,
+      frameH / imgH,
+    ].reduce((a, b) => a < b ? a : b);
+    _baseCoverScale = [
+      frameW / imgW,
+      frameH / imgH,
+    ].reduce((a, b) => a > b ? a : b);
+    if (!mounted) return;
+
+    // Initialize to cover so the image fills the frame on load
+    final double initialScale = _baseCoverScale;
+    final double contentW = imgW * initialScale;
+    final double contentH = imgH * initialScale;
+    final double tx = (frameW - contentW) / 2.0;
+    final double ty = (frameH - contentH) / 2.0;
+
+    final Matrix4 m = Matrix4.identity()
+      ..translate(tx, ty)
+      ..scale(initialScale);
+    _initialTransform = m.clone();
+    _transformController.value = m;
+    _scale = initialScale;
+    _offset = Offset(tx, ty);
+    setState(() {});
   }
 
   void _showSnackBar(String message, {bool isError = false}) {
@@ -186,50 +248,14 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen>
         return null;
       }
 
-      final img.Image? originalImage = img.decodeImage(imageBytes);
-      if (originalImage == null) {
-        _showSnackBar('Failed to process image', isError: true);
-        return null;
-      }
-
-      final double devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
-      final int croppedWidth = (widget.imageWidth * devicePixelRatio).toInt();
-      final int croppedHeight = (widget.imageHeight * devicePixelRatio).toInt();
-
-      img.Image croppedImage;
-      if (originalImage.width >= croppedWidth &&
-          originalImage.height >= croppedHeight) {
-        final int startX = (originalImage.width - croppedWidth) ~/ 2;
-        final int startY = (originalImage.height - croppedHeight) ~/ 2;
-        croppedImage = img.copyCrop(
-          originalImage,
-          x: startX,
-          y: startY,
-          width: croppedWidth,
-          height: croppedHeight,
-        );
-      } else {
-        croppedImage = img.copyResize(
-          originalImage,
-          width: croppedWidth,
-          height: croppedHeight,
-          interpolation: img.Interpolation.linear,
-        );
-      }
-
       final Directory tempDir = await getTemporaryDirectory();
       final String fileName =
           'cropped_image_${DateTime.now().millisecondsSinceEpoch}.png';
       final String filePath = '${tempDir.path}/$fileName';
 
       final File file = File(filePath);
-      // Encode PNG with transparency support if source has alpha channel
-      final Uint8List pngBytes = img.encodePng(
-        croppedImage,
-        level: 9, // Maximum compression
-        filter: img.PngFilter.none,
-      );
-      await file.writeAsBytes(pngBytes);
+      // Write captured PNG bytes directly to preserve transparency and exact framing
+      await file.writeAsBytes(imageBytes);
 
       return filePath;
     } catch (e) {
@@ -388,7 +414,7 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen>
         child: Stack(
           alignment: Alignment.center,
           children: [
-            if (hasImage) _buildImageWithGestures(),
+            if (hasImage) _buildInteractiveViewer(),
             if (!hasImage) _buildAddImageButton(),
           ],
         ),
@@ -396,34 +422,35 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen>
     );
   }
 
-  Widget _buildImageWithGestures() {
-    return GestureDetector(
-      onScaleStart: (details) {
-        _previousScale = _scale;
+  Widget _buildInteractiveViewer() {
+    final double frameW = widget.imageWidth;
+    final double frameH = widget.imageHeight;
+    final double imgW = _imageNaturalWidth ?? frameW;
+    final double imgH = _imageNaturalHeight ?? frameH;
+
+    return Listener(
+      onPointerSignal: (_) {
+        // keep state updated; no-op
       },
-      onScaleUpdate: (details) {
-        setState(() {
-          _scale = (_previousScale * details.scale).clamp(0.5, 3.0);
-          _offset += details.focalPointDelta;
-        });
-      },
-      onScaleEnd: (_) {
-        _previousScale = 1.0;
-      },
-      child: Container(
-        // Use transparent background if image has transparency
-        color: _hasTransparency ? Colors.transparent : Colors.grey.shade900,
-        child: ClipRect(
-          child: Transform.translate(
-            offset: _offset,
-            child: Transform.scale(
-              scale: _scale,
-              child: Image.file(
-                File(_currentImagePath!),
-                fit: _selectedFit,
-                width: widget.imageWidth,
-                height: widget.imageHeight,
-              ),
+      child: ClipRect(
+        child: Container(
+          color: _hasTransparency ? Colors.transparent : Colors.grey.shade900,
+          child: InteractiveViewer(
+            transformationController: _transformController,
+            clipBehavior: Clip.hardEdge,
+            constrained: false,
+            // Allow zooming out to contain (no blank borders if desired) and up well beyond cover
+            minScale: _baseContainScale,
+            maxScale: _baseCoverScale * 6.0,
+            onInteractionUpdate: (_) {
+              setState(() {
+                _scale = _transformController.value.getMaxScaleOnAxis();
+              });
+            },
+            child: SizedBox(
+              width: imgW,
+              height: imgH,
+              child: Image.file(File(_currentImagePath!), fit: BoxFit.contain),
             ),
           ),
         ),
@@ -534,7 +561,8 @@ class _ReplaceImageScreenState extends State<ReplaceImageScreen>
   }
 
   Widget _buildZoomIndicator() {
-    final percentage = ((_scale - 0.5) / 2.5 * 100).round();
+    final double base = _baseCoverScale == 0 ? 1.0 : _baseCoverScale;
+    final int percentage = ((_scale / base) * 100).round();
 
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
