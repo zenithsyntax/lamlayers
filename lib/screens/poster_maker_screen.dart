@@ -4342,17 +4342,18 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             value: selectedItem!.scale,
             min: 0.1,
             max: 10.0,
-            onChanged: (v) => setState(() => selectedItem!.scale = v),
+            onChanged: (v) =>
+                setState(() => selectedItem!.scale = ((v * 100).round() / 100)),
             icon: Icons.zoom_out_map_rounded,
             isMini: true,
-            step: 0.05,
+            step: 0.01,
             accentColor: _currentAccent(),
             borderOnly: true,
-            fixedStepSize: 0.1,
+            fixedStepSize: 0.01,
             onChangeEnd: (v) {
               if (selectedItem != null) {
                 _mutateItemWithHistory(selectedItem!, (it) {
-                  it.scale = v;
+                  it.scale = ((v * 100).round() / 100);
                 });
               }
             },
@@ -9073,7 +9074,8 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         10.0,
       ); // Changed from 5.0 to 10.0
 
-      item.scale = newScale;
+      // Snap to 0.01 increments
+      item.scale = ((newScale * 100).round() / 100);
     });
   }
 
@@ -10199,18 +10201,18 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
 
         SizedBox(height: 16.h),
 
-        _buildSliderOption(
-          'Scale',
-
-          selectedItem!.scale,
-
-          0.1,
-
-          10.0,
-
-          (value) => setState(() => selectedItem!.scale = value),
-
-          Icons.zoom_out_map_rounded,
+        EnhancedSlider(
+          label: 'Scale',
+          value: selectedItem!.scale,
+          min: 0.1,
+          max: 10.0,
+          onChanged: (value) => setState(
+            () => selectedItem!.scale = ((value * 100).round() / 100),
+          ),
+          icon: Icons.zoom_out_map_rounded,
+          isMini: false,
+          step: 0.01,
+          fixedStepSize: 0.01,
         ),
 
         SizedBox(height: 16.h),

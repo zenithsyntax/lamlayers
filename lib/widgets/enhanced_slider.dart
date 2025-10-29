@@ -35,11 +35,14 @@ class EnhancedSlider extends StatelessWidget {
   Widget build(BuildContext context) {
     final clamped = value.clamp(min, max);
     final stepSize = fixedStepSize ?? (max - min) * step;
+    final int? discreteDivisions = (fixedStepSize != null && fixedStepSize! > 0)
+        ? ((max - min) / fixedStepSize!).round()
+        : null;
 
     if (isMini) {
-      return _buildMiniSlider(context, clamped, stepSize);
+      return _buildMiniSlider(context, clamped, stepSize, discreteDivisions);
     } else {
-      return _buildFullSlider(context, clamped, stepSize);
+      return _buildFullSlider(context, clamped, stepSize, discreteDivisions);
     }
   }
 
@@ -47,6 +50,7 @@ class EnhancedSlider extends StatelessWidget {
     BuildContext context,
     double clamped,
     double stepSize,
+    int? discreteDivisions,
   ) {
     final Color accent = accentColor ?? _colorForLabel(label);
     final Color inactive = accent.withOpacity(0.2);
@@ -81,7 +85,7 @@ class EnhancedSlider extends StatelessWidget {
                     onTap: () =>
                         _showNumberInputDialog(context, clamped, accent),
                     child: Text(
-                      clamped.toStringAsFixed(1),
+                      clamped.toStringAsFixed(2),
                       style: TextStyle(
                         fontSize: 12.sp,
                         color: accent,
@@ -135,6 +139,7 @@ class EnhancedSlider extends StatelessWidget {
                         value: clamped,
                         min: min,
                         max: max,
+                        divisions: discreteDivisions,
                         onChanged: onChanged,
                         onChangeEnd: onChangeEnd,
                       ),
@@ -172,6 +177,7 @@ class EnhancedSlider extends StatelessWidget {
     BuildContext context,
     double clamped,
     double stepSize,
+    int? discreteDivisions,
   ) {
     final Color accent = accentColor ?? _colorForLabel(label);
     final Color inactive = accent.withOpacity(0.2);
@@ -207,7 +213,7 @@ class EnhancedSlider extends StatelessWidget {
                     // no border
                   ),
                   child: Text(
-                    clamped.toStringAsFixed(1),
+                    clamped.toStringAsFixed(2),
                     style: TextStyle(
                       fontSize: 14.sp,
                       color: accent,
@@ -261,6 +267,7 @@ class EnhancedSlider extends StatelessWidget {
                     value: clamped,
                     min: min,
                     max: max,
+                    divisions: discreteDivisions,
                     onChanged: onChanged,
                     onChangeEnd: onChangeEnd,
                   ),
@@ -437,7 +444,6 @@ class EnhancedSlider extends StatelessWidget {
                           side: BorderSide(color: accent.withOpacity(0.2)),
                         ),
                       ),
-                      
                     ],
                   ),
                 ],
