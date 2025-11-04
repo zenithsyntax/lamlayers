@@ -69,7 +69,7 @@ class MyApp extends StatelessWidget {
       designSize: const Size(390, 844),
       minTextAdapt: true,
       builder: (context, child) => MaterialApp(
-        title: 'Poster Maker',
+        title: 'Lamlayers',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
