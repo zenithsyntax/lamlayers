@@ -1330,17 +1330,20 @@ class ExportManager {
       final canvasToScreenRatioX = exportCanvasWidth / exportScreenWidth;
       final canvasToScreenRatioY = exportCanvasHeight / exportScreenHeight;
 
-      // Scale canvas dimensions and add 1.5% buffer to eliminate gaps
-      final scaledCanvasWidth =
-          (currentScreenWidth * canvasToScreenRatioX * 1.015).ceilToDouble();
-      final scaledCanvasHeight =
-          (currentScreenHeight * canvasToScreenRatioY * 1.015).ceilToDouble();
+      // Calculate base canvas dimensions (without buffer) for element scaling
+      final baseCanvasWidth = currentScreenWidth * canvasToScreenRatioX;
+      final baseCanvasHeight = currentScreenHeight * canvasToScreenRatioY;
 
-      // Scale elements by the canvas dimension change ratio
+      // Scale canvas dimensions uniformly without buffer
+      // Use pure canvas ratio to maintain exact proportions
+      final scaledCanvasWidth = baseCanvasWidth.ceilToDouble();
+      final scaledCanvasHeight = baseCanvasHeight.ceilToDouble();
+
+      // Single uniform scale factor for consistent scaling
       final uniformScaleFactor = scaledCanvasWidth / exportCanvasWidth;
 
       print(
-        'ExportManager: Canvas ${exportCanvasWidth}x${exportCanvasHeight} -> ${scaledCanvasWidth}x${scaledCanvasHeight} (with 1% buffer), scale: $uniformScaleFactor',
+        'ExportManager: Canvas ${exportCanvasWidth}x${exportCanvasHeight} -> ${scaledCanvasWidth}x${scaledCanvasHeight}, scale factor: $uniformScaleFactor',
       );
 
       // Deserialize canvas items
@@ -1815,34 +1818,8 @@ class ExportManager {
             }
           }
 
-          // Scale shape properties
-          if ((itemData['type'] as int) ==
-              hive_model.HiveCanvasItemType.shape.index) {
-            // Scale strokeWidth
-            if (properties.containsKey('strokeWidth')) {
-              final originalStrokeWidth =
-                  (properties['strokeWidth'] as num?)?.toDouble() ?? 2.0;
-              properties['strokeWidth'] =
-                  originalStrokeWidth * uniformScaleFactor;
-              print(
-                'ExportManager: Item $i - Scaled strokeWidth from $originalStrokeWidth to ${properties['strokeWidth']}',
-              );
-            }
-
-            // Scale shapeProperties strokeWidth if it exists
-            if (properties['shapeProperties'] is Map<String, dynamic>) {
-              final shapeProps = Map<String, dynamic>.from(
-                properties['shapeProperties'] as Map<String, dynamic>,
-              );
-              if (shapeProps.containsKey('strokeWidth')) {
-                final originalStrokeWidth =
-                    (shapeProps['strokeWidth'] as num?)?.toDouble() ?? 2.0;
-                shapeProps['strokeWidth'] =
-                    originalStrokeWidth * uniformScaleFactor;
-                properties['shapeProperties'] = shapeProps;
-              }
-            }
-          }
+          // Don't scale strokeWidth for shapes - the scale property handles sizing
+          // StrokeWidth will scale automatically with the element's scale property
 
           // Scale drawing properties
           if ((itemData['type'] as int) ==
@@ -2075,15 +2052,21 @@ class ExportManager {
           final scaledDx = originalDx * uniformScaleFactor;
           final scaledDy = originalDy * uniformScaleFactor;
 
-          // Scale the element's scale property for shapes and stickers only
-          // Images: Keep original scale (they have intrinsic dimensions)
-          // Text: We scale fontSize instead to avoid double scaling
-          // Drawings: Keep scale at 1.0, scale points uniformly instead
-          final bool shouldScaleElementScale =
-              itemTypeIndex == hive_model.HiveCanvasItemType.shape.index ||
+          // Scale shapes based on their type
+          // Hearts don't need scale property scaling, other shapes do
+          final bool isShape =
+              itemTypeIndex == hive_model.HiveCanvasItemType.shape.index;
+          final bool isSticker =
               itemTypeIndex == hive_model.HiveCanvasItemType.sticker.index;
 
-          final scaledScale = shouldScaleElementScale
+          bool shouldScaleShape = false;
+          if (isShape) {
+            // Check if it's NOT a heart shape
+            final shapeType = properties['shape'] as String? ?? '';
+            shouldScaleShape = shapeType.toLowerCase() != 'heart';
+          }
+
+          final scaledScale = (shouldScaleShape || isSticker)
               ? originalScale * uniformScaleFactor
               : originalScale;
 
@@ -2091,7 +2074,7 @@ class ExportManager {
             'ExportManager: Item $i - Original pos: ($originalDx, $originalDy), scale: $originalScale',
           );
           print(
-            'ExportManager: Item $i - Scaled pos: ($scaledDx, $scaledDy), scale: $scaledScale (shouldScale: $shouldScaleElementScale)',
+            'ExportManager: Item $i - Scaled pos: ($scaledDx, $scaledDy), scale: $scaledScale (original)',
           );
 
           final canvasItem = hive_model.HiveCanvasItem(
@@ -2734,12 +2717,16 @@ class ExportManager {
     final canvasToScreenRatioX = exportCanvasWidth / exportScreenWidth;
     final canvasToScreenRatioY = exportCanvasHeight / exportScreenHeight;
 
-    // Scale canvas dimensions with 1.5% buffer to eliminate gaps
-    final scaledCanvasWidth =
-        (currentScreenWidth * canvasToScreenRatioX * 1.015).ceilToDouble();
-    final scaledCanvasHeight =
-        (currentScreenHeight * canvasToScreenRatioY * 1.015).ceilToDouble();
+    // Calculate base canvas dimensions (without buffer) for element scaling
+    final baseCanvasWidth = currentScreenWidth * canvasToScreenRatioX;
+    final baseCanvasHeight = currentScreenHeight * canvasToScreenRatioY;
 
+    // Scale canvas dimensions uniformly without buffer
+    // Use pure canvas ratio to maintain exact proportions
+    final scaledCanvasWidth = baseCanvasWidth.ceilToDouble();
+    final scaledCanvasHeight = baseCanvasHeight.ceilToDouble();
+
+    // Single uniform scale factor for consistent scaling
     final uniformScaleFactor = scaledCanvasWidth / exportCanvasWidth;
 
     final List<hive_model.HiveCanvasItem> canvasItems = [];
@@ -2794,14 +2781,8 @@ class ExportManager {
           }
         }
 
-        // Scale shape properties
-        if (itemTypeIndex == hive_model.HiveCanvasItemType.shape.index) {
-          if (properties.containsKey('strokeWidth')) {
-            properties['strokeWidth'] =
-                (properties['strokeWidth'] as num).toDouble() *
-                uniformScaleFactor;
-          }
-        }
+        // Don't scale strokeWidth for shapes - the scale property handles sizing
+        // StrokeWidth will scale automatically with the element's scale property
 
         // Scale drawing properties
         if (itemTypeIndex == hive_model.HiveCanvasItemType.drawing.index) {
@@ -2876,15 +2857,21 @@ class ExportManager {
         final originalDy = (positionData['dy'] as num).toDouble();
         final originalScale = (itemData['scale'] as num).toDouble();
 
-        // Scale the element's scale property for shapes and stickers only
-        // Images: Keep original scale (they have intrinsic dimensions)
-        // Text: We scale fontSize instead to avoid double scaling
-        // Drawings: Keep scale at 1.0, scale points uniformly instead
-        final bool shouldScaleElementScale =
-            itemTypeIndex == hive_model.HiveCanvasItemType.shape.index ||
+        // Scale shapes based on their type
+        // Hearts don't need scale property scaling, other shapes do
+        final bool isShape =
+            itemTypeIndex == hive_model.HiveCanvasItemType.shape.index;
+        final bool isSticker =
             itemTypeIndex == hive_model.HiveCanvasItemType.sticker.index;
 
-        final scaledScale = shouldScaleElementScale
+        bool shouldScaleShape = false;
+        if (isShape) {
+          // Check if it's NOT a heart shape
+          final shapeType = properties['shape'] as String? ?? '';
+          shouldScaleShape = shapeType.toLowerCase() != 'heart';
+        }
+
+        final scaledScale = (shouldScaleShape || isSticker)
             ? originalScale * uniformScaleFactor
             : originalScale;
 
