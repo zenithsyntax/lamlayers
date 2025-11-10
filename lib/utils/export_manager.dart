@@ -1303,14 +1303,9 @@ class ExportManager {
         }
       }
 
-      // Calculate scale factors for responsive scaling across different devices
-      double scaleFactorX = 1.0;
-      double scaleFactorY = 1.0;
-      double uniformScaleFactor = 1.0;
-
       // Get current screen dimensions
-      double currentScreenWidth = 1080.0; // Default fallback
-      double currentScreenHeight = 1920.0; // Default fallback
+      double currentScreenWidth = 1080.0;
+      double currentScreenHeight = 1920.0;
 
       try {
         if (ScreenUtil().screenWidth > 0 && ScreenUtil().screenHeight > 0) {
@@ -1318,16 +1313,10 @@ class ExportManager {
           currentScreenHeight = ScreenUtil().screenHeight;
         }
       } catch (e) {
-        print(
-          'ExportManager: ScreenUtil not available on import, using defaults: $e',
-        );
+        print('ExportManager: ScreenUtil not available: $e');
       }
 
-      print(
-        'ExportManager: Current screen dimensions: ${currentScreenWidth}w x ${currentScreenHeight}h',
-      );
-
-      // Get exported screen dimensions if available
+      // Get exported screen dimensions
       final exportScreenWidth =
           (projectData['exportScreenWidth'] as num?)?.toDouble() ??
           currentScreenWidth;
@@ -1335,25 +1324,24 @@ class ExportManager {
           (projectData['exportScreenHeight'] as num?)?.toDouble() ??
           currentScreenHeight;
 
+      // Calculate canvas-to-screen ratio
+      final exportCanvasWidth = canvasWidth.toDouble();
+      final exportCanvasHeight = canvasHeight.toDouble();
+      final canvasToScreenRatioX = exportCanvasWidth / exportScreenWidth;
+      final canvasToScreenRatioY = exportCanvasHeight / exportScreenHeight;
+
+      // Scale canvas dimensions and add 1.5% buffer to eliminate gaps
+      final scaledCanvasWidth =
+          (currentScreenWidth * canvasToScreenRatioX * 1.015).ceilToDouble();
+      final scaledCanvasHeight =
+          (currentScreenHeight * canvasToScreenRatioY * 1.015).ceilToDouble();
+
+      // Scale elements by the canvas dimension change ratio
+      final uniformScaleFactor = scaledCanvasWidth / exportCanvasWidth;
+
       print(
-        'ExportManager: Export screen dimensions: ${exportScreenWidth}w x ${exportScreenHeight}h',
+        'ExportManager: Canvas ${exportCanvasWidth}x${exportCanvasHeight} -> ${scaledCanvasWidth}x${scaledCanvasHeight} (with 1% buffer), scale: $uniformScaleFactor',
       );
-
-      // Calculate scale factors based on canvas dimensions (relative scaling)
-      // This ensures elements maintain their relative positions and sizes within the canvas
-      if (exportScreenWidth > 0 && exportScreenHeight > 0) {
-        scaleFactorX = currentScreenWidth / exportScreenWidth;
-        scaleFactorY = currentScreenHeight / exportScreenHeight;
-
-        // Use minimum scale factor to maintain aspect ratio
-        uniformScaleFactor = scaleFactorX < scaleFactorY
-            ? scaleFactorX
-            : scaleFactorY;
-
-        print(
-          'ExportManager: Scale factors - X: $scaleFactorX, Y: $scaleFactorY, Uniform: $uniformScaleFactor',
-        );
-      }
 
       // Deserialize canvas items
       final List<hive_model.HiveCanvasItem> canvasItems = [];
@@ -1791,8 +1779,8 @@ class ExportManager {
                 hasShadow: textProps.hasShadow,
                 shadowColor: textProps.shadowColor,
                 shadowOffset: Offset(
-                  textProps.shadowOffset.dx * scaleFactorX,
-                  textProps.shadowOffset.dy * scaleFactorY,
+                  textProps.shadowOffset.dx * uniformScaleFactor,
+                  textProps.shadowOffset.dy * uniformScaleFactor,
                 ),
                 shadowBlur: textProps.shadowBlur * uniformScaleFactor,
                 shadowOpacity: textProps.shadowOpacity,
@@ -1815,8 +1803,8 @@ class ExportManager {
                 properties['shadowOffset'] is Offset) {
               final originalOffset = properties['shadowOffset'] as Offset;
               properties['shadowOffset'] = Offset(
-                originalOffset.dx * scaleFactorX,
-                originalOffset.dy * scaleFactorY,
+                originalOffset.dx * uniformScaleFactor,
+                originalOffset.dy * uniformScaleFactor,
               );
             }
             if (properties.containsKey('shadowBlur')) {
@@ -1859,10 +1847,8 @@ class ExportManager {
           // Scale drawing properties
           if ((itemData['type'] as int) ==
               hive_model.HiveCanvasItemType.drawing.index) {
-            // Use maximum scale factor for drawings to ensure proper size
-            final drawingScaleFactor = scaleFactorX > scaleFactorY
-                ? scaleFactorX
-                : scaleFactorY;
+            // Use same uniform scale factor for drawings
+            final drawingScaleFactor = uniformScaleFactor;
 
             // Scale strokeWidth with maximum factor
             if (properties.containsKey('strokeWidth')) {
@@ -2085,8 +2071,9 @@ class ExportManager {
           final originalDy = (positionData['dy'] as num).toDouble();
           final originalScale = (itemData['scale'] as num).toDouble();
 
-          final scaledDx = originalDx * scaleFactorX;
-          final scaledDy = originalDy * scaleFactorY;
+          // Use same scale factor for both X and Y to avoid gaps
+          final scaledDx = originalDx * uniformScaleFactor;
+          final scaledDy = originalDy * uniformScaleFactor;
 
           // Scale the element's scale property for shapes and stickers only
           // Images: Keep original scale (they have intrinsic dimensions)
@@ -2221,15 +2208,15 @@ class ExportManager {
         'ExportManager: Successfully loaded project with ${canvasItems.length} canvas items',
       );
 
-      // Create and return project
+      // Create and return project with scaled canvas dimensions
       return hive_model.PosterProject(
         id: newProjectId,
         name: importedProjectName,
         description: projectData['description'] as String?,
         createdAt: DateTime.parse(projectData['createdAt'] as String),
         lastModified: DateTime.now(),
-        canvasWidth: canvasWidth.toDouble(),
-        canvasHeight: canvasHeight.toDouble(),
+        canvasWidth: scaledCanvasWidth,
+        canvasHeight: scaledCanvasHeight,
         canvasBackgroundColor: canvasBackgroundColor,
         backgroundImagePath: backgroundImagePath,
         thumbnailPath: thumbnailPath,
@@ -2721,11 +2708,7 @@ class ExportManager {
       print('ExportManager: No thumbnail data found');
     }
 
-    // Calculate scale factors for responsive scaling
-    double scaleFactorX = 1.0;
-    double scaleFactorY = 1.0;
-    double uniformScaleFactor = 1.0;
-
+    // Get current screen dimensions
     double currentScreenWidth = 1080.0;
     double currentScreenHeight = 1920.0;
 
@@ -2735,9 +2718,7 @@ class ExportManager {
         currentScreenHeight = ScreenUtil().screenHeight;
       }
     } catch (e) {
-      print(
-        'ExportManager: ScreenUtil not available for lambook page, using defaults: $e',
-      );
+      print('ExportManager: ScreenUtil not available: $e');
     }
 
     final exportScreenWidth =
@@ -2747,13 +2728,19 @@ class ExportManager {
         (projectData['exportScreenHeight'] as num?)?.toDouble() ??
         currentScreenHeight;
 
-    if (exportScreenWidth > 0 && exportScreenHeight > 0) {
-      scaleFactorX = currentScreenWidth / exportScreenWidth;
-      scaleFactorY = currentScreenHeight / exportScreenHeight;
-      uniformScaleFactor = scaleFactorX < scaleFactorY
-          ? scaleFactorX
-          : scaleFactorY;
-    }
+    // Calculate canvas-to-screen ratio
+    final exportCanvasWidth = canvasWidth.toDouble();
+    final exportCanvasHeight = canvasHeight.toDouble();
+    final canvasToScreenRatioX = exportCanvasWidth / exportScreenWidth;
+    final canvasToScreenRatioY = exportCanvasHeight / exportScreenHeight;
+
+    // Scale canvas dimensions with 1.5% buffer to eliminate gaps
+    final scaledCanvasWidth =
+        (currentScreenWidth * canvasToScreenRatioX * 1.015).ceilToDouble();
+    final scaledCanvasHeight =
+        (currentScreenHeight * canvasToScreenRatioY * 1.015).ceilToDouble();
+
+    final uniformScaleFactor = scaledCanvasWidth / exportCanvasWidth;
 
     final List<hive_model.HiveCanvasItem> canvasItems = [];
     final canvasItemsData = projectData['canvasItems'];
@@ -2796,8 +2783,8 @@ class ExportManager {
               properties['shadowOffset'] is Offset) {
             final offset = properties['shadowOffset'] as Offset;
             properties['shadowOffset'] = Offset(
-              offset.dx * scaleFactorX,
-              offset.dy * scaleFactorY,
+              offset.dx * uniformScaleFactor,
+              offset.dy * uniformScaleFactor,
             );
           }
           if (properties.containsKey('shadowBlur')) {
@@ -2818,10 +2805,8 @@ class ExportManager {
 
         // Scale drawing properties
         if (itemTypeIndex == hive_model.HiveCanvasItemType.drawing.index) {
-          // Use maximum scale factor for drawings to ensure proper size
-          final drawingScaleFactor = scaleFactorX > scaleFactorY
-              ? scaleFactorX
-              : scaleFactorY;
+          // Use same uniform scale factor for drawings
+          final drawingScaleFactor = uniformScaleFactor;
 
           // Scale strokeWidth with maximum factor
           if (properties.containsKey('strokeWidth')) {
@@ -2907,8 +2892,8 @@ class ExportManager {
           id: DateTime.now().millisecondsSinceEpoch.toString(),
           type: hive_model.HiveCanvasItemType.values[itemTypeIndex],
           position: Offset(
-            originalDx * scaleFactorX,
-            originalDy * scaleFactorY,
+            originalDx * uniformScaleFactor,
+            originalDy * uniformScaleFactor,
           ),
           scale: scaledScale,
           rotation: (itemData['rotation'] as num).toDouble(),
@@ -2972,8 +2957,8 @@ class ExportManager {
           DateTime.tryParse(projectData['createdAt'] as String? ?? '') ??
           DateTime.now(),
       lastModified: DateTime.now(),
-      canvasWidth: (canvasWidth).toDouble(),
-      canvasHeight: (canvasHeight).toDouble(),
+      canvasWidth: scaledCanvasWidth,
+      canvasHeight: scaledCanvasHeight,
       canvasBackgroundColor: canvasBackgroundColor,
       backgroundImagePath: backgroundImagePath,
       thumbnailPath: thumbnailPath,
