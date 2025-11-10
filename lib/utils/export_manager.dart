@@ -13,6 +13,7 @@ import 'package:image/image.dart' as img;
 import 'package:lamlayers/screens/hive_model.dart' as hive_model;
 import 'package:lamlayers/widgets/export_dialog.dart' as export_dialog;
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 class ExportManager {
   static Future<bool> requestPermissions() async {
@@ -479,6 +480,24 @@ class ExportManager {
       final String newProjectId = 'p_${DateTime.now().millisecondsSinceEpoch}';
       final String exportedProjectName = '${project.name} (Exported)';
 
+      // Store device screen dimensions for responsive scaling
+      // Use ScreenUtil if initialized, otherwise use MediaQueryData if available
+      double exportScreenWidth = 1080.0; // Default fallback
+      double exportScreenHeight = 1920.0; // Default fallback
+
+      try {
+        if (ScreenUtil().screenWidth > 0 && ScreenUtil().screenHeight > 0) {
+          exportScreenWidth = ScreenUtil().screenWidth;
+          exportScreenHeight = ScreenUtil().screenHeight;
+        }
+      } catch (e) {
+        print('ExportManager: ScreenUtil not available, using defaults: $e');
+      }
+
+      print(
+        'ExportManager: Export screen dimensions: ${exportScreenWidth}w x ${exportScreenHeight}h',
+      );
+
       // Convert project to comprehensive JSON with all data
       final Map<String, dynamic> projectData = {
         "id": newProjectId,
@@ -488,6 +507,9 @@ class ExportManager {
         "lastModified": DateTime.now().toIso8601String(),
         "canvasWidth": project.canvasWidth,
         "canvasHeight": project.canvasHeight,
+        // Store reference screen dimensions for responsive scaling
+        "exportScreenWidth": exportScreenWidth,
+        "exportScreenHeight": exportScreenHeight,
         "canvasBackgroundColor": {
           "value": project.canvasBackgroundColor.value,
           "alpha": project.canvasBackgroundColor.value >> 24 & 0xFF,
@@ -1281,6 +1303,58 @@ class ExportManager {
         }
       }
 
+      // Calculate scale factors for responsive scaling across different devices
+      double scaleFactorX = 1.0;
+      double scaleFactorY = 1.0;
+      double uniformScaleFactor = 1.0;
+
+      // Get current screen dimensions
+      double currentScreenWidth = 1080.0; // Default fallback
+      double currentScreenHeight = 1920.0; // Default fallback
+
+      try {
+        if (ScreenUtil().screenWidth > 0 && ScreenUtil().screenHeight > 0) {
+          currentScreenWidth = ScreenUtil().screenWidth;
+          currentScreenHeight = ScreenUtil().screenHeight;
+        }
+      } catch (e) {
+        print(
+          'ExportManager: ScreenUtil not available on import, using defaults: $e',
+        );
+      }
+
+      print(
+        'ExportManager: Current screen dimensions: ${currentScreenWidth}w x ${currentScreenHeight}h',
+      );
+
+      // Get exported screen dimensions if available
+      final exportScreenWidth =
+          (projectData['exportScreenWidth'] as num?)?.toDouble() ??
+          currentScreenWidth;
+      final exportScreenHeight =
+          (projectData['exportScreenHeight'] as num?)?.toDouble() ??
+          currentScreenHeight;
+
+      print(
+        'ExportManager: Export screen dimensions: ${exportScreenWidth}w x ${exportScreenHeight}h',
+      );
+
+      // Calculate scale factors based on canvas dimensions (relative scaling)
+      // This ensures elements maintain their relative positions and sizes within the canvas
+      if (exportScreenWidth > 0 && exportScreenHeight > 0) {
+        scaleFactorX = currentScreenWidth / exportScreenWidth;
+        scaleFactorY = currentScreenHeight / exportScreenHeight;
+
+        // Use minimum scale factor to maintain aspect ratio
+        uniformScaleFactor = scaleFactorX < scaleFactorY
+            ? scaleFactorX
+            : scaleFactorY;
+
+        print(
+          'ExportManager: Scale factors - X: $scaleFactorX, Y: $scaleFactorY, Uniform: $uniformScaleFactor',
+        );
+      }
+
       // Deserialize canvas items
       final List<hive_model.HiveCanvasItem> canvasItems = [];
       final canvasItemsData = projectData['canvasItems'];
@@ -1683,6 +1757,161 @@ class ExportManager {
             'ExportManager: Text item $i - after deserialization, properties keys: ${properties.keys.toList()}',
           );
 
+          // Apply responsive scaling to element-specific properties
+          // Scale text properties
+          if ((itemData['type'] as int) ==
+              hive_model.HiveCanvasItemType.text.index) {
+            // Scale fontSize
+            if (properties.containsKey('fontSize')) {
+              final originalFontSize =
+                  (properties['fontSize'] as num?)?.toDouble() ?? 24.0;
+              properties['fontSize'] = originalFontSize * uniformScaleFactor;
+              print(
+                'ExportManager: Item $i - Scaled fontSize from $originalFontSize to ${properties['fontSize']}',
+              );
+            }
+
+            // Scale textProperties fontSize if it exists
+            if (properties['textProperties'] is hive_model.HiveTextProperties) {
+              final textProps =
+                  properties['textProperties'] as hive_model.HiveTextProperties;
+              final originalFontSize = textProps.fontSize;
+              final scaledTextProps = hive_model.HiveTextProperties(
+                text: textProps.text,
+                fontSize: originalFontSize * uniformScaleFactor,
+                color: textProps.color,
+                fontWeight: textProps.fontWeight,
+                fontStyle: textProps.fontStyle,
+                textAlign: textProps.textAlign,
+                hasGradient: textProps.hasGradient,
+                gradientColors: textProps.gradientColors,
+                gradientAngle: textProps.gradientAngle,
+                decoration: textProps.decoration,
+                letterSpacing: textProps.letterSpacing * uniformScaleFactor,
+                hasShadow: textProps.hasShadow,
+                shadowColor: textProps.shadowColor,
+                shadowOffset: Offset(
+                  textProps.shadowOffset.dx * scaleFactorX,
+                  textProps.shadowOffset.dy * scaleFactorY,
+                ),
+                shadowBlur: textProps.shadowBlur * uniformScaleFactor,
+                shadowOpacity: textProps.shadowOpacity,
+                fontFamily: textProps.fontFamily,
+              );
+              properties['textProperties'] = scaledTextProps;
+              print('ExportManager: Item $i - Scaled text properties');
+            }
+
+            // Scale letterSpacing
+            if (properties.containsKey('letterSpacing')) {
+              final originalLetterSpacing =
+                  (properties['letterSpacing'] as num?)?.toDouble() ?? 0.0;
+              properties['letterSpacing'] =
+                  originalLetterSpacing * uniformScaleFactor;
+            }
+
+            // Scale shadow properties
+            if (properties.containsKey('shadowOffset') &&
+                properties['shadowOffset'] is Offset) {
+              final originalOffset = properties['shadowOffset'] as Offset;
+              properties['shadowOffset'] = Offset(
+                originalOffset.dx * scaleFactorX,
+                originalOffset.dy * scaleFactorY,
+              );
+            }
+            if (properties.containsKey('shadowBlur')) {
+              final originalShadowBlur =
+                  (properties['shadowBlur'] as num?)?.toDouble() ?? 4.0;
+              properties['shadowBlur'] =
+                  originalShadowBlur * uniformScaleFactor;
+            }
+          }
+
+          // Scale shape properties
+          if ((itemData['type'] as int) ==
+              hive_model.HiveCanvasItemType.shape.index) {
+            // Scale strokeWidth
+            if (properties.containsKey('strokeWidth')) {
+              final originalStrokeWidth =
+                  (properties['strokeWidth'] as num?)?.toDouble() ?? 2.0;
+              properties['strokeWidth'] =
+                  originalStrokeWidth * uniformScaleFactor;
+              print(
+                'ExportManager: Item $i - Scaled strokeWidth from $originalStrokeWidth to ${properties['strokeWidth']}',
+              );
+            }
+
+            // Scale shapeProperties strokeWidth if it exists
+            if (properties['shapeProperties'] is Map<String, dynamic>) {
+              final shapeProps = Map<String, dynamic>.from(
+                properties['shapeProperties'] as Map<String, dynamic>,
+              );
+              if (shapeProps.containsKey('strokeWidth')) {
+                final originalStrokeWidth =
+                    (shapeProps['strokeWidth'] as num?)?.toDouble() ?? 2.0;
+                shapeProps['strokeWidth'] =
+                    originalStrokeWidth * uniformScaleFactor;
+                properties['shapeProperties'] = shapeProps;
+              }
+            }
+          }
+
+          // Scale drawing properties
+          if ((itemData['type'] as int) ==
+              hive_model.HiveCanvasItemType.drawing.index) {
+            // Scale strokeWidth for drawings
+            if (properties.containsKey('strokeWidth')) {
+              final originalStrokeWidth =
+                  (properties['strokeWidth'] as num?)?.toDouble() ?? 3.0;
+              properties['strokeWidth'] =
+                  originalStrokeWidth * uniformScaleFactor;
+              print(
+                'ExportManager: Item $i - Scaled drawing strokeWidth from $originalStrokeWidth to ${properties['strokeWidth']}',
+              );
+            }
+
+            // Scale drawing points - they are stored relative to element position
+            // We need to scale them since we're NOT scaling the element's scale property
+            if (properties.containsKey('points') &&
+                properties['points'] is List) {
+              final originalPoints = properties['points'] as List;
+              final scaledPoints = originalPoints.map((point) {
+                if (point is Map &&
+                    point.containsKey('dx') &&
+                    point.containsKey('dy')) {
+                  return {
+                    'dx': (point['dx'] as num).toDouble() * uniformScaleFactor,
+                    'dy': (point['dy'] as num).toDouble() * uniformScaleFactor,
+                  };
+                } else if (point is Offset) {
+                  return Offset(
+                    point.dx * uniformScaleFactor,
+                    point.dy * uniformScaleFactor,
+                  );
+                }
+                return point;
+              }).toList();
+              properties['points'] = scaledPoints;
+              print(
+                'ExportManager: Item $i - Scaled drawing points uniformly by $uniformScaleFactor',
+              );
+            }
+
+            // Scale drawingProperties if it exists
+            if (properties['drawingProperties'] is Map<String, dynamic>) {
+              final drawingProps = Map<String, dynamic>.from(
+                properties['drawingProperties'] as Map<String, dynamic>,
+              );
+              if (drawingProps.containsKey('strokeWidth')) {
+                final originalStrokeWidth =
+                    (drawingProps['strokeWidth'] as num?)?.toDouble() ?? 3.0;
+                drawingProps['strokeWidth'] =
+                    originalStrokeWidth * uniformScaleFactor;
+                properties['drawingProperties'] = drawingProps;
+              }
+            }
+          }
+
           // Normalize shape colors: ensure fillColor/strokeColor are HiveColor
           // and provide sensible fallback for missing strokeColor
           if ((itemData['type'] as int) ==
@@ -1804,14 +2033,38 @@ class ExportManager {
             continue;
           }
 
+          // Apply responsive scaling to positions and scales
+          final originalDx = (positionData['dx'] as num).toDouble();
+          final originalDy = (positionData['dy'] as num).toDouble();
+          final originalScale = (itemData['scale'] as num).toDouble();
+
+          final scaledDx = originalDx * scaleFactorX;
+          final scaledDy = originalDy * scaleFactorY;
+
+          // Scale the element's scale property for shapes and stickers only
+          // Images: Keep original scale (they have intrinsic dimensions)
+          // Text: We scale fontSize instead to avoid double scaling
+          // Drawings: Keep original scale, but scale the points (they're in canvas coordinates)
+          final bool shouldScaleElementScale =
+              itemTypeIndex == hive_model.HiveCanvasItemType.shape.index ||
+              itemTypeIndex == hive_model.HiveCanvasItemType.sticker.index;
+
+          final scaledScale = shouldScaleElementScale
+              ? originalScale * uniformScaleFactor
+              : originalScale;
+
+          print(
+            'ExportManager: Item $i - Original pos: ($originalDx, $originalDy), scale: $originalScale',
+          );
+          print(
+            'ExportManager: Item $i - Scaled pos: ($scaledDx, $scaledDy), scale: $scaledScale (shouldScale: $shouldScaleElementScale)',
+          );
+
           final canvasItem = hive_model.HiveCanvasItem(
             id: newCanvasItemId,
             type: hive_model.HiveCanvasItemType.values[itemTypeIndex],
-            position: Offset(
-              (positionData['dx'] as num).toDouble(),
-              (positionData['dy'] as num).toDouble(),
-            ),
-            scale: (itemData['scale'] as num).toDouble(),
+            position: Offset(scaledDx, scaledDy),
+            scale: scaledScale,
             rotation: (itemData['rotation'] as num).toDouble(),
             opacity: (itemData['opacity'] as num).toDouble(),
             layerIndex: (itemData['layerIndex'] as num).toInt(),
@@ -2421,6 +2674,40 @@ class ExportManager {
       print('ExportManager: No thumbnail data found');
     }
 
+    // Calculate scale factors for responsive scaling
+    double scaleFactorX = 1.0;
+    double scaleFactorY = 1.0;
+    double uniformScaleFactor = 1.0;
+
+    double currentScreenWidth = 1080.0;
+    double currentScreenHeight = 1920.0;
+
+    try {
+      if (ScreenUtil().screenWidth > 0 && ScreenUtil().screenHeight > 0) {
+        currentScreenWidth = ScreenUtil().screenWidth;
+        currentScreenHeight = ScreenUtil().screenHeight;
+      }
+    } catch (e) {
+      print(
+        'ExportManager: ScreenUtil not available for lambook page, using defaults: $e',
+      );
+    }
+
+    final exportScreenWidth =
+        (projectData['exportScreenWidth'] as num?)?.toDouble() ??
+        currentScreenWidth;
+    final exportScreenHeight =
+        (projectData['exportScreenHeight'] as num?)?.toDouble() ??
+        currentScreenHeight;
+
+    if (exportScreenWidth > 0 && exportScreenHeight > 0) {
+      scaleFactorX = currentScreenWidth / exportScreenWidth;
+      scaleFactorY = currentScreenHeight / exportScreenHeight;
+      uniformScaleFactor = scaleFactorX < scaleFactorY
+          ? scaleFactorX
+          : scaleFactorY;
+    }
+
     final List<hive_model.HiveCanvasItem> canvasItems = [];
     final canvasItemsData = projectData['canvasItems'];
     if (canvasItemsData is! List) return null;
@@ -2444,16 +2731,99 @@ class ExportManager {
           properties['filePath'] = ff.path;
         }
 
+        // Apply responsive scaling to properties based on element type
         final itemTypeIndex = itemData['type'] as int;
+
+        // Scale text properties
+        if (itemTypeIndex == hive_model.HiveCanvasItemType.text.index) {
+          if (properties.containsKey('fontSize')) {
+            properties['fontSize'] =
+                (properties['fontSize'] as num).toDouble() * uniformScaleFactor;
+          }
+          if (properties.containsKey('letterSpacing')) {
+            properties['letterSpacing'] =
+                (properties['letterSpacing'] as num).toDouble() *
+                uniformScaleFactor;
+          }
+          if (properties.containsKey('shadowOffset') &&
+              properties['shadowOffset'] is Offset) {
+            final offset = properties['shadowOffset'] as Offset;
+            properties['shadowOffset'] = Offset(
+              offset.dx * scaleFactorX,
+              offset.dy * scaleFactorY,
+            );
+          }
+          if (properties.containsKey('shadowBlur')) {
+            properties['shadowBlur'] =
+                (properties['shadowBlur'] as num).toDouble() *
+                uniformScaleFactor;
+          }
+        }
+
+        // Scale shape properties
+        if (itemTypeIndex == hive_model.HiveCanvasItemType.shape.index) {
+          if (properties.containsKey('strokeWidth')) {
+            properties['strokeWidth'] =
+                (properties['strokeWidth'] as num).toDouble() *
+                uniformScaleFactor;
+          }
+        }
+
+        // Scale drawing properties
+        if (itemTypeIndex == hive_model.HiveCanvasItemType.drawing.index) {
+          if (properties.containsKey('strokeWidth')) {
+            properties['strokeWidth'] =
+                (properties['strokeWidth'] as num).toDouble() *
+                uniformScaleFactor;
+          }
+          // Scale drawing points uniformly - they are stored relative to element position
+          if (properties.containsKey('points') &&
+              properties['points'] is List) {
+            final points = properties['points'] as List;
+            properties['points'] = points.map((point) {
+              if (point is Map &&
+                  point.containsKey('dx') &&
+                  point.containsKey('dy')) {
+                return {
+                  'dx': (point['dx'] as num).toDouble() * uniformScaleFactor,
+                  'dy': (point['dy'] as num).toDouble() * uniformScaleFactor,
+                };
+              } else if (point is Offset) {
+                return Offset(
+                  point.dx * uniformScaleFactor,
+                  point.dy * uniformScaleFactor,
+                );
+              }
+              return point;
+            }).toList();
+          }
+        }
+
         final positionData = itemData['position'] as Map<String, dynamic>;
+        final originalDx = (positionData['dx'] as num).toDouble();
+        final originalDy = (positionData['dy'] as num).toDouble();
+        final originalScale = (itemData['scale'] as num).toDouble();
+
+        // Scale the element's scale property for shapes and stickers only
+        // Images: Keep original scale (they have intrinsic dimensions)
+        // Text: We scale fontSize instead to avoid double scaling
+        // Drawings: Keep original scale, but scale the points (they're in canvas coordinates)
+        final bool shouldScaleElementScale =
+            itemTypeIndex == hive_model.HiveCanvasItemType.shape.index ||
+            itemTypeIndex == hive_model.HiveCanvasItemType.sticker.index;
+
+        final scaledScale = shouldScaleElementScale
+            ? originalScale * uniformScaleFactor
+            : originalScale;
+
         final canvasItem = hive_model.HiveCanvasItem(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
           type: hive_model.HiveCanvasItemType.values[itemTypeIndex],
           position: Offset(
-            (positionData['dx'] as num).toDouble(),
-            (positionData['dy'] as num).toDouble(),
+            originalDx * scaleFactorX,
+            originalDy * scaleFactorY,
           ),
-          scale: (itemData['scale'] as num).toDouble(),
+          scale: scaledScale,
           rotation: (itemData['rotation'] as num).toDouble(),
           opacity: (itemData['opacity'] as num).toDouble(),
           layerIndex: (itemData['layerIndex'] as num).toInt(),
