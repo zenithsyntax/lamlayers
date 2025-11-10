@@ -1859,41 +1859,88 @@ class ExportManager {
           // Scale drawing properties
           if ((itemData['type'] as int) ==
               hive_model.HiveCanvasItemType.drawing.index) {
-            // Scale strokeWidth for drawings
+            // Use maximum scale factor for drawings to ensure proper size
+            final drawingScaleFactor = scaleFactorX > scaleFactorY
+                ? scaleFactorX
+                : scaleFactorY;
+
+            // Scale strokeWidth with maximum factor
             if (properties.containsKey('strokeWidth')) {
               final originalStrokeWidth =
                   (properties['strokeWidth'] as num?)?.toDouble() ?? 3.0;
               properties['strokeWidth'] =
-                  originalStrokeWidth * uniformScaleFactor;
+                  originalStrokeWidth * drawingScaleFactor;
               print(
-                'ExportManager: Item $i - Scaled drawing strokeWidth from $originalStrokeWidth to ${properties['strokeWidth']}',
+                'ExportManager: Item $i - Scaled drawing strokeWidth: $originalStrokeWidth -> ${properties['strokeWidth']} (max factor: $drawingScaleFactor)',
               );
             }
 
-            // Scale drawing points - they are stored relative to element position
-            // We need to scale them since we're NOT scaling the element's scale property
-            if (properties.containsKey('points') &&
-                properties['points'] is List) {
-              final originalPoints = properties['points'] as List;
-              final scaledPoints = originalPoints.map((point) {
-                if (point is Map &&
-                    point.containsKey('dx') &&
-                    point.containsKey('dy')) {
-                  return {
-                    'dx': (point['dx'] as num).toDouble() * uniformScaleFactor,
-                    'dy': (point['dy'] as num).toDouble() * uniformScaleFactor,
-                  };
-                } else if (point is Offset) {
-                  return Offset(
-                    point.dx * uniformScaleFactor,
-                    point.dy * uniformScaleFactor,
-                  );
-                }
-                return point;
-              }).toList();
-              properties['points'] = scaledPoints;
+            // Scale drawing strokes - drawings have 'strokes' property containing points
+            if (properties.containsKey('strokes') &&
+                properties['strokes'] is List) {
+              final strokes = properties['strokes'] as List;
               print(
-                'ExportManager: Item $i - Scaled drawing points uniformly by $uniformScaleFactor',
+                'ExportManager: Item $i - Processing ${strokes.length} strokes for drawing',
+              );
+
+              for (int strokeIdx = 0; strokeIdx < strokes.length; strokeIdx++) {
+                final stroke = strokes[strokeIdx];
+                if (stroke is Map) {
+                  // Scale points within each stroke
+                  if (stroke.containsKey('points') &&
+                      stroke['points'] is List) {
+                    final points = stroke['points'] as List;
+                    final scaledPoints = points.map((point) {
+                      if (point is Map &&
+                          point.containsKey('dx') &&
+                          point.containsKey('dy')) {
+                        return {
+                          'dx':
+                              (point['dx'] as num).toDouble() *
+                              drawingScaleFactor,
+                          'dy':
+                              (point['dy'] as num).toDouble() *
+                              drawingScaleFactor,
+                        };
+                      } else if (point is Offset) {
+                        return Offset(
+                          point.dx * drawingScaleFactor,
+                          point.dy * drawingScaleFactor,
+                        );
+                      }
+                      return point;
+                    }).toList();
+                    stroke['points'] = scaledPoints;
+                  }
+
+                  // Scale stroke width if present in each stroke
+                  if (stroke.containsKey('strokeWidth')) {
+                    final originalWidth =
+                        (stroke['strokeWidth'] as num?)?.toDouble() ?? 3.0;
+                    stroke['strokeWidth'] = originalWidth * drawingScaleFactor;
+                  }
+                }
+              }
+              print(
+                'ExportManager: Item $i - Scaled all points in ${strokes.length} strokes by $drawingScaleFactor',
+              );
+            }
+
+            // Scale drawing width and height to prevent clipping
+            if (properties.containsKey('width')) {
+              final originalWidth =
+                  (properties['width'] as num?)?.toDouble() ?? 0.0;
+              properties['width'] = originalWidth * drawingScaleFactor;
+              print(
+                'ExportManager: Item $i - Scaled drawing width: $originalWidth -> ${properties['width']}',
+              );
+            }
+            if (properties.containsKey('height')) {
+              final originalHeight =
+                  (properties['height'] as num?)?.toDouble() ?? 0.0;
+              properties['height'] = originalHeight * drawingScaleFactor;
+              print(
+                'ExportManager: Item $i - Scaled drawing height: $originalHeight -> ${properties['height']}',
               );
             }
 
@@ -2044,7 +2091,7 @@ class ExportManager {
           // Scale the element's scale property for shapes and stickers only
           // Images: Keep original scale (they have intrinsic dimensions)
           // Text: We scale fontSize instead to avoid double scaling
-          // Drawings: Keep original scale, but scale the points (they're in canvas coordinates)
+          // Drawings: Keep scale at 1.0, scale points uniformly instead
           final bool shouldScaleElementScale =
               itemTypeIndex == hive_model.HiveCanvasItemType.shape.index ||
               itemTypeIndex == hive_model.HiveCanvasItemType.sticker.index;
@@ -2771,31 +2818,71 @@ class ExportManager {
 
         // Scale drawing properties
         if (itemTypeIndex == hive_model.HiveCanvasItemType.drawing.index) {
+          // Use maximum scale factor for drawings to ensure proper size
+          final drawingScaleFactor = scaleFactorX > scaleFactorY
+              ? scaleFactorX
+              : scaleFactorY;
+
+          // Scale strokeWidth with maximum factor
           if (properties.containsKey('strokeWidth')) {
             properties['strokeWidth'] =
                 (properties['strokeWidth'] as num).toDouble() *
-                uniformScaleFactor;
+                drawingScaleFactor;
           }
-          // Scale drawing points uniformly - they are stored relative to element position
-          if (properties.containsKey('points') &&
-              properties['points'] is List) {
-            final points = properties['points'] as List;
-            properties['points'] = points.map((point) {
-              if (point is Map &&
-                  point.containsKey('dx') &&
-                  point.containsKey('dy')) {
-                return {
-                  'dx': (point['dx'] as num).toDouble() * uniformScaleFactor,
-                  'dy': (point['dy'] as num).toDouble() * uniformScaleFactor,
-                };
-              } else if (point is Offset) {
-                return Offset(
-                  point.dx * uniformScaleFactor,
-                  point.dy * uniformScaleFactor,
-                );
+          // Scale drawing strokes - drawings have 'strokes' property containing points
+          if (properties.containsKey('strokes') &&
+              properties['strokes'] is List) {
+            final strokes = properties['strokes'] as List;
+
+            for (int strokeIdx = 0; strokeIdx < strokes.length; strokeIdx++) {
+              final stroke = strokes[strokeIdx];
+              if (stroke is Map) {
+                // Scale points within each stroke
+                if (stroke.containsKey('points') && stroke['points'] is List) {
+                  final points = stroke['points'] as List;
+                  final scaledPoints = points.map((point) {
+                    if (point is Map &&
+                        point.containsKey('dx') &&
+                        point.containsKey('dy')) {
+                      return {
+                        'dx':
+                            (point['dx'] as num).toDouble() *
+                            drawingScaleFactor,
+                        'dy':
+                            (point['dy'] as num).toDouble() *
+                            drawingScaleFactor,
+                      };
+                    } else if (point is Offset) {
+                      return Offset(
+                        point.dx * drawingScaleFactor,
+                        point.dy * drawingScaleFactor,
+                      );
+                    }
+                    return point;
+                  }).toList();
+                  stroke['points'] = scaledPoints;
+                }
+
+                // Scale stroke width if present in each stroke
+                if (stroke.containsKey('strokeWidth')) {
+                  final originalWidth =
+                      (stroke['strokeWidth'] as num?)?.toDouble() ?? 3.0;
+                  stroke['strokeWidth'] = originalWidth * drawingScaleFactor;
+                }
               }
-              return point;
-            }).toList();
+            }
+          }
+
+          // Scale drawing width and height to prevent clipping
+          if (properties.containsKey('width')) {
+            final originalWidth =
+                (properties['width'] as num?)?.toDouble() ?? 0.0;
+            properties['width'] = originalWidth * drawingScaleFactor;
+          }
+          if (properties.containsKey('height')) {
+            final originalHeight =
+                (properties['height'] as num?)?.toDouble() ?? 0.0;
+            properties['height'] = originalHeight * drawingScaleFactor;
           }
         }
 
@@ -2807,7 +2894,7 @@ class ExportManager {
         // Scale the element's scale property for shapes and stickers only
         // Images: Keep original scale (they have intrinsic dimensions)
         // Text: We scale fontSize instead to avoid double scaling
-        // Drawings: Keep original scale, but scale the points (they're in canvas coordinates)
+        // Drawings: Keep scale at 1.0, scale points uniformly instead
         final bool shouldScaleElementScale =
             itemTypeIndex == hive_model.HiveCanvasItemType.shape.index ||
             itemTypeIndex == hive_model.HiveCanvasItemType.sticker.index;
