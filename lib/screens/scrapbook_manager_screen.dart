@@ -582,23 +582,34 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
         ),
       ),
     );
-    // Refresh the state when returning from poster maker
+    // Show ad and refresh the state when returning from poster maker
     if (mounted) {
-      print('Returning from poster maker, refreshing lambook manager...');
+      print(
+        'Returning from poster maker, showing ad and refreshing lambook manager...',
+      );
 
-      // Force reload scrapbook data to ensure fresh state
-      _load();
+      // Show ad first, then refresh
+      _showAdIfAvailable(
+        onAfter: () async {
+          if (mounted) {
+            print('Ad dismissed, refreshing lambook manager...');
 
-      // Also refresh thumbnails to ensure they're up to date
-      await _refreshThumbnails();
+            // Force reload scrapbook data to ensure fresh state
+            _load();
 
-      // Add a small delay to ensure all updates are processed
-      await Future.delayed(const Duration(milliseconds: 100));
+            // Also refresh thumbnails to ensure they're up to date
+            await _refreshThumbnails();
 
-      // Force a rebuild to show updated images
-      setState(() {});
+            // Add a small delay to ensure all updates are processed
+            await Future.delayed(const Duration(milliseconds: 100));
 
-      print('Lambook manager refreshed successfully');
+            // Force a rebuild to show updated images
+            setState(() {});
+
+            print('Lambook manager refreshed successfully');
+          }
+        },
+      );
     }
   }
 
@@ -1562,7 +1573,6 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
           ],
         ),
         actions: [
-          
           IconButton(
             icon: Icon(Icons.menu_book_rounded, color: const Color(0xFF64748B)),
             onPressed: () => _openFlipBookView(),
@@ -1606,7 +1616,7 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
           //       ? 'Page limit reached (30/30)'
           //       : 'Load Page',
           // ),
-           SizedBox(width: 8.w),
+          SizedBox(width: 8.w),
         ],
       ),
       body: Padding(

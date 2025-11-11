@@ -53,7 +53,27 @@ class _AdBanner320x50State extends State<AdBanner320x50> {
     return ValueListenableBuilder<bool>(
       valueListenable: _isLoadedNotifier,
       builder: (context, isLoaded, _) {
-        if (!isLoaded || _adWidget == null) return const SizedBox.shrink();
+        if (!isLoaded || _adWidget == null) {
+          // Show placeholder when ad is not loaded
+          return Container(
+            width: 320,
+            height: 50,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Center(
+              child: Text(
+                'Google Ads',
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          );
+        }
         return SizedBox(width: 320, height: 50, child: _adWidget);
       },
     );
