@@ -1575,38 +1575,38 @@ class _ScrapbookManagerScreenState extends State<ScrapbookManagerScreen>
             ),
             onPressed: () => setState(() => _isGridView = !_isGridView),
           ),
-          IconButton(
-            icon: Container(
-              padding: EdgeInsets.all(8.w),
-              decoration: BoxDecoration(
-                gradient: _scrapbook!.pageProjectIds.length >= 30
-                    ? LinearGradient(
-                        colors: [
-                          const Color(0xFF94A3B8),
-                          const Color(0xFF94A3B8),
-                        ],
-                      )
-                    : const LinearGradient(
-                        colors: [Color(0xFFEC4899), Color(0xFFF43F5E)],
-                      ),
-                borderRadius: BorderRadius.circular(10.r),
-              ),
-              child: Icon(
-                Icons.upload_rounded,
-                color: Colors.white,
-                size: 20.r,
-              ),
-            ),
-            onPressed: _scrapbook!.pageProjectIds.length >= 30
-                ? () => _showErrorMessage(
-                    'Maximum page limit reached. You can have up to 30 pages in a lambook.',
-                  )
-                : _showLoadPageOptions,
-            tooltip: _scrapbook!.pageProjectIds.length >= 30
-                ? 'Page limit reached (30/30)'
-                : 'Load Page',
-          ),
-          SizedBox(width: 8.w),
+          // IconButton(
+          //   icon: Container(
+          //     padding: EdgeInsets.all(8.w),
+          //     decoration: BoxDecoration(
+          //       gradient: _scrapbook!.pageProjectIds.length >= 30
+          //           ? LinearGradient(
+          //               colors: [
+          //                 const Color(0xFF94A3B8),
+          //                 const Color(0xFF94A3B8),
+          //               ],
+          //             )
+          //           : const LinearGradient(
+          //               colors: [Color(0xFFEC4899), Color(0xFFF43F5E)],
+          //             ),
+          //       borderRadius: BorderRadius.circular(10.r),
+          //     ),
+          //     child: Icon(
+          //       Icons.upload_rounded,
+          //       color: Colors.white,
+          //       size: 20.r,
+          //     ),
+          //   ),
+          //   onPressed: _scrapbook!.pageProjectIds.length >= 30
+          //       ? () => _showErrorMessage(
+          //           'Maximum page limit reached. You can have up to 30 pages in a lambook.',
+          //         )
+          //       : _showLoadPageOptions,
+          //   tooltip: _scrapbook!.pageProjectIds.length >= 30
+          //       ? 'Page limit reached (30/30)'
+          //       : 'Load Page',
+          // ),
+           SizedBox(width: 8.w),
         ],
       ),
       body: Padding(

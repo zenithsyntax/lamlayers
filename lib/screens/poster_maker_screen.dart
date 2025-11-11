@@ -13875,11 +13875,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         );
 
         try {
-          if (options.type == export_dialog.ExportType.image) {
-            await _exportImage(options);
-          } else {
-            await _exportProject(options);
-          }
+          await _exportImage(options);
         } catch (e) {
           if (!mounted) return;
           Navigator.of(context).pop(); // Close progress dialog
@@ -13902,17 +13898,11 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(
-                options.type == export_dialog.ExportType.image
-                    ? Colors.blue[600]!
-                    : Colors.purple[600]!,
-              ),
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.blue[600]!),
             ),
             SizedBox(height: 16.h),
             Text(
-              options.type == export_dialog.ExportType.image
-                  ? 'Exporting Image...'
-                  : 'Exporting Project...',
+              'Exporting Image...',
               style: GoogleFonts.poppins(
                 fontSize: 16.sp,
                 fontWeight: FontWeight.w600,
@@ -13921,7 +13911,7 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
             ),
             SizedBox(height: 8.h),
             Text(
-              'Please wait while we process your ${options.type == export_dialog.ExportType.image ? 'image' : 'project'}',
+              'Please wait while we process your image',
               textAlign: TextAlign.center,
               style: GoogleFonts.poppins(
                 fontSize: 14.sp,
@@ -13976,43 +13966,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
         });
         await WidgetsBinding.instance.endOfFrame;
       }
-    }
-  }
-
-  Future<void> _exportProject(export_dialog.ExportOptions options) async {
-    try {
-      // Persist the latest edits before exporting
-      _saveProject(showIndicator: false, saveThumbnail: false);
-      print('Starting project export...');
-
-      // Get current project data
-      final PosterProject project = _getCurrentProject(options);
-      print('Project data prepared: ${project.canvasItems.length} items');
-
-      // Export the project
-      print('Calling ExportManager.exportProject...');
-      final String? filePath = await ExportManager.exportProject(project);
-
-      if (filePath == null) {
-        print('ExportManager.exportProject returned null');
-        throw Exception('Failed to export project');
-      }
-
-      print('Project exported successfully to: $filePath');
-
-      if (!mounted) return;
-      Navigator.of(context).pop(); // Close progress dialog
-
-      // Share the project file
-      print('Sharing project file...');
-      await Share.shareXFiles([XFile(filePath)], text: 'My LamLayers Project');
-      _showSuccessSnackBar('Project exported and shared!');
-    } catch (e) {
-      print('Error in _exportProject: $e');
-      print('Stack trace: ${StackTrace.current}');
-      if (!mounted) return;
-      Navigator.of(context).pop(); // Close progress dialog
-      _showErrorSnackBar('Failed to export project: ${e.toString()}');
     }
   }
 
@@ -14139,76 +14092,6 @@ class _PosterMakerScreenState extends State<PosterMakerScreen>
       if (!mounted) return;
       Navigator.of(context).pop(); // Close progress dialog
       _showErrorSnackBar('Failed to save to lambook: ${e.toString()}');
-    }
-  }
-
-  PosterProject _getCurrentProject(export_dialog.ExportOptions options) {
-    // Convert current canvas items to HiveCanvasItem format
-    final List<HiveCanvasItem> hiveItems = canvasItems.map((item) {
-      return HiveCanvasItem(
-        id: item.id,
-        type: _convertCanvasItemType(item.type),
-        position: item.position,
-        scale: item.scale,
-        rotation: item.rotation,
-        opacity: item.opacity,
-        layerIndex: item.layerIndex,
-        isVisible: item.isVisible,
-        isLocked: item.isLocked,
-        properties: _convertProperties(item),
-        createdAt: item.createdAt,
-        lastModified: item.lastModified,
-        groupId: item.groupId,
-        name: item.name,
-      );
-    }).toList();
-
-    // Use current project data if available, otherwise create new
-    final currentProject = _currentProject;
-    if (currentProject != null) {
-      return currentProject.copyWith(
-        canvasItems: hiveItems,
-        settings: currentProject.settings.copyWith(
-          exportSettings: ExportSettings(
-            format: _convertExportFormat(options.format),
-            quality: _convertExportQuality(options.clarity),
-          ),
-        ),
-      );
-    } else {
-      return PosterProject(
-        id: widget.projectId ?? _generateUniqueId(),
-        name: 'Current Project',
-        description: 'Exported project',
-        createdAt: DateTime.now(),
-        lastModified: DateTime.now(),
-        canvasItems: hiveItems,
-        settings: ProjectSettings(
-          exportSettings: ExportSettings(
-            format: _convertExportFormat(options.format),
-            quality: _convertExportQuality(options.clarity),
-          ),
-        ),
-        canvasWidth: widget.initialCanvasWidth ?? 1080,
-        canvasHeight: widget.initialCanvasHeight ?? 1920,
-        canvasBackgroundColor: const HiveColor(0xFFFFFFFF),
-        backgroundImagePath: widget.initialBackgroundImagePath,
-      );
-    }
-  }
-
-  HiveCanvasItemType _convertCanvasItemType(CanvasItemType type) {
-    switch (type) {
-      case CanvasItemType.text:
-        return HiveCanvasItemType.text;
-      case CanvasItemType.image:
-        return HiveCanvasItemType.image;
-      case CanvasItemType.sticker:
-        return HiveCanvasItemType.sticker;
-      case CanvasItemType.shape:
-        return HiveCanvasItemType.shape;
-      case CanvasItemType.drawing:
-        return HiveCanvasItemType.drawing;
     }
   }
 

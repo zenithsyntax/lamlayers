@@ -149,27 +149,15 @@ class _ExportDialogState extends State<ExportDialog> {
             ),
             SizedBox(height: 24.h),
 
-            // Action Buttons
-            Row(
-              children: [
-                Expanded(
-                  child: _buildActionButton(
-                    'Export Image',
-                    Icons.image_rounded,
-                    Colors.blue[600]!,
-                    ExportType.image,
-                  ),
-                ),
-                SizedBox(width: 12.w),
-                Expanded(
-                  child: _buildActionButton(
-                    'Download Project',
-                    Icons.download_rounded,
-                    Colors.purple[600]!,
-                    ExportType.project,
-                  ),
-                ),
-              ],
+            // Action Button
+            SizedBox(
+              width: double.infinity,
+              child: _buildActionButton(
+                'Export Image',
+                Icons.image_rounded,
+                Colors.blue[600]!,
+                ExportType.image,
+              ),
             ),
             SizedBox(height: 16.h),
 

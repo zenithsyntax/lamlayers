@@ -135,8 +135,9 @@ class AboutScreen extends StatelessWidget {
                   _buildFeatureItem('📚 Digital lambook creator'),
                   _buildFeatureItem('🎨 Advanced editing tools'),
                   _buildFeatureItem('💾 Auto-save functionality'),
-                  _buildFeatureItem('📤 Export in multiple formats'),
-                  _buildFeatureItem('🖼️ Custom templates & layouts'),
+                  _buildFeatureItem('📤 Export images as JPG/PNG'),
+                  _buildFeatureItem('📁 Share lambooks with others'),
+                 
                 ],
               ),
             ),

@@ -78,7 +78,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                   ),
                   SizedBox(height: 8.h),
                   Text(
-                    'Last updated: October 16, 2025',
+                    'Last updated: November 11, 2025',
                     style: GoogleFonts.inter(
                       fontSize: 12.sp,
                       color: Colors.white.withOpacity(0.9),
@@ -198,7 +198,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
               iconBgColor: const Color(0xFFFCE7F3),
               title: 'Data Sharing',
               content:
-                  'We do NOT share, sell, or transmit your data to third parties. All your projects, images, and settings remain private and stored only on your device. When you export your work, you have complete control over where and how you share it.',
+                  'We do NOT share, sell, or transmit your data to third parties. All your projects, images, and settings remain private and stored only on your device. When you export images or share lambooks, you have complete control over where and how you share them.',
             ),
 
             SizedBox(height: 16.h),
@@ -279,7 +279,8 @@ class PrivacyPolicyScreen extends StatelessWidget {
                     'Access all your projects and data anytime',
                   ),
                   _buildBulletPoint('Modify or delete your projects'),
-                  _buildBulletPoint('Export your work in various formats'),
+                  _buildBulletPoint('Export images as JPG or PNG'),
+                  _buildBulletPoint('Share lambooks with others'),
                   _buildBulletPoint('Clear all app data from Settings'),
                   _buildBulletPoint('Uninstall the app to remove all data'),
                 ],

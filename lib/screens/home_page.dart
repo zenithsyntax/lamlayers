@@ -1543,54 +1543,79 @@ class _HomePageState extends State<HomePage>
 
           SizedBox(height: 32.h),
 
-          // Quick Actions
+          // Create New Project Section
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 24.w),
-            child: Text(
-              'Quick Actions',
-              style: GoogleFonts.inter(
-                fontSize: 18.sp,
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFF0F172A),
-                letterSpacing: -0.5,
+            child: InkWell(
+              onTap: _createNewProject,
+              borderRadius: BorderRadius.circular(20.r),
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 20.h),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                  ),
+                  borderRadius: BorderRadius.circular(20.r),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF6366F1).withOpacity(0.25),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                      spreadRadius: -4,
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(16.w),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(14.r),
+                      ),
+                      child: Icon(
+                        Icons.brush_rounded,
+                        color: Colors.white,
+                        size: 28.r,
+                      ),
+                    ),
+                    SizedBox(width: 18.w),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Start New Project',
+                            style: GoogleFonts.inter(
+                              fontSize: 17.sp,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                          SizedBox(height: 4.h),
+                          Text(
+                            'Create from blank canvas',
+                            style: GoogleFonts.inter(
+                              fontSize: 13.sp,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white.withOpacity(0.9),
+                              letterSpacing: -0.1,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      Icons.arrow_forward_rounded,
+                      color: Colors.white,
+                      size: 22.r,
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ),
-
-          SizedBox(height: 16.h),
-
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 24.w),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _buildActionCard(
-                    title: 'Create New',
-                    subtitle: 'Start fresh project',
-                    icon: Icons.add_rounded,
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                    ),
-                    onTap: _createNewProject,
-                  ),
-                ),
-                SizedBox(width: 16.w),
-                Expanded(
-                  child: _buildActionCard(
-                    title: 'Load Project',
-                    subtitle: 'Open from storage',
-                    icon: Icons.folder_open_rounded,
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0xFF10B981), Color(0xFF059669)],
-                    ),
-                    onTap: _loadProjectFromStorage,
-                  ),
-                ),
-              ],
             ),
           ),
 

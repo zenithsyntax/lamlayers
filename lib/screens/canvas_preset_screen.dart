@@ -314,29 +314,29 @@ class _CanvasPresetScreenState extends State<CanvasPresetScreen> {
           ),
           onPressed: () => Navigator.pop(context),
         ),
-        actions: [
-          Padding(
-            padding: EdgeInsets.only(right: 12.w),
-            child: TextButton.icon(
-              onPressed: _openTemplatesWithAd,
-              style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF6366F1),
-                padding: EdgeInsets.symmetric(horizontal: 12.w),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10.r),
-                ),
-              ),
-              icon: const Icon(Icons.dashboard_customize_rounded),
-              label: Text(
-                'Templates',
-                style: GoogleFonts.inter(
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ),
-        ],
+        // actions: [
+        //   Padding(
+        //     padding: EdgeInsets.only(right: 12.w),
+        //     child: TextButton.icon(
+        //       onPressed: _openTemplatesWithAd,
+        //       style: TextButton.styleFrom(
+        //         foregroundColor: const Color(0xFF6366F1),
+        //         padding: EdgeInsets.symmetric(horizontal: 12.w),
+        //         shape: RoundedRectangleBorder(
+        //           borderRadius: BorderRadius.circular(10.r),
+        //         ),
+        //       ),
+        //       icon: const Icon(Icons.dashboard_customize_rounded),
+        //       label: Text(
+        //         'Templates',
+        //         style: GoogleFonts.inter(
+        //           fontSize: 14.sp,
+        //           fontWeight: FontWeight.w700,
+        //         ),
+        //       ),
+        //     ),
+        //   ),
+        // ],
         bottom: PreferredSize(
           preferredSize: Size.fromHeight(1.h),
           child: Container(
