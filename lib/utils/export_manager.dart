@@ -1334,16 +1334,18 @@ class ExportManager {
       final baseCanvasWidth = currentScreenWidth * canvasToScreenRatioX;
       final baseCanvasHeight = currentScreenHeight * canvasToScreenRatioY;
 
-      // Scale canvas dimensions uniformly without buffer
-      // Use pure canvas ratio to maintain exact proportions
-      final scaledCanvasWidth = baseCanvasWidth.ceilToDouble();
-      final scaledCanvasHeight = baseCanvasHeight.ceilToDouble();
+      // Scale canvas dimensions with 1.5% buffer to eliminate gaps
+      final scaledCanvasWidth = (baseCanvasWidth * 1.015).ceilToDouble();
+      final scaledCanvasHeight = (baseCanvasHeight * 1.015).ceilToDouble();
 
-      // Single uniform scale factor for consistent scaling
+      // Two scale factors:
+      // 1. baseScaleFactor (pure ratio) - for shape scale properties
+      // 2. uniformScaleFactor (with buffer) - for positions
+      final baseScaleFactor = baseCanvasWidth / exportCanvasWidth;
       final uniformScaleFactor = scaledCanvasWidth / exportCanvasWidth;
 
       print(
-        'ExportManager: Canvas ${exportCanvasWidth}x${exportCanvasHeight} -> ${scaledCanvasWidth}x${scaledCanvasHeight}, scale factor: $uniformScaleFactor',
+        'ExportManager: Canvas ${exportCanvasWidth}x${exportCanvasHeight} -> ${scaledCanvasWidth}x${scaledCanvasHeight}, base scale: $baseScaleFactor, position scale: $uniformScaleFactor',
       );
 
       // Deserialize canvas items
@@ -2067,7 +2069,7 @@ class ExportManager {
           }
 
           final scaledScale = (shouldScaleShape || isSticker)
-              ? originalScale * uniformScaleFactor
+              ? originalScale * baseScaleFactor
               : originalScale;
 
           print(
@@ -2721,12 +2723,14 @@ class ExportManager {
     final baseCanvasWidth = currentScreenWidth * canvasToScreenRatioX;
     final baseCanvasHeight = currentScreenHeight * canvasToScreenRatioY;
 
-    // Scale canvas dimensions uniformly without buffer
-    // Use pure canvas ratio to maintain exact proportions
-    final scaledCanvasWidth = baseCanvasWidth.ceilToDouble();
-    final scaledCanvasHeight = baseCanvasHeight.ceilToDouble();
+    // Scale canvas dimensions with 1.5% buffer to eliminate gaps
+    final scaledCanvasWidth = (baseCanvasWidth * 1.015).ceilToDouble();
+    final scaledCanvasHeight = (baseCanvasHeight * 1.015).ceilToDouble();
 
-    // Single uniform scale factor for consistent scaling
+    // Two scale factors:
+    // 1. baseScaleFactor (pure ratio) - for shape scale properties
+    // 2. uniformScaleFactor (with buffer) - for positions
+    final baseScaleFactor = baseCanvasWidth / exportCanvasWidth;
     final uniformScaleFactor = scaledCanvasWidth / exportCanvasWidth;
 
     final List<hive_model.HiveCanvasItem> canvasItems = [];
@@ -2872,7 +2876,7 @@ class ExportManager {
         }
 
         final scaledScale = (shouldScaleShape || isSticker)
-            ? originalScale * uniformScaleFactor
+            ? originalScale * baseScaleFactor
             : originalScale;
 
         final canvasItem = hive_model.HiveCanvasItem(
