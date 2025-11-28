@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -195,23 +196,30 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView>
     _loadInterstitial();
   }
 
-Future<void> _showUploadProgressDialog({
+  Future<void> _showUploadProgressDialog({
   required BuildContext context,
   required Future<String> Function(Function(int, int)) uploadFunction,
 }) async {
   double uploadProgress = 0.0;
   int uploadedMB = 0;
   int totalMB = 0;
-  late void Function(void Function()) progressSetState;
+  String currentPhase = 'Preparing...';
+  
+  // Use a completer to ensure dialog is ready
+  final Completer<void Function(void Function())> setStateCompleter = Completer();
 
   showDialog(
     context: context,
     barrierDismissible: false,
-    builder: (context) => WillPopScope(
-      onWillPop: () async => false, // Prevent back button
+    builder: (dialogContext) => WillPopScope(
+      onWillPop: () async => false,
       child: StatefulBuilder(
         builder: (context, setState) {
-          progressSetState = setState;
+          // Complete the future with setState once dialog is built
+          if (!setStateCompleter.isCompleted) {
+            setStateCompleter.complete(setState);
+          }
+          
           return AlertDialog(
             contentPadding: EdgeInsets.all(24.r),
             shape: RoundedRectangleBorder(
@@ -220,18 +228,32 @@ Future<void> _showUploadProgressDialog({
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Upload icon
-                Container(
-                  padding: EdgeInsets.all(16.r),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF10B981).withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.cloud_upload_rounded,
-                    color: const Color(0xFF10B981),
-                    size: 40.r,
-                  ),
+                // Upload icon with animation
+                TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0.0, end: 1.0),
+                  duration: const Duration(seconds: 2),
+                  builder: (context, value, child) {
+                    return Container(
+                      padding: EdgeInsets.all(16.r),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF10B981).withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Transform.rotate(
+                        angle: value * 6.28,
+                        child: Icon(
+                          Icons.cloud_upload_rounded,
+                          color: const Color(0xFF10B981),
+                          size: 40.r,
+                        ),
+                      ),
+                    );
+                  },
+                  onEnd: () {
+                    if (context.mounted) {
+                      setState(() {});
+                    }
+                  },
                 ),
                 SizedBox(height: 20.h),
                 
@@ -247,8 +269,26 @@ Future<void> _showUploadProgressDialog({
                 ),
                 SizedBox(height: 8.h),
                 
-                // File size info
-                if (totalMB > 0) ...[
+                // Current phase
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFFCF5),
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                  child: Text(
+                    currentPhase,
+                    style: GoogleFonts.inter(
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF10B981),
+                    ),
+                  ),
+                ),
+                SizedBox(height: 16.h),
+                
+                // File size info (only show during upload phase)
+                if (totalMB > 0 && currentPhase.contains('Uploading')) ...[
                   Text(
                     '$uploadedMB MB of $totalMB MB',
                     style: GoogleFonts.inter(
@@ -262,7 +302,7 @@ Future<void> _showUploadProgressDialog({
                 
                 // Progress bar
                 LinearProgressIndicator(
-                  value: uploadProgress,
+                  value: currentPhase == 'Preparing...' ? null : uploadProgress,
                   backgroundColor: const Color(0xFFE2E8F0),
                   valueColor: AlwaysStoppedAnimation<Color>(
                     const Color(0xFF10B981),
@@ -272,15 +312,16 @@ Future<void> _showUploadProgressDialog({
                 ),
                 SizedBox(height: 12.h),
                 
-                // Percentage
-                Text(
-                  '${(uploadProgress * 100).toStringAsFixed(1)}%',
-                  style: GoogleFonts.inter(
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF64748B),
+                // Percentage (only show if not in preparing phase)
+                if (currentPhase != 'Preparing...')
+                  Text(
+                    '${(uploadProgress * 100).toStringAsFixed(1)}%',
+                    style: GoogleFonts.inter(
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF64748B),
+                    ),
                   ),
-                ),
                 
                 SizedBox(height: 20.h),
                 
@@ -339,21 +380,42 @@ Future<void> _showUploadProgressDialog({
   );
 
   try {
+    // Wait for dialog setState to be ready
+    final progressSetState = await setStateCompleter.future;
+    
+    // Phase 1: Preparing
+    progressSetState(() {
+      currentPhase = 'Preparing...';
+      uploadProgress = 0.0;
+    });
+
     // Execute the upload with progress callback
     await uploadFunction((uploadedBytes, totalBytes) {
       progressSetState(() {
+        currentPhase = 'Uploading file...';
         uploadProgress = uploadedBytes / totalBytes;
         uploadedMB = (uploadedBytes / (1024 * 1024)).ceil();
         totalMB = (totalBytes / (1024 * 1024)).ceil();
       });
     });
+
+    // Phase 3: Finalizing (setting permissions)
+    progressSetState(() {
+      currentPhase = 'Finalizing...';
+      uploadProgress = 1.0;
+    });
+
+    // Small delay to show finalizing message
+    await Future.delayed(const Duration(milliseconds: 500));
+  } catch (e) {
+    print('Upload error: $e');
+    rethrow;
   } finally {
     if (context.mounted) {
       Navigator.of(context, rootNavigator: true).pop();
     }
   }
 }
-
 
   @override
   void dispose() {
@@ -1811,104 +1873,159 @@ Future<void> _showUploadProgressDialog({
                                             subtitle:
                                                 'Upload to Drive and send a web link',
                                             onTap: () async {
-  Navigator.pop(ctx);
-  await _showAdIfAvailable(
-    onAfter: () async {
-      // Ensure Google account first (for Drive upload)
-      final account = await _ensureSignedInToGoogle();
-      if (account == null) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Google sign-in is required to share a link'),
-          ),
-        );
-        return;
-      }
-      
-      final ids = widget.scrapbook.pageProjectIds;
-      final List<PosterProject> pages = [];
-      for (final id in ids) {
-        final p = _projectBox.get(id);
-        if (p != null) pages.add(p);
-      }
-      if (pages.isEmpty) return;
+                                              Navigator.pop(ctx);
+                                              await _showAdIfAvailable(
+                                                onAfter: () async {
+                                                  // Ensure Google account first (for Drive upload)
+                                                  final account =
+                                                      await _ensureSignedInToGoogle();
+                                                  if (account == null) {
+                                                    if (!mounted) return;
+                                                    ScaffoldMessenger.of(
+                                                      context,
+                                                    ).showSnackBar(
+                                                      const SnackBar(
+                                                        content: Text(
+                                                          'Google sign-in is required to share a link',
+                                                        ),
+                                                      ),
+                                                    );
+                                                    return;
+                                                  }
 
-      try {
-        // 1) Export .lambook locally
-        final String? path = await ExportManager.exportScrapbookLambook(
-          scrapbook: widget.scrapbook,
-          pages: pages,
-          scaffoldBgColor: _scaffoldBgColor,
-          scaffoldBgImagePath: _scaffoldBgImagePath,
-          leftCoverColor: _leftCoverColor,
-          leftCoverImagePath: _leftCoverImagePath,
-          rightCoverColor: _rightCoverColor,
-          rightCoverImagePath: _rightCoverImagePath,
-        );
-        
-        if (path == null) {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to create lambook file'),
-              backgroundColor: Colors.red,
-            ),
-          );
-          return;
-        }
+                                                  final ids = widget
+                                                      .scrapbook
+                                                      .pageProjectIds;
+                                                  final List<PosterProject>
+                                                  pages = [];
+                                                  for (final id in ids) {
+                                                    final p = _projectBox.get(
+                                                      id,
+                                                    );
+                                                    if (p != null) pages.add(p);
+                                                  }
+                                                  if (pages.isEmpty) return;
 
-        // 2) Read file bytes
-        final fileBytes = await File(path).readAsBytes();
-        final driveService = GoogleDriveShareService();
-        
-        // 3) Upload to Drive with progress tracking
-        late String fileId;
-        await _showUploadProgressDialog(
-          context: context,
-          uploadFunction: (onProgress) async {
-            fileId = await driveService.uploadAndMakePublic(
-              fileName: widget.scrapbook.name.endsWith('.lambook')
-                  ? widget.scrapbook.name
-                  : '${widget.scrapbook.name}.lambook',
-              bytes: fileBytes,
-              mimeType: 'application/octet-stream',
-              onProgress: onProgress,
-            );
-            return fileId;
-          },
-        );
+                                                  try {
+                                                    // 1) Export .lambook locally
+                                                    final String?
+                                                    path = await ExportManager.exportScrapbookLambook(
+                                                      scrapbook:
+                                                          widget.scrapbook,
+                                                      pages: pages,
+                                                      scaffoldBgColor:
+                                                          _scaffoldBgColor,
+                                                      scaffoldBgImagePath:
+                                                          _scaffoldBgImagePath,
+                                                      leftCoverColor:
+                                                          _leftCoverColor,
+                                                      leftCoverImagePath:
+                                                          _leftCoverImagePath,
+                                                      rightCoverColor:
+                                                          _rightCoverColor,
+                                                      rightCoverImagePath:
+                                                          _rightCoverImagePath,
+                                                    );
 
-        // 4) Build web viewer URL
-        final viewerUrl = 'https://$firebaseWebDomain/?file='
-            'https://drive.google.com/uc?id=$fileId&export=download';
+                                                    if (path == null) {
+                                                      if (!mounted) return;
+                                                      ScaffoldMessenger.of(
+                                                        context,
+                                                      ).showSnackBar(
+                                                        const SnackBar(
+                                                          content: Text(
+                                                            'Failed to create lambook file',
+                                                          ),
+                                                          backgroundColor:
+                                                              Colors.red,
+                                                        ),
+                                                      );
+                                                      return;
+                                                    }
 
-        // 5) Share the link
-        await Share.share(viewerUrl);
-        
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Link created successfully!'),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
-      } catch (e) {
-        print('Error uploading to Drive: $e');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Upload failed: ${e.toString()}'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    },
-  );
-},
+                                                    // 2) Read file bytes
+                                                    final fileBytes =
+                                                        await File(
+                                                          path,
+                                                        ).readAsBytes();
+                                                    final driveService =
+                                                        GoogleDriveShareService();
+
+                                                    // 3) Upload to Drive with progress tracking
+                                                    late String fileId;
+                                                    await _showUploadProgressDialog(
+                                                      context: context,
+                                                      uploadFunction: (onProgress) async {
+                                                        fileId = await driveService
+                                                            .uploadAndMakePublic(
+                                                              fileName:
+                                                                  widget
+                                                                      .scrapbook
+                                                                      .name
+                                                                      .endsWith(
+                                                                        '.lambook',
+                                                                      )
+                                                                  ? widget
+                                                                        .scrapbook
+                                                                        .name
+                                                                  : '${widget.scrapbook.name}.lambook',
+                                                              bytes: fileBytes,
+                                                              mimeType:
+                                                                  'application/octet-stream',
+                                                              onProgress:
+                                                                  onProgress,
+                                                            );
+                                                        return fileId;
+                                                      },
+                                                    );
+
+                                                    // 4) Build web viewer URL
+                                                    final viewerUrl =
+                                                        'https://$firebaseWebDomain/?file='
+                                                        'https://drive.google.com/uc?id=$fileId&export=download';
+
+                                                    // 5) Share the link
+                                                    await Share.share(
+                                                      viewerUrl,
+                                                    );
+
+                                                    if (mounted) {
+                                                      ScaffoldMessenger.of(
+                                                        context,
+                                                      ).showSnackBar(
+                                                        const SnackBar(
+                                                          content: Text(
+                                                            'Link created successfully!',
+                                                          ),
+                                                          backgroundColor:
+                                                              Colors.green,
+                                                          duration: Duration(
+                                                            seconds: 2,
+                                                          ),
+                                                        ),
+                                                      );
+                                                    }
+                                                  } catch (e) {
+                                                    print(
+                                                      'Error uploading to Drive: $e',
+                                                    );
+                                                    if (mounted) {
+                                                      ScaffoldMessenger.of(
+                                                        context,
+                                                      ).showSnackBar(
+                                                        SnackBar(
+                                                          content: Text(
+                                                            'Upload failed: ${e.toString()}',
+                                                          ),
+                                                          backgroundColor:
+                                                              Colors.red,
+                                                        ),
+                                                      );
+                                                    }
+                                                  }
+                                                },
+                                              );
+                                            },
                                           ),
                                           SizedBox(height: 6.h),
                                         ],
@@ -1925,180 +2042,202 @@ Future<void> _showUploadProgressDialog({
                   ),
                 ),
               ),
+
             // Replace your Center widget in the build method with this:
+            Center(
+              child: RotatedBox(
+                quarterTurns: 1,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    // Calculate aspect ratio (same as InteractiveBook)
+                    double aspectRatio;
+                    try {
+                      if (widget.scrapbook.pageWidth > 0 &&
+                          widget.scrapbook.pageHeight > 0) {
+                        aspectRatio =
+                            (widget.scrapbook.pageWidth * 2) /
+                            widget.scrapbook.pageHeight;
+                      } else {
+                        aspectRatio = 1.4;
+                      }
+                      if (aspectRatio <= 0 ||
+                          !aspectRatio.isFinite ||
+                          aspectRatio.isNaN) {
+                        aspectRatio = 1.4;
+                      }
+                    } catch (e) {
+                      aspectRatio = 1.4;
+                    }
 
-Center(
-  child: RotatedBox(
-    quarterTurns: 1,
-    child: LayoutBuilder(
-      builder: (context, constraints) {
-        // Calculate aspect ratio (same as InteractiveBook)
-        double aspectRatio;
-        try {
-          if (widget.scrapbook.pageWidth > 0 && widget.scrapbook.pageHeight > 0) {
-            aspectRatio = (widget.scrapbook.pageWidth * 2) / widget.scrapbook.pageHeight;
-          } else {
-            aspectRatio = 1.4;
-          }
-          if (aspectRatio <= 0 || !aspectRatio.isFinite || aspectRatio.isNaN) {
-            aspectRatio = 1.4;
-          }
-        } catch (e) {
-          aspectRatio = 1.4;
-        }
+                    // Calculate book dimensions based on available space
+                    final availableWidth = constraints.maxWidth;
+                    final availableHeight = constraints.maxHeight;
 
-        // Calculate book dimensions based on available space
-        final availableWidth = constraints.maxWidth;
-        final availableHeight = constraints.maxHeight;
-        
-        // Calculate book size maintaining aspect ratio
-        double bookWidth;
-        double bookHeight;
-        
-        if (availableWidth / availableHeight > aspectRatio) {
-          // Height constrained
-          bookHeight = availableHeight * 0.85; // Use 85% of height
-          bookWidth = bookHeight * aspectRatio;
-        } else {
-          // Width constrained
-          bookWidth = availableWidth * 0.9; // Use 90% of width
-          bookHeight = bookWidth / aspectRatio;
-        }
+                    // Calculate book size maintaining aspect ratio
+                    double bookWidth;
+                    double bookHeight;
 
-        // Cover dimensions (slightly larger than book)
-        final coverWidth = bookWidth * 1.03;
-        final coverHeight = bookHeight * 1.08;
-        final leftCoverWidth = coverWidth / 2;
+                    if (availableWidth / availableHeight > aspectRatio) {
+                      // Height constrained
+                      bookHeight = availableHeight * 0.85; // Use 85% of height
+                      bookWidth = bookHeight * aspectRatio;
+                    } else {
+                      // Width constrained
+                      bookWidth = availableWidth * 0.9; // Use 90% of width
+                      bookHeight = bookWidth / aspectRatio;
+                    }
 
-        return SizedBox(
-          width: availableWidth,
-          height: availableHeight,
-          child: Stack(
-            children: [
-              // 🟤 Background book cover (BOTTOM LAYER - acts as frame)
-              Center(
-                child: Container(
-                  width: coverWidth,
-                  height: coverHeight,
-                  child: Stack(
-                    children: [
-                      // Right cover (full background)
-                      Center(
-                        child: Container(
-                          width: coverWidth,
-                          height: coverHeight,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(16.r),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.2),
-                                blurRadius: 10,
-                                offset: const Offset(4, 4),
+                    // Cover dimensions (slightly larger than book)
+                    final coverWidth = bookWidth * 1.03;
+                    final coverHeight = bookHeight * 1.08;
+                    final leftCoverWidth = coverWidth / 2;
+
+                    return SizedBox(
+                      width: availableWidth,
+                      height: availableHeight,
+                      child: Stack(
+                        children: [
+                          // 🟤 Background book cover (BOTTOM LAYER - acts as frame)
+                          Center(
+                            child: Container(
+                              width: coverWidth,
+                              height: coverHeight,
+                              child: Stack(
+                                children: [
+                                  // Right cover (full background)
+                                  Center(
+                                    child: Container(
+                                      width: coverWidth,
+                                      height: coverHeight,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(
+                                          16.r,
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(
+                                              0.2,
+                                            ),
+                                            blurRadius: 10,
+                                            offset: const Offset(4, 4),
+                                          ),
+                                        ],
+                                        color: _rightCoverImagePath == null
+                                            ? _rightCoverColor
+                                            : null,
+                                        image:
+                                            _rightCoverImagePath != null &&
+                                                File(
+                                                  _rightCoverImagePath!,
+                                                ).existsSync()
+                                            ? DecorationImage(
+                                                image: FileImage(
+                                                  File(_rightCoverImagePath!),
+                                                ),
+                                                fit: BoxFit.cover,
+                                              )
+                                            : null,
+                                      ),
+                                    ),
+                                  ),
+
+                                  // Left cover (overlays left half)
+                                  Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: Container(
+                                      width: leftCoverWidth,
+                                      height: coverHeight,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.only(
+                                          bottomLeft: Radius.circular(16.r),
+                                          topLeft: Radius.circular(16.r),
+                                        ),
+                                        color: _leftCoverImagePath == null
+                                            ? _leftCoverColor
+                                            : null,
+                                        image:
+                                            _leftCoverImagePath != null &&
+                                                File(
+                                                  _leftCoverImagePath!,
+                                                ).existsSync()
+                                            ? DecorationImage(
+                                                image: FileImage(
+                                                  File(_leftCoverImagePath!),
+                                                ),
+                                                fit: BoxFit.cover,
+                                              )
+                                            : null,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ],
-                            color: _rightCoverImagePath == null
-                                ? _rightCoverColor
-                                : null,
-                            image: _rightCoverImagePath != null &&
-                                    File(_rightCoverImagePath!).existsSync()
-                                ? DecorationImage(
-                                    image: FileImage(File(_rightCoverImagePath!)),
-                                    fit: BoxFit.cover,
-                                  )
-                                : null,
-                          ),
-                        ),
-                      ),
-
-                      // Left cover (overlays left half)
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Container(
-                          width: leftCoverWidth,
-                          height: coverHeight,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.only(
-                              bottomLeft: Radius.circular(16.r),
-                              topLeft: Radius.circular(16.r),
                             ),
-                            color: _leftCoverImagePath == null
-                                ? _leftCoverColor
-                                : null,
-                            image: _leftCoverImagePath != null &&
-                                    File(_leftCoverImagePath!).existsSync()
-                                ? DecorationImage(
-                                    image: FileImage(File(_leftCoverImagePath!)),
-                                    fit: BoxFit.cover,
-                                  )
-                                : null,
                           ),
-                        ),
+
+                          // Interactive book (MIDDLE LAYER - pages flip freely without clipping)
+                          Center(
+                            child: SizedBox(
+                              width: bookWidth,
+                              height: bookHeight,
+                              child: _buildInteractiveBook(),
+                            ),
+                          ),
+
+                          // Navigation buttons (unchanged)
+                          if (_showArrows)
+                            Positioned(
+                              bottom: 20.h,
+                              left: 20.w,
+                              child: IconButton(
+                                onPressed: _currentLeftPage > 0
+                                    ? _goToPreviousPage
+                                    : null,
+                                icon: Icon(
+                                  Icons.arrow_back_ios,
+                                  color: _currentLeftPage > 0
+                                      ? const Color(0xFF0F172A)
+                                      : const Color(0xFF94A3B8),
+                                  size: 15.r,
+                                ),
+                                padding: EdgeInsets.all(8.w),
+                                constraints: BoxConstraints(
+                                  minWidth: 50.w,
+                                  minHeight: 50.h,
+                                ),
+                              ),
+                            ),
+
+                          if (_showArrows)
+                            Positioned(
+                              bottom: 20.h,
+                              right: 20.w,
+                              child: IconButton(
+                                onPressed:
+                                    _currentRightPage < pageIds.length - 1
+                                    ? _goToNextPage
+                                    : null,
+                                icon: Icon(
+                                  Icons.arrow_forward_ios,
+                                  color: _currentRightPage < pageIds.length - 1
+                                      ? const Color(0xFF0F172A)
+                                      : const Color(0xFF94A3B8),
+                                  size: 15.r,
+                                ),
+                                padding: EdgeInsets.all(8.w),
+                                constraints: BoxConstraints(
+                                  minWidth: 50.w,
+                                  minHeight: 50.h,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
               ),
-
-              // Interactive book (MIDDLE LAYER - pages flip freely without clipping)
-              Center(
-                child: SizedBox(
-                  width: bookWidth,
-                  height: bookHeight,
-                  child: _buildInteractiveBook(),
-                ),
-              ),
-
-              // Navigation buttons (unchanged)
-              if (_showArrows)
-                Positioned(
-                  bottom: 20.h,
-                  left: 20.w,
-                  child: IconButton(
-                    onPressed: _currentLeftPage > 0 ? _goToPreviousPage : null,
-                    icon: Icon(
-                      Icons.arrow_back_ios,
-                      color: _currentLeftPage > 0
-                          ? const Color(0xFF0F172A)
-                          : const Color(0xFF94A3B8),
-                      size: 15.r,
-                    ),
-                    padding: EdgeInsets.all(8.w),
-                    constraints: BoxConstraints(
-                      minWidth: 50.w,
-                      minHeight: 50.h,
-                    ),
-                  ),
-                ),
-
-              if (_showArrows)
-                Positioned(
-                  bottom: 20.h,
-                  right: 20.w,
-                  child: IconButton(
-                    onPressed: _currentRightPage < pageIds.length - 1
-                        ? _goToNextPage
-                        : null,
-                    icon: Icon(
-                      Icons.arrow_forward_ios,
-                      color: _currentRightPage < pageIds.length - 1
-                          ? const Color(0xFF0F172A)
-                          : const Color(0xFF94A3B8),
-                      size: 15.r,
-                    ),
-                    padding: EdgeInsets.all(8.w),
-                    constraints: BoxConstraints(
-                      minWidth: 50.w,
-                      minHeight: 50.h,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        );
-      },
-    ),
-  ),
-)
+            ),
           ],
         ),
       ),

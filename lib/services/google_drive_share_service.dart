@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -23,14 +24,13 @@ class GoogleDriveShareService {
 
   final GoogleSignIn _googleSignIn;
 
-  Future<drive.DriveApi> _getDriveApi() async {
+  Future<_GoogleAuthClient> _getAuthenticatedClient() async {
     final GoogleSignInAccount? account = await _googleSignIn.signInSilently();
     final GoogleSignInAccount signedInAccount =
         account ?? (await _googleSignIn.signIn())!;
 
     final authHeaders = await signedInAccount.authHeaders;
-    final client = _GoogleAuthClient(authHeaders);
-    return drive.DriveApi(client);
+    return _GoogleAuthClient(authHeaders);
   }
 
   // Uploads bytes to Drive as a file, sets "anyone with the link" reader,
@@ -41,69 +41,37 @@ class GoogleDriveShareService {
     String mimeType = 'application/octet-stream',
     Function(int uploadedBytes, int totalBytes)? onProgress,
   }) async {
-    final driveApi = await _getDriveApi();
+    final client = await _getAuthenticatedClient();
 
     final drive.File fileMetadata = drive.File()
       ..name = fileName
       ..mimeType = mimeType;
 
     final int totalBytes = bytes.length;
-    int uploadedBytes = 0;
 
-    // Create a stream controller to track actual upload progress
-    final streamController = StreamController<List<int>>();
-    
     // Report initial progress
     if (onProgress != null) {
       onProgress(0, totalBytes);
     }
 
-    // Split bytes into chunks for progress tracking (256KB chunks for smooth progress)
-    const int chunkSize = 256 * 1024; // 256KB chunks
-    int offset = 0;
-
-    // Start async process to feed chunks to the stream
-    Future.microtask(() async {
-      try {
-        while (offset < totalBytes) {
-          final int end = (offset + chunkSize < totalBytes) 
-              ? offset + chunkSize 
-              : totalBytes;
-          
-          final chunk = bytes.sublist(offset, end);
-          streamController.add(chunk);
-          
-          uploadedBytes += chunk.length;
-          
-          // Report progress after each chunk
-          if (onProgress != null) {
-            onProgress(uploadedBytes, totalBytes);
-          }
-          
-          offset = end;
-          
-          // Small delay to allow UI updates and prevent blocking
-          await Future.delayed(const Duration(milliseconds: 10));
-        }
-        
-        await streamController.close();
-      } catch (e) {
-        streamController.addError(e);
-        await streamController.close();
-      }
-    });
-
-    final media = drive.Media(streamController.stream, totalBytes);
-
-    // Perform the upload
-    final created = await driveApi.files.create(
+    // Use resumable upload with progress tracking
+    final uploadUrl = await _initiateResumableUpload(
+      client,
       fileMetadata,
-      uploadMedia: media,
+      totalBytes,
     );
 
-    final String fileId = created.id!;
+    // Upload with real progress tracking
+    final fileId = await _uploadWithProgress(
+      client,
+      uploadUrl,
+      bytes,
+      totalBytes,
+      onProgress,
+    );
 
-    // Make it public readable
+    // Make it public readable using DriveApi
+    final driveApi = drive.DriveApi(client);
     await driveApi.permissions.create(
       drive.Permission()
         ..type = 'anyone'
@@ -112,6 +80,102 @@ class GoogleDriveShareService {
     );
 
     return fileId;
+  }
+
+  Future<String> _initiateResumableUpload(
+    http.Client client,
+    drive.File metadata,
+    int totalBytes,
+  ) async {
+    final uri = Uri.parse(
+      'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable',
+    );
+
+    final metadataJson = json.encode({
+      'name': metadata.name,
+      'mimeType': metadata.mimeType,
+    });
+
+    final response = await client.post(
+      uri,
+      headers: {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'X-Upload-Content-Length': totalBytes.toString(),
+      },
+      body: metadataJson,
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to initiate upload: ${response.body}');
+    }
+
+    final location = response.headers['location'];
+    if (location == null) {
+      throw Exception('No upload URL returned');
+    }
+
+    return location;
+  }
+
+  Future<String> _uploadWithProgress(
+    http.Client client,
+    String uploadUrl,
+    Uint8List bytes,
+    int totalBytes,
+    Function(int, int)? onProgress,
+  ) async {
+    const int chunkSize = 256 * 1024; // 256KB chunks
+    int offset = 0;
+
+    while (offset < totalBytes) {
+      final int end = (offset + chunkSize < totalBytes)
+          ? offset + chunkSize
+          : totalBytes;
+
+      final chunk = bytes.sublist(offset, end);
+
+      final response = await client.put(
+        Uri.parse(uploadUrl),
+        headers: {
+          'Content-Length': chunk.length.toString(),
+          'Content-Range': 'bytes $offset-${end - 1}/$totalBytes',
+        },
+        body: chunk,
+      );
+
+      // Report progress
+      if (onProgress != null) {
+        onProgress(end, totalBytes);
+      }
+
+      // If upload incomplete, continue
+      if (response.statusCode == 308) {
+        offset = end;
+        continue;
+      }
+
+      // Upload complete
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        try {
+          final responseJson = json.decode(response.body) as Map<String, dynamic>;
+          final fileId = responseJson['id'] as String?;
+          if (fileId != null) {
+            return fileId;
+          }
+        } catch (e) {
+          // Fallback to regex if JSON parsing fails
+          final fileIdMatch = RegExp(r'"id":\s*"([^"]+)"').firstMatch(response.body);
+          if (fileIdMatch != null) {
+            return fileIdMatch.group(1)!;
+          }
+        }
+        throw Exception('Could not extract file ID from response');
+      }
+
+      throw Exception('Upload failed with status: ${response.statusCode}');
+    }
+
+    throw Exception('Upload completed but no file ID received');
   }
 }
 
