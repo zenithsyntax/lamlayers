@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -15,8 +16,8 @@ class GoogleDriveShareService {
           GoogleSignIn(
             serverClientId: serverClientId,
             scopes: <String>[
-              drive.DriveApi.driveFileScope, // Create files you open/create
-              drive.DriveApi.driveScope, // Broader access for permissions
+              drive.DriveApi.driveFileScope,
+              drive.DriveApi.driveScope,
             ],
           );
 
@@ -33,12 +34,12 @@ class GoogleDriveShareService {
   }
 
   // Uploads bytes to Drive as a file, sets "anyone with the link" reader,
-  // and returns the fileId.
+  // and returns the fileId with real-time upload progress tracking
   Future<String> uploadAndMakePublic({
     required String fileName,
     required Uint8List bytes,
     String mimeType = 'application/octet-stream',
-    Function(int uploaded, int total)? onProgress,
+    Function(int uploadedBytes, int totalBytes)? onProgress,
   }) async {
     final driveApi = await _getDriveApi();
 
@@ -46,24 +47,55 @@ class GoogleDriveShareService {
       ..name = fileName
       ..mimeType = mimeType;
 
-    // Create a custom stream that tracks upload progress
-    Stream<List<int>> uploadStream;
-    if (onProgress != null) {
-      int uploadedBytes = 0;
-      final int totalBytes = bytes.length;
+    final int totalBytes = bytes.length;
+    int uploadedBytes = 0;
 
-      uploadStream = Stream<List<int>>.fromIterable(
-        _splitBytesForProgress(bytes, (chunkLength) {
-          uploadedBytes += chunkLength;
-          onProgress(uploadedBytes, totalBytes);
-        }),
-      );
-    } else {
-      uploadStream = Stream<List<int>>.fromIterable(<List<int>>[bytes]);
+    // Create a stream controller to track actual upload progress
+    final streamController = StreamController<List<int>>();
+    
+    // Report initial progress
+    if (onProgress != null) {
+      onProgress(0, totalBytes);
     }
 
-    final media = drive.Media(uploadStream, bytes.length);
+    // Split bytes into chunks for progress tracking (256KB chunks for smooth progress)
+    const int chunkSize = 256 * 1024; // 256KB chunks
+    int offset = 0;
 
+    // Start async process to feed chunks to the stream
+    Future.microtask(() async {
+      try {
+        while (offset < totalBytes) {
+          final int end = (offset + chunkSize < totalBytes) 
+              ? offset + chunkSize 
+              : totalBytes;
+          
+          final chunk = bytes.sublist(offset, end);
+          streamController.add(chunk);
+          
+          uploadedBytes += chunk.length;
+          
+          // Report progress after each chunk
+          if (onProgress != null) {
+            onProgress(uploadedBytes, totalBytes);
+          }
+          
+          offset = end;
+          
+          // Small delay to allow UI updates and prevent blocking
+          await Future.delayed(const Duration(milliseconds: 10));
+        }
+        
+        await streamController.close();
+      } catch (e) {
+        streamController.addError(e);
+        await streamController.close();
+      }
+    });
+
+    final media = drive.Media(streamController.stream, totalBytes);
+
+    // Perform the upload
     final created = await driveApi.files.create(
       fileMetadata,
       uploadMedia: media,
@@ -81,26 +113,6 @@ class GoogleDriveShareService {
 
     return fileId;
   }
-
-  // Split bytes into smaller chunks and invoke callback for progress tracking
-  List<List<int>> _splitBytesForProgress(
-    Uint8List bytes,
-    Function(int) onChunk,
-  ) {
-    const int chunkSize = 8192; // 8KB chunks
-    final List<List<int>> chunks = [];
-
-    for (int i = 0; i < bytes.length; i += chunkSize) {
-      final int end = (i + chunkSize < bytes.length)
-          ? i + chunkSize
-          : bytes.length;
-      final chunk = bytes.sublist(i, end);
-      chunks.add(chunk);
-      onChunk(chunk.length);
-    }
-
-    return chunks;
-  }
 }
 
 // Simple auth client using headers from GoogleSignIn
@@ -109,7 +121,7 @@ class _GoogleAuthClient extends http.BaseClient {
 
   final Map<String, String> _headers;
   final http.Client _inner = IOClient(
-    HttpClient()..connectionTimeout = const Duration(seconds: 30),
+    HttpClient()..connectionTimeout = const Duration(seconds: 60),
   );
 
   @override

@@ -195,6 +195,166 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView>
     _loadInterstitial();
   }
 
+Future<void> _showUploadProgressDialog({
+  required BuildContext context,
+  required Future<String> Function(Function(int, int)) uploadFunction,
+}) async {
+  double uploadProgress = 0.0;
+  int uploadedMB = 0;
+  int totalMB = 0;
+  late void Function(void Function()) progressSetState;
+
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => WillPopScope(
+      onWillPop: () async => false, // Prevent back button
+      child: StatefulBuilder(
+        builder: (context, setState) {
+          progressSetState = setState;
+          return AlertDialog(
+            contentPadding: EdgeInsets.all(24.r),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16.r),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Upload icon
+                Container(
+                  padding: EdgeInsets.all(16.r),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.cloud_upload_rounded,
+                    color: const Color(0xFF10B981),
+                    size: 40.r,
+                  ),
+                ),
+                SizedBox(height: 20.h),
+                
+                // Title
+                Text(
+                  'Uploading to Google Drive',
+                  style: GoogleFonts.inter(
+                    fontSize: 18.sp,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF0F172A),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 8.h),
+                
+                // File size info
+                if (totalMB > 0) ...[
+                  Text(
+                    '$uploadedMB MB of $totalMB MB',
+                    style: GoogleFonts.inter(
+                      fontSize: 15.sp,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF10B981),
+                    ),
+                  ),
+                  SizedBox(height: 16.h),
+                ],
+                
+                // Progress bar
+                LinearProgressIndicator(
+                  value: uploadProgress,
+                  backgroundColor: const Color(0xFFE2E8F0),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    const Color(0xFF10B981),
+                  ),
+                  minHeight: 8.h,
+                  borderRadius: BorderRadius.circular(4.r),
+                ),
+                SizedBox(height: 12.h),
+                
+                // Percentage
+                Text(
+                  '${(uploadProgress * 100).toStringAsFixed(1)}%',
+                  style: GoogleFonts.inter(
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF64748B),
+                  ),
+                ),
+                
+                SizedBox(height: 20.h),
+                
+                // Important message
+                Container(
+                  padding: EdgeInsets.all(12.r),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF3C7),
+                    borderRadius: BorderRadius.circular(8.r),
+                    border: Border.all(
+                      color: const Color(0xFFF59E0B),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        color: const Color(0xFFF59E0B),
+                        size: 20.r,
+                      ),
+                      SizedBox(width: 8.w),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Please wait',
+                              style: GoogleFonts.inter(
+                                fontSize: 13.sp,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF92400E),
+                              ),
+                            ),
+                            SizedBox(height: 2.h),
+                            Text(
+                              'Don\'t switch apps or lock your device. Ensure stable network connection.',
+                              style: GoogleFonts.inter(
+                                fontSize: 12.sp,
+                                color: const Color(0xFF92400E),
+                                height: 1.3,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    ),
+  );
+
+  try {
+    // Execute the upload with progress callback
+    await uploadFunction((uploadedBytes, totalBytes) {
+      progressSetState(() {
+        uploadProgress = uploadedBytes / totalBytes;
+        uploadedMB = (uploadedBytes / (1024 * 1024)).ceil();
+        totalMB = (totalBytes / (1024 * 1024)).ceil();
+      });
+    });
+  } finally {
+    if (context.mounted) {
+      Navigator.of(context, rootNavigator: true).pop();
+    }
+  }
+}
+
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
@@ -1651,201 +1811,104 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView>
                                             subtitle:
                                                 'Upload to Drive and send a web link',
                                             onTap: () async {
-                                              Navigator.pop(ctx);
-                                              await _showAdIfAvailable(
-                                                onAfter: () async {
-                                                  // Ensure Google account first (for Drive upload)
-                                                  final account =
-                                                      await _ensureSignedInToGoogle();
-                                                  if (account == null) {
-                                                    if (!mounted) return;
-                                                    ScaffoldMessenger.of(
-                                                      context,
-                                                    ).showSnackBar(
-                                                      const SnackBar(
-                                                        content: Text(
-                                                          'Google sign-in is required to share a link',
-                                                        ),
-                                                      ),
-                                                    );
-                                                    return;
-                                                  }
-                                                  final ids = widget
-                                                      .scrapbook
-                                                      .pageProjectIds;
-                                                  final List<PosterProject>
-                                                  pages = [];
-                                                  for (final id in ids) {
-                                                    final p = _projectBox.get(
-                                                      id,
-                                                    );
-                                                    if (p != null) pages.add(p);
-                                                  }
-                                                  if (pages.isEmpty) return;
+  Navigator.pop(ctx);
+  await _showAdIfAvailable(
+    onAfter: () async {
+      // Ensure Google account first (for Drive upload)
+      final account = await _ensureSignedInToGoogle();
+      if (account == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Google sign-in is required to share a link'),
+          ),
+        );
+        return;
+      }
+      
+      final ids = widget.scrapbook.pageProjectIds;
+      final List<PosterProject> pages = [];
+      for (final id in ids) {
+        final p = _projectBox.get(id);
+        if (p != null) pages.add(p);
+      }
+      if (pages.isEmpty) return;
 
-                                                  // Show progress dialog with linear progress indicator
-                                                  double uploadProgress = 0.0;
-                                                  late void Function(
-                                                    void Function(),
-                                                  )
-                                                  progressSetState;
+      try {
+        // 1) Export .lambook locally
+        final String? path = await ExportManager.exportScrapbookLambook(
+          scrapbook: widget.scrapbook,
+          pages: pages,
+          scaffoldBgColor: _scaffoldBgColor,
+          scaffoldBgImagePath: _scaffoldBgImagePath,
+          leftCoverColor: _leftCoverColor,
+          leftCoverImagePath: _leftCoverImagePath,
+          rightCoverColor: _rightCoverColor,
+          rightCoverImagePath: _rightCoverImagePath,
+        );
+        
+        if (path == null) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to create lambook file'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
 
-                                                  showDialog(
-                                                    context: context,
-                                                    barrierDismissible: false,
-                                                    builder: (context) => StatefulBuilder(
-                                                      builder: (context, setState) {
-                                                        progressSetState =
-                                                            setState;
-                                                        return AlertDialog(
-                                                          contentPadding:
-                                                              EdgeInsets.all(
-                                                                24.r,
-                                                              ),
-                                                          content: Column(
-                                                            mainAxisSize:
-                                                                MainAxisSize
-                                                                    .min,
-                                                            children: [
-                                                              Text(
-                                                                'Uploading to Google Drive',
-                                                                style: GoogleFonts.inter(
-                                                                  fontSize:
-                                                                      18.sp,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .w700,
-                                                                  color: const Color(
-                                                                    0xFF0F172A,
-                                                                  ),
-                                                                ),
-                                                              ),
-                                                              SizedBox(
-                                                                height: 24.h,
-                                                              ),
-                                                              LinearProgressIndicator(
-                                                                value:
-                                                                    uploadProgress,
-                                                                backgroundColor:
-                                                                    const Color(
-                                                                      0xFFE2E8F0,
-                                                                    ),
-                                                                valueColor:
-                                                                    AlwaysStoppedAnimation<
-                                                                      Color
-                                                                    >(
-                                                                      const Color(
-                                                                        0xFF10B981,
-                                                                      ),
-                                                                    ),
-                                                                minHeight: 8.h,
-                                                                borderRadius:
-                                                                    BorderRadius.circular(
-                                                                      4.r,
-                                                                    ),
-                                                              ),
-                                                              SizedBox(
-                                                                height: 12.h,
-                                                              ),
-                                                              Text(
-                                                                '${(uploadProgress * 100).toStringAsFixed(0)}%',
-                                                                style: GoogleFonts.inter(
-                                                                  fontSize:
-                                                                      16.sp,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .w600,
-                                                                  color: const Color(
-                                                                    0xFF64748B,
-                                                                  ),
-                                                                ),
-                                                              ),
-                                                            ],
-                                                          ),
-                                                        );
-                                                      },
-                                                    ),
-                                                  );
+        // 2) Read file bytes
+        final fileBytes = await File(path).readAsBytes();
+        final driveService = GoogleDriveShareService();
+        
+        // 3) Upload to Drive with progress tracking
+        late String fileId;
+        await _showUploadProgressDialog(
+          context: context,
+          uploadFunction: (onProgress) async {
+            fileId = await driveService.uploadAndMakePublic(
+              fileName: widget.scrapbook.name.endsWith('.lambook')
+                  ? widget.scrapbook.name
+                  : '${widget.scrapbook.name}.lambook',
+              bytes: fileBytes,
+              mimeType: 'application/octet-stream',
+              onProgress: onProgress,
+            );
+            return fileId;
+          },
+        );
 
-                                                  try {
-                                                    // 1) Export .lambook locally
-                                                    final String?
-                                                    path = await ExportManager.exportScrapbookLambook(
-                                                      scrapbook:
-                                                          widget.scrapbook,
-                                                      pages: pages,
-                                                      scaffoldBgColor:
-                                                          _scaffoldBgColor,
-                                                      scaffoldBgImagePath:
-                                                          _scaffoldBgImagePath,
-                                                      leftCoverColor:
-                                                          _leftCoverColor,
-                                                      leftCoverImagePath:
-                                                          _leftCoverImagePath,
-                                                      rightCoverColor:
-                                                          _rightCoverColor,
-                                                      rightCoverImagePath:
-                                                          _rightCoverImagePath,
-                                                    );
-                                                    if (path == null) return;
+        // 4) Build web viewer URL
+        final viewerUrl = 'https://$firebaseWebDomain/?file='
+            'https://drive.google.com/uc?id=$fileId&export=download';
 
-                                                    // 2) Upload to Google Drive and make public
-                                                    final fileBytes =
-                                                        await File(
-                                                          path,
-                                                        ).readAsBytes();
-                                                    final driveService =
-                                                        GoogleDriveShareService();
-                                                    final fileId = await driveService
-                                                        .uploadAndMakePublic(
-                                                          fileName:
-                                                              widget
-                                                                  .scrapbook
-                                                                  .name
-                                                                  .endsWith(
-                                                                    '.lambook',
-                                                                  )
-                                                              ? widget
-                                                                    .scrapbook
-                                                                    .name
-                                                              : '${widget.scrapbook.name}.lambook',
-                                                          bytes: fileBytes,
-                                                          mimeType:
-                                                              'application/octet-stream',
-                                                          onProgress:
-                                                              (
-                                                                uploaded,
-                                                                total,
-                                                              ) {
-                                                                uploadProgress =
-                                                                    uploaded /
-                                                                    total;
-                                                                progressSetState(
-                                                                  () {},
-                                                                );
-                                                              },
-                                                        );
-
-                                                    // 3) Build web viewer URL
-                                                    final viewerUrl =
-                                                        'https://$firebaseWebDomain/?file='
-                                                        'https://drive.google.com/uc?id=$fileId&export=download';
-
-                                                    await Share.share(
-                                                      viewerUrl,
-                                                    );
-                                                  } catch (_) {
-                                                  } finally {
-                                                    if (mounted) {
-                                                      Navigator.of(
-                                                        context,
-                                                        rootNavigator: true,
-                                                      ).pop();
-                                                    }
-                                                  }
-                                                },
-                                              );
-                                            },
+        // 5) Share the link
+        await Share.share(viewerUrl);
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Link created successfully!'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      } catch (e) {
+        print('Error uploading to Drive: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Upload failed: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    },
+  );
+},
                                           ),
                                           SizedBox(height: 6.h),
                                         ],
