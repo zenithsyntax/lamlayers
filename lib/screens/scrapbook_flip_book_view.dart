@@ -174,6 +174,9 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView>
     return account;
   }
 
+  bool _isLoading = true;
+
+  // Modify initState to set loading to false after a frame delay
   @override
   void initState() {
     super.initState();
@@ -194,228 +197,243 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView>
     // Initialize and load Google Mobile Ads interstitial
     MobileAds.instance.initialize();
     _loadInterstitial();
+
+    // Allow UI to render, then set loading to false
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    });
   }
 
   Future<void> _showUploadProgressDialog({
-  required BuildContext context,
-  required Future<String> Function(Function(int, int)) uploadFunction,
-}) async {
-  double uploadProgress = 0.0;
-  int uploadedMB = 0;
-  int totalMB = 0;
-  String currentPhase = 'Preparing...';
-  
-  // Use a completer to ensure dialog is ready
-  final Completer<void Function(void Function())> setStateCompleter = Completer();
+    required BuildContext context,
+    required Future<String> Function(Function(int, int)) uploadFunction,
+  }) async {
+    double uploadProgress = 0.0;
+    int uploadedMB = 0;
+    int totalMB = 0;
+    String currentPhase = 'Preparing...';
 
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (dialogContext) => WillPopScope(
-      onWillPop: () async => false,
-      child: StatefulBuilder(
-        builder: (context, setState) {
-          // Complete the future with setState once dialog is built
-          if (!setStateCompleter.isCompleted) {
-            setStateCompleter.complete(setState);
-          }
-          
-          return AlertDialog(
-            contentPadding: EdgeInsets.all(24.r),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16.r),
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Upload icon with animation
-                TweenAnimationBuilder<double>(
-                  tween: Tween(begin: 0.0, end: 1.0),
-                  duration: const Duration(seconds: 2),
-                  builder: (context, value, child) {
-                    return Container(
-                      padding: EdgeInsets.all(16.r),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF10B981).withOpacity(0.1),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Transform.rotate(
-                        angle: value * 6.28,
-                        child: Icon(
-                          Icons.cloud_upload_rounded,
-                          color: const Color(0xFF10B981),
-                          size: 40.r,
+    // Use a completer to ensure dialog is ready
+    final Completer<void Function(void Function())> setStateCompleter =
+        Completer();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => WillPopScope(
+        onWillPop: () async => false,
+        child: StatefulBuilder(
+          builder: (context, setState) {
+            // Complete the future with setState once dialog is built
+            if (!setStateCompleter.isCompleted) {
+              setStateCompleter.complete(setState);
+            }
+
+            return AlertDialog(
+              contentPadding: EdgeInsets.all(24.r),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16.r),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Upload icon with animation
+                  TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0.0, end: 1.0),
+                    duration: const Duration(seconds: 2),
+                    builder: (context, value, child) {
+                      return Container(
+                        padding: EdgeInsets.all(16.r),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981).withOpacity(0.1),
+                          shape: BoxShape.circle,
                         ),
-                      ),
-                    );
-                  },
-                  onEnd: () {
-                    if (context.mounted) {
-                      setState(() {});
-                    }
-                  },
-                ),
-                SizedBox(height: 20.h),
-                
-                // Title
-                Text(
-                  'Uploading to Google Drive',
-                  style: GoogleFonts.inter(
-                    fontSize: 18.sp,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF0F172A),
+                        child: Transform.rotate(
+                          angle: value * 6.28,
+                          child: Icon(
+                            Icons.cloud_upload_rounded,
+                            color: const Color(0xFF10B981),
+                            size: 40.r,
+                          ),
+                        ),
+                      );
+                    },
+                    onEnd: () {
+                      if (context.mounted) {
+                        setState(() {});
+                      }
+                    },
                   ),
-                  textAlign: TextAlign.center,
-                ),
-                SizedBox(height: 8.h),
-                
-                // Current phase
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEFFCF5),
-                    borderRadius: BorderRadius.circular(12.r),
-                  ),
-                  child: Text(
-                    currentPhase,
-                    style: GoogleFonts.inter(
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF10B981),
-                    ),
-                  ),
-                ),
-                SizedBox(height: 16.h),
-                
-                // File size info (only show during upload phase)
-                if (totalMB > 0 && currentPhase.contains('Uploading')) ...[
+                  SizedBox(height: 20.h),
+
+                  // Title
                   Text(
-                    '$uploadedMB MB of $totalMB MB',
+                    'Uploading to Google Drive',
                     style: GoogleFonts.inter(
-                      fontSize: 15.sp,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF10B981),
+                      fontSize: 18.sp,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF0F172A),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 8.h),
+
+                  // Current phase
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 12.w,
+                      vertical: 6.h,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEFFCF5),
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
+                    child: Text(
+                      currentPhase,
+                      style: GoogleFonts.inter(
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF10B981),
+                      ),
                     ),
                   ),
                   SizedBox(height: 16.h),
-                ],
-                
-                // Progress bar
-                LinearProgressIndicator(
-                  value: currentPhase == 'Preparing...' ? null : uploadProgress,
-                  backgroundColor: const Color(0xFFE2E8F0),
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    const Color(0xFF10B981),
-                  ),
-                  minHeight: 8.h,
-                  borderRadius: BorderRadius.circular(4.r),
-                ),
-                SizedBox(height: 12.h),
-                
-                // Percentage (only show if not in preparing phase)
-                if (currentPhase != 'Preparing...')
-                  Text(
-                    '${(uploadProgress * 100).toStringAsFixed(1)}%',
-                    style: GoogleFonts.inter(
-                      fontSize: 16.sp,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF64748B),
+
+                  // File size info (only show during upload phase)
+                  if (totalMB > 0 && currentPhase.contains('Uploading')) ...[
+                    Text(
+                      '$uploadedMB MB of $totalMB MB',
+                      style: GoogleFonts.inter(
+                        fontSize: 15.sp,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF10B981),
+                      ),
                     ),
-                  ),
-                
-                SizedBox(height: 20.h),
-                
-                // Important message
-                Container(
-                  padding: EdgeInsets.all(12.r),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFEF3C7),
-                    borderRadius: BorderRadius.circular(8.r),
-                    border: Border.all(
-                      color: const Color(0xFFF59E0B),
-                      width: 1,
+                    SizedBox(height: 16.h),
+                  ],
+
+                  // Progress bar
+                  LinearProgressIndicator(
+                    value: currentPhase == 'Preparing...'
+                        ? null
+                        : uploadProgress,
+                    backgroundColor: const Color(0xFFE2E8F0),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      const Color(0xFF10B981),
                     ),
+                    minHeight: 8.h,
+                    borderRadius: BorderRadius.circular(4.r),
                   ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.info_outline,
+                  SizedBox(height: 12.h),
+
+                  // Percentage (only show if not in preparing phase)
+                  if (currentPhase != 'Preparing...')
+                    Text(
+                      '${(uploadProgress * 100).toStringAsFixed(1)}%',
+                      style: GoogleFonts.inter(
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF64748B),
+                      ),
+                    ),
+
+                  SizedBox(height: 20.h),
+
+                  // Important message
+                  Container(
+                    padding: EdgeInsets.all(12.r),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF3C7),
+                      borderRadius: BorderRadius.circular(8.r),
+                      border: Border.all(
                         color: const Color(0xFFF59E0B),
-                        size: 20.r,
+                        width: 1,
                       ),
-                      SizedBox(width: 8.w),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Please wait',
-                              style: GoogleFonts.inter(
-                                fontSize: 13.sp,
-                                fontWeight: FontWeight.w600,
-                                color: const Color(0xFF92400E),
-                              ),
-                            ),
-                            SizedBox(height: 2.h),
-                            Text(
-                              'Don\'t switch apps or lock your device. Ensure stable network connection.',
-                              style: GoogleFonts.inter(
-                                fontSize: 12.sp,
-                                color: const Color(0xFF92400E),
-                                height: 1.3,
-                              ),
-                            ),
-                          ],
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          color: const Color(0xFFF59E0B),
+                          size: 20.r,
                         ),
-                      ),
-                    ],
+                        SizedBox(width: 8.w),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Please wait',
+                                style: GoogleFonts.inter(
+                                  fontSize: 13.sp,
+                                  fontWeight: FontWeight.w600,
+                                  color: const Color(0xFF92400E),
+                                ),
+                              ),
+                              SizedBox(height: 2.h),
+                              Text(
+                                'Don\'t switch apps or lock your device. Ensure stable network connection.',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12.sp,
+                                  color: const Color(0xFF92400E),
+                                  height: 1.3,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
-          );
-        },
+                ],
+              ),
+            );
+          },
+        ),
       ),
-    ),
-  );
+    );
 
-  try {
-    // Wait for dialog setState to be ready
-    final progressSetState = await setStateCompleter.future;
-    
-    // Phase 1: Preparing
-    progressSetState(() {
-      currentPhase = 'Preparing...';
-      uploadProgress = 0.0;
-    });
+    try {
+      // Wait for dialog setState to be ready
+      final progressSetState = await setStateCompleter.future;
 
-    // Execute the upload with progress callback
-    await uploadFunction((uploadedBytes, totalBytes) {
+      // Phase 1: Preparing
       progressSetState(() {
-        currentPhase = 'Uploading file...';
-        uploadProgress = uploadedBytes / totalBytes;
-        uploadedMB = (uploadedBytes / (1024 * 1024)).ceil();
-        totalMB = (totalBytes / (1024 * 1024)).ceil();
+        currentPhase = 'Preparing...';
+        uploadProgress = 0.0;
       });
-    });
 
-    // Phase 3: Finalizing (setting permissions)
-    progressSetState(() {
-      currentPhase = 'Finalizing...';
-      uploadProgress = 1.0;
-    });
+      // Execute the upload with progress callback
+      await uploadFunction((uploadedBytes, totalBytes) {
+        progressSetState(() {
+          currentPhase = 'Uploading file...';
+          uploadProgress = uploadedBytes / totalBytes;
+          uploadedMB = (uploadedBytes / (1024 * 1024)).ceil();
+          totalMB = (totalBytes / (1024 * 1024)).ceil();
+        });
+      });
 
-    // Small delay to show finalizing message
-    await Future.delayed(const Duration(milliseconds: 500));
-  } catch (e) {
-    print('Upload error: $e');
-    rethrow;
-  } finally {
-    if (context.mounted) {
-      Navigator.of(context, rootNavigator: true).pop();
+      // Phase 3: Finalizing (setting permissions)
+      progressSetState(() {
+        currentPhase = 'Finalizing...';
+        uploadProgress = 1.0;
+      });
+
+      // Small delay to show finalizing message
+      await Future.delayed(const Duration(milliseconds: 500));
+    } catch (e) {
+      print('Upload error: $e');
+      rethrow;
+    } finally {
+      if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
     }
   }
-}
 
   @override
   void dispose() {
@@ -1907,6 +1925,39 @@ class _ScrapbookFlipBookViewState extends State<ScrapbookFlipBookView>
                                                   if (pages.isEmpty) return;
 
                                                   try {
+                                                    ScaffoldMessenger.of(
+                                                      context,
+                                                    ).showSnackBar(
+                                                      SnackBar(
+                                                        content: Text(
+                                                          "Your Lambook is preparing… Please wait. Don’t leave the app.",
+                                                          style: TextStyle(
+                                                            color: Colors.white,
+                                                            fontSize: 16,
+                                                          ),
+                                                        ),
+                                                        dismissDirection: DismissDirection.none,
+                                                        backgroundColor:
+                                                            Colors.orange,
+                                                        duration: Duration(
+                                                          seconds: 15,
+                                                        ), // how long the snackbar stays
+                                                        behavior:
+                                                            SnackBarBehavior
+                                                                .floating,
+                                                        margin: EdgeInsets.all(
+                                                          16,
+
+                                                        ),
+                                                        shape: RoundedRectangleBorder(
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                12,
+                                                              ),
+                                                        ),
+                                                      ),
+                                                    );
+
                                                     // 1) Export .lambook locally
                                                     final String?
                                                     path = await ExportManager.exportScrapbookLambook(
