@@ -16,10 +16,7 @@ class GoogleDriveShareService {
           googleSignIn ??
           GoogleSignIn(
             serverClientId: serverClientId,
-            scopes: <String>[
-              drive.DriveApi.driveFileScope,
-              drive.DriveApi.driveScope,
-            ],
+            scopes: <String>[drive.DriveApi.driveFileScope],
           );
 
   final GoogleSignIn _googleSignIn;
@@ -157,14 +154,17 @@ class GoogleDriveShareService {
       // Upload complete
       if (response.statusCode == 200 || response.statusCode == 201) {
         try {
-          final responseJson = json.decode(response.body) as Map<String, dynamic>;
+          final responseJson =
+              json.decode(response.body) as Map<String, dynamic>;
           final fileId = responseJson['id'] as String?;
           if (fileId != null) {
             return fileId;
           }
         } catch (e) {
           // Fallback to regex if JSON parsing fails
-          final fileIdMatch = RegExp(r'"id":\s*"([^"]+)"').firstMatch(response.body);
+          final fileIdMatch = RegExp(
+            r'"id":\s*"([^"]+)"',
+          ).firstMatch(response.body);
           if (fileIdMatch != null) {
             return fileIdMatch.group(1)!;
           }
